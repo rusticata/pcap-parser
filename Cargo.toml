@@ -1,0 +1,9 @@
+[package]
+name = "pcap-parser"
+version = "0.1.0"
+authors = ["Pierre Chifflier <chifflier@wzdftpd.net>"]
+
+[dependencies]
+nom = "3.0"
+cookie-factory = "*"
+byteorder = "1"
