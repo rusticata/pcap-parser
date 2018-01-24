@@ -1,4 +1,6 @@
-//! See http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html
+//! NFLOG link layer encapsulation for PCAP
+//!
+//! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
 use nom::{le_u8,le_u16,IResult};
 use packet::Packet;
@@ -50,12 +52,11 @@ named!(pub parse_nflog_header<NflogHdr>,
     )
 );
 
-/// See http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html
 pub fn get_data_nflog<'a>(packet: &'a Packet) -> &'a[u8] {
     match parse_nflog_header(packet.data) {
         IResult::Done(_,res) => {
             match res.data.into_iter().find(|v| v.t == NFULA_PAYLOAD) {
-                Some(v) => v.v,
+                Some(v) => v.v, // XXX is data padded ?
                 None    => panic!("packet with no payload data"),
             }
         },

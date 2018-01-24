@@ -1,11 +1,11 @@
 //! PCAPNG file format
 //!
-//! See https://github.com/pcapng/pcapng
+//! See [https://github.com/pcapng/pcapng](https://github.com/pcapng/pcapng) for details.
 
-use nom::*;
+use nom::{IResult,le_u16,le_u32,le_i64};
 
-use packet::{Packet,PacketHeader};
-use pcap::Linktype;
+use packet::{Linktype,Packet,PacketHeader};
+use capture::Capture;
 
 use byteorder::{ByteOrder,LittleEndian};
 
@@ -39,6 +39,8 @@ pub struct PcapNGCapture<'a> {
 
     if_tsresol : u8,
     if_tsoffset: u64,
+
+    current_index: usize,
 }
 
 #[derive(Debug,PartialEq)]
@@ -148,12 +150,64 @@ pub struct PcapNGCaptureIterator<'a> {
 }
 
 impl<'a> PcapNGCapture<'a> {
-    pub fn get_datalink(&self) -> Linktype {
-        self.linktype
+    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture,IResult<&[u8],PcapNGCapture>> {
+        match parse_pcapng(i) {
+            IResult::Done(_, pcap) => Ok(pcap),
+            IResult::Incomplete(e)  => Err(IResult::Incomplete(e)),
+            IResult::Error(e)       => Err(IResult::Error(e)),
+        }
     }
 
     pub fn iter(&'a self) -> PcapNGCaptureIterator<'a> {
         PcapNGCaptureIterator{ pcap: self, index: 0 }
+    }
+
+    fn build_packet_from_block_at(&self, index: usize) -> Option<Packet<'a>> {
+        match self.blocks[index] {
+            Block::EnhancedPacket(ref b) => {
+                let ts_mode = self.if_tsresol & 0x70;
+                let unit =
+                    if ts_mode == 0 { 10u64.pow(self.if_tsresol as u32) }
+                    else { 2u64.pow((self.if_tsresol & !0x70) as u32) };
+                let ts : u64 = ((b.ts_high as u64) << 32) | (b.ts_low as u64);
+                let ts_sec = (self.if_tsoffset + (ts / unit)) as u32;
+                let ts_usec = (ts % unit) as u32;
+                Some(
+                    Packet{
+                        header: PacketHeader{
+                            ts_sec: ts_sec,
+                            ts_usec: ts_usec,
+                            caplen: b.caplen,
+                            len: b.origlen
+                        },
+                        data: b.data,
+                    }
+                )
+            },
+            _ => None,
+        }
+    }
+}
+
+impl<'a> Capture for PcapNGCapture<'a> {
+    fn get_datalink(&self) -> Linktype {
+        self.linktype
+    }
+
+    fn rewind(&mut self) { self.current_index = 0; }
+
+    fn next(&mut self) -> Option<Packet> {
+        loop {
+            let index = self.current_index;
+            if index >= self.blocks.len() { return None; }
+            self.current_index += 1;
+            match self.build_packet_from_block_at(index) {
+                Some(pkt) => {
+                    return Some(pkt);
+                },
+                None => (),
+            }
+        }
     }
 }
 
@@ -389,6 +443,7 @@ pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8],PcapNGCapture> {
                 blocks: blocks,
                 if_tsresol: 6,
                 if_tsoffset: 0,
+                current_index: 0
             };
             // find IDB block and extract values
             for b in pcap.blocks.iter() {

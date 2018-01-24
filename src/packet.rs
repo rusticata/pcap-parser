@@ -35,3 +35,7 @@ impl PacketHeader {
         }
     }
 }
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct Linktype(pub i32);
+

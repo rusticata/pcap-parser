@@ -1,11 +1,14 @@
 //! PCAP file format
 //!
-//! See https://wiki.wireshark.org/Development/LibpcapFileFormat
+//! See
+//! [https://wiki.wireshark.org/Development/LibpcapFileFormat](https://wiki.wireshark.org/Development/LibpcapFileFormat)
+//! for details.
 
+use nom::{IResult,le_u16,le_u32,le_i32};
 use cookie_factory::GenError;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub struct Linktype(pub i32);
+use packet::{Linktype,Packet,PacketHeader};
+use capture::Capture;
 
 #[derive(Debug,PartialEq)]
 pub struct PcapHeader {
@@ -17,7 +20,7 @@ pub struct PcapHeader {
     /// max len of captured packets, in octets
     pub snaplen: u32,
     /// Data link type
-    pub network: u32
+    pub network: i32
 }
 
 
@@ -56,4 +59,90 @@ impl PcapHeader {
             Err(e) => panic!("error {:?}", e),
         }
     }
+}
+
+pub struct PcapCapture<'a> {
+    pub header: PcapHeader,
+
+    data: &'a [u8],
+
+    current_data: &'a [u8],
+}
+
+impl<'a> PcapCapture<'a> {
+    pub fn from_file(i: &[u8]) -> Result<PcapCapture,IResult<&[u8],PcapCapture>> {
+        match parse_pcap_header(i) {
+            IResult::Done(rem, hdr) => Ok(PcapCapture{ header:hdr, data:rem, current_data:rem }),
+            IResult::Incomplete(e)  => Err(IResult::Incomplete(e)),
+            IResult::Error(e)       => Err(IResult::Error(e)),
+        }
+    }
+}
+
+impl<'a> Capture for PcapCapture<'a> {
+    fn get_datalink(&self) -> Linktype {
+        Linktype(self.header.network)
+    }
+
+    fn rewind(&mut self) {
+        self.current_data = self.data;
+    }
+
+    fn next(&mut self) -> Option<Packet> {
+        match parse_pcap_frame(self.current_data) {
+            IResult::Done(rem, packet) => {
+                self.current_data = rem;
+                Some(packet)
+            },
+            _ => None,
+        }
+    }
+}
+
+
+
+pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
+    do_parse!(
+        i,
+        magic:   verify!(le_u32, |x| x == 0xa1b2c3d4 || x == 0xd4c3b2a1) >>
+        major:   le_u16 >>
+        minor:   le_u16 >>
+        zone:    le_i32 >>
+        sigfigs: le_u32 >>
+        snaplen: le_u32 >>
+        network: le_i32 >>
+        (
+            PcapHeader {
+                magic_number: magic,
+                version_major: major,
+                version_minor: minor,
+                thiszone: zone,
+                sigfigs: sigfigs,
+                snaplen: snaplen,
+                network: network
+            }
+        )
+    )
+}
+
+pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8],Packet> {
+    do_parse!(
+        i,
+        ts_sec:  le_u32 >>
+        ts_usec: le_u32 >>
+        caplen:  le_u32 >>
+        len:     le_u32 >>
+        data:    take!(caplen) >>
+        (
+            Packet {
+                header: PacketHeader {
+                    ts_sec: ts_sec,
+                    ts_usec: ts_usec,
+                    caplen: caplen,
+                    len: len
+                },
+                data: data
+            }
+        )
+    )
 }
