@@ -368,7 +368,7 @@ pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8],Block> {
               if_id:     le_u32 >>
               ts_high:   le_u32 >>
               ts_low:    le_u32 >>
-              caplen:    le_u32 >>
+              caplen:    verify!(le_u32, |x| x < ::std::u32::MAX - 4) >>
               origlen:   le_u32 >>
               al_len:    value!(align32!(caplen)) >>
               data:      take!(al_len) >>
@@ -455,8 +455,8 @@ pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8],PcapNGCapture> {
                         // debug!("IDB options: {:?}", idb.options);
                         for opt in idb.options.iter() {
                             match opt.code {
-                                9 /* OptionCode::IfTsresol */ => { pcap.if_tsresol = opt.value[0]; },
-                                14 /* OptionCode::IfTsoffset */ => { pcap.if_tsoffset = LittleEndian::read_u64(opt.value); },
+                                9 /* OptionCode::IfTsresol */ => { if !opt.value.is_empty() { pcap.if_tsresol = opt.value[0]; } },
+                                14 /* OptionCode::IfTsoffset */ => { if opt.value.len() >= 8 { pcap.if_tsoffset = LittleEndian::read_u64(opt.value); } },
                                 _ => (),
                             }
                         }
