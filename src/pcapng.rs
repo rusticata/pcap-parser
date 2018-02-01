@@ -2,12 +2,13 @@
 //!
 //! See [https://github.com/pcapng/pcapng](https://github.com/pcapng/pcapng) for details.
 
-use nom::{IResult,le_u16,le_u32,le_i64};
+use nom::{IResult,ErrorKind,le_u16,le_u32,le_i64};
 
-use packet::{Linktype,Packet,PacketHeader};
-use capture::Capture;
+use packet::{Packet,PacketHeader};
 
 use byteorder::{ByteOrder,LittleEndian};
+
+use std::fmt;
 
 /// Section Header Block magic
 pub const SHB_MAGIC : u32 = 0x0A0D0D0A;
@@ -25,22 +26,21 @@ pub const EPB_MAGIC : u32 = 0x00000006;
 /// Byte Order magic
 pub const BOM_MAGIC : u32 = 0x1A2B3C4D;
 
+#[derive(Clone, Copy, Debug,PartialEq)]
 #[repr(u16)]
 pub enum OptionCode {
+    EndOfOpt = 0,
+    Comment = 1,
+    ShbHardware = 2,
+    ShbOs = 3,
+    ShbUserAppl = 4,
     IfTsresol = 9,
     IfTsoffset = 14,
 }
 
 #[derive(Debug,PartialEq)]
 pub struct PcapNGCapture<'a> {
-    pub linktype: Linktype,
-    pub snaplen: u32,
-    pub blocks: Vec<Block<'a>>,
-
-    if_tsresol : u8,
-    if_tsoffset: u64,
-
-    current_index: usize,
+    pub sections: Vec<Section<'a>>,
 }
 
 #[derive(Debug,PartialEq)]
@@ -50,6 +50,168 @@ pub enum Block<'a> {
     EnhancedPacket(EnhancedPacketBlock<'a>),
     SimplePacket(SimplePacketBlock<'a>),
     Unknown(UnknownBlock<'a>)
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Section<'a> {
+    pub header: SectionHeaderBlock<'a>,
+
+    pub interfaces: Vec<Interface<'a>>,
+}
+
+#[derive(PartialEq)]
+pub struct Interface<'a> {
+    pub header: InterfaceDescriptionBlock<'a>,
+
+    pub blocks: Vec<Block<'a>>,
+
+    // extracted values
+    pub if_tsresol: u8,
+    pub if_tsoffset: u64
+}
+
+/// Compact (debug) display of interface and blocks
+impl<'a> fmt::Debug for Interface<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        writeln!(f, "Interface:")?;
+        writeln!(f, "    header: {:?}", self.header)?;
+        for b in self.blocks.iter() {
+            let s = match b {
+                &Block::EnhancedPacket(ref e) => format!("EPB(if={}, caplen={}, origlen={})", e.if_id, e.caplen, e.origlen),
+                &Block::SimplePacket(ref e)   => format!("SPB(origlen={})", e.origlen),
+                &Block::Unknown(ref e)        => format!("Unk(type={}, blocklen={})", e.block_type, e.block_len1),
+                _ => format!(""),
+            };
+            writeln!(f, "    {}", s)?;
+        }
+        Ok(())
+    }
+}
+
+impl<'a> Section<'a> {
+    pub fn iter_packets(&'a self) -> SectionPacketIterator<'a> {
+        SectionPacketIterator{ section: self, index_interface: 0, index_block: 0 }
+    }
+
+    pub fn iter_interfaces(&'a self) -> SectionInterfaceIterator<'a> {
+        SectionInterfaceIterator{ section: self, index_interface: 0 }
+    }
+
+    /// Get a vector of packets, sorted by timestamp
+    /// The vector is allocated.
+    ///
+    /// Choose `sort_by` because it is likely the packets are already almost sorted,
+    /// or are series of almost-soted packets (if there are multiple interfaces)
+    pub fn sorted_by_timestamp(&self) -> Vec<Packet> {
+        let mut v : Vec<_> = self.iter_packets().collect();
+        v.sort_by(
+            |a, b|
+            a.header.ts_sec.cmp(&b.header.ts_sec).then(a.header.ts_usec.cmp(&b.header.ts_usec))
+            );
+        v
+    }
+}
+
+// Non-consuming iterator
+pub struct SectionInterfaceIterator<'a> {
+    section: &'a Section<'a>,
+    index_interface: usize,
+}
+
+impl<'a> Iterator for SectionInterfaceIterator<'a> {
+    type Item = &'a Interface<'a>;
+
+    fn next(&mut self) -> Option<&'a Interface<'a>> {
+        if self.index_interface < self.section.interfaces.len() {
+            let idx = self.index_interface;
+            self.index_interface += 1;
+            Some(&self.section.interfaces[idx])
+        } else {
+            None
+        }
+    }
+}
+
+// Non-consuming iterator
+pub struct SectionPacketIterator<'a> {
+    section: &'a Section<'a>,
+    index_interface: usize,
+    index_block: usize
+}
+
+impl<'a> Iterator for SectionPacketIterator<'a> {
+    type Item = Packet<'a>;
+
+    fn next(&mut self) -> Option<Packet<'a>> {
+        for interface in &self.section.interfaces[self.index_interface..] {
+            for block in &interface.blocks[self.index_block..] {
+                self.index_block += 1;
+                match packet_of_block(interface, block) {
+                    Some(pkt) => return Some(pkt),
+                    None      => (),
+                }
+            }
+            self.index_block = 0;
+            self.index_interface += 1;
+        }
+        None
+    }
+}
+
+impl<'a> Interface<'a> {
+    pub fn iter_packets(&'a self) -> InterfacePacketIterator<'a> {
+        InterfacePacketIterator{ interface: self, index_block: 0 }
+    }
+}
+
+// Non-consuming iterator
+pub struct InterfacePacketIterator<'a> {
+    interface: &'a Interface<'a>,
+    index_block: usize
+}
+
+impl<'a> Iterator for InterfacePacketIterator<'a> {
+    type Item = Packet<'a>;
+
+    fn next(&mut self) -> Option<Packet<'a>> {
+        for block in &self.interface.blocks[self.index_block..] {
+            self.index_block += 1;
+            match packet_of_block(self.interface, block) {
+                Some(pkt) => return Some(pkt),
+                None      => (),
+            }
+        }
+        None
+    }
+}
+
+fn packet_of_block<'a>(interface: &'a Interface, block: &'a Block) -> Option<Packet<'a>> {
+    match block {
+        &Block::EnhancedPacket(ref b) => {
+            let if_tsoffset = interface.if_tsoffset;
+            let if_tsresol = interface.if_tsresol;
+            let ts_mode = if_tsresol & 0x70;
+            let unit =
+                if ts_mode == 0 { 10u64.pow(if_tsresol as u32) }
+                else { 2u64.pow((if_tsresol & !0x70) as u32) };
+            let ts : u64 = ((b.ts_high as u64) << 32) | (b.ts_low as u64);
+            let ts_sec = (if_tsoffset + (ts / unit)) as u32;
+            let ts_usec = (ts % unit) as u32;
+            Some(
+                Packet{
+                    header: PacketHeader{
+                        ts_sec: ts_sec,
+                        ts_usec: ts_usec,
+                        caplen: b.caplen,
+                        len: b.origlen
+                    },
+                    data: b.data
+                }
+            )
+        },
+        // e => println!("unknown: {:?}", e),
+        _ => None,
+    }
 }
 
 #[derive(Debug,PartialEq)]
@@ -146,7 +308,8 @@ macro_rules! align32 {
 // Non-consuming iterator
 pub struct PcapNGCaptureIterator<'a> {
     pcap: &'a PcapNGCapture<'a>,
-    index: usize
+    index_section: usize,
+    it: SectionPacketIterator<'a>,
 }
 
 impl<'a> PcapNGCapture<'a> {
@@ -159,54 +322,11 @@ impl<'a> PcapNGCapture<'a> {
     }
 
     pub fn iter(&'a self) -> PcapNGCaptureIterator<'a> {
-        PcapNGCaptureIterator{ pcap: self, index: 0 }
-    }
-
-    fn build_packet_from_block_at(&self, index: usize) -> Option<Packet<'a>> {
-        match self.blocks[index] {
-            Block::EnhancedPacket(ref b) => {
-                let ts_mode = self.if_tsresol & 0x70;
-                let unit =
-                    if ts_mode == 0 { 10u64.pow(self.if_tsresol as u32) }
-                    else { 2u64.pow((self.if_tsresol & !0x70) as u32) };
-                let ts : u64 = ((b.ts_high as u64) << 32) | (b.ts_low as u64);
-                let ts_sec = (self.if_tsoffset + (ts / unit)) as u32;
-                let ts_usec = (ts % unit) as u32;
-                Some(
-                    Packet{
-                        header: PacketHeader{
-                            ts_sec: ts_sec,
-                            ts_usec: ts_usec,
-                            caplen: b.caplen,
-                            len: b.origlen
-                        },
-                        data: b.data,
-                    }
-                )
-            },
-            _ => None,
-        }
-    }
-}
-
-impl<'a> Capture for PcapNGCapture<'a> {
-    fn get_datalink(&self) -> Linktype {
-        self.linktype
-    }
-
-    fn rewind(&mut self) { self.current_index = 0; }
-
-    fn next(&mut self) -> Option<Packet> {
-        loop {
-            let index = self.current_index;
-            if index >= self.blocks.len() { return None; }
-            self.current_index += 1;
-            match self.build_packet_from_block_at(index) {
-                Some(pkt) => {
-                    return Some(pkt);
-                },
-                None => (),
-            }
+        assert!(self.sections.len() > 0);
+        PcapNGCaptureIterator{
+            pcap: self,
+            index_section: 0,
+            it: self.sections[0].iter_packets()
         }
     }
 }
@@ -226,37 +346,16 @@ impl<'a> Iterator for PcapNGCaptureIterator<'a> {
     type Item = Packet<'a>;
 
     fn next(&mut self) -> Option<Packet<'a>> {
-        let mut ret = None;
-        for b in self.pcap.blocks.iter().skip(self.index) {
-            // debug!("iteration: {:?}", b);
-            match b {
-                &Block::EnhancedPacket(ref b) => {
-                    let ts_mode = self.pcap.if_tsresol & 0x70;
-                    let unit =
-                        if ts_mode == 0 { 10u64.pow(self.pcap.if_tsresol as u32) }
-                        else { 2u64.pow((self.pcap.if_tsresol & !0x70) as u32) };
-                    let ts : u64 = ((b.ts_high as u64) << 32) | (b.ts_low as u64);
-                    let ts_sec = (self.pcap.if_tsoffset + (ts / unit)) as u32;
-                    let ts_usec = (ts % unit) as u32;
-                    ret = Some(
-                            Packet{
-                                header: PacketHeader{
-                                    ts_sec: ts_sec,
-                                    ts_usec: ts_usec,
-                                    caplen: b.caplen,
-                                    len: b.origlen
-                                },
-                                data: b.data,
-                            }
-                        );
-                    break;
-                },
-                _ => (),
+        loop {
+            match self.it.next() {
+                Some(p) => { return Some(p); },
+                _       => (),
             }
-            self.index += 1;
+            self.index_section += 1;
+            if self.index_section >= self.pcap.sections.len() { break; }
+            self.it = self.pcap.sections[self.index_section].iter_packets();
         }
-        self.index += 1;
-        ret
+        None
     }
 }
 
@@ -278,7 +377,39 @@ pub fn parse_option(i: &[u8]) -> IResult<&[u8],PcapNGOption> {
     )
 }
 
-pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8],Block> {
+pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8],SectionHeaderBlock> {
+    do_parse!(i,
+              magic:   verify!(le_u32, |x:u32| x == SHB_MAGIC) >>
+              len1:    le_u32 >>
+              bom:     verify!(le_u32, |x:u32| x == BOM_MAGIC) >>
+              major:   le_u16 >>
+              minor:   le_u16 >>
+              slen:    le_i64 >>
+              // options
+              options: cond!(
+                    len1 > 28,
+                    flat_map!(
+                        take!(len1 - 28),
+                        many0!(parse_option)
+                        )
+                  ) >>
+              len2:    verify!(le_u32, |x:u32| x == len1) >>
+              (
+                  SectionHeaderBlock{
+                      block_type: magic,
+                      block_len1: len1,
+                      bom: bom,
+                      major_version: major,
+                      minor_version: minor,
+                      section_len: slen,
+                      options: options.unwrap_or(Vec::new()),
+                      block_len2: len2
+                  }
+              )
+    )
+}
+
+pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8],Block> {
     do_parse!(i,
               magic:   verify!(le_u32, |x:u32| x == SHB_MAGIC) >>
               len1:    le_u32 >>
@@ -310,7 +441,37 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8],Block> {
     )
 }
 
-pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],Block> {
+pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
+    do_parse!(i,
+              magic:      verify!(le_u32, |x:u32| x == IDB_MAGIC) >>
+              len1:       le_u32 >>
+              linktype:   le_u16 >>
+              reserved:   le_u16 >>
+              snaplen:    le_u32 >>
+              // options
+              options: cond!(
+                    len1 > 20,
+                    flat_map!(
+                        take!(len1 - 20),
+                        many0!(parse_option)
+                        )
+                  ) >>
+              len2:    verify!(le_u32, |x:u32| x == len1) >>
+              (
+                  InterfaceDescriptionBlock{
+                      block_type: magic,
+                      block_len1: len1,
+                      linktype: linktype,
+                      reserved: reserved,
+                      snaplen: snaplen,
+                      options: options.unwrap_or(Vec::new()),
+                      block_len2: len2
+                  }
+              )
+    )
+}
+
+pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],Block> {
     do_parse!(i,
               magic:      verify!(le_u32, |x:u32| x == IDB_MAGIC) >>
               len1:       le_u32 >>
@@ -419,8 +580,64 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8],Block> {
     match peek!(i, le_u32) {
         IResult::Done(rem, id) => {
             match id {
-                SHB_MAGIC => call!(rem, parse_sectionheaderblock),
-                IDB_MAGIC => call!(rem, parse_interfacedescriptionblock),
+                SHB_MAGIC => call!(rem, parse_sectionheader),
+                IDB_MAGIC => call!(rem, parse_interfacedescription),
+                SPB_MAGIC => call!(rem, parse_simplepacketblock),
+                EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
+                _         => call!(rem, parse_unknownblock)
+            }
+        },
+        IResult::Incomplete(i) => IResult::Incomplete(i),
+        IResult::Error(e)      => IResult::Error(e),
+    }
+}
+
+pub fn parse_section(i: &[u8]) -> IResult<&[u8],Section> {
+    do_parse!(
+        i,
+        shb: parse_sectionheaderblock >>
+        ifs: many0!(parse_interface) >>
+        ({
+            Section {
+                header: shb,
+                interfaces: ifs,
+            }
+        })
+    )
+}
+
+pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
+    do_parse!(
+        i,
+        idb: parse_interfacedescriptionblock >>
+        blocks: many0!(parse_content_block) >>
+        ({
+            // XXX extract if_tsoffset and if_tsresol
+            let mut if_tsresol : u8 = 0;
+            let mut if_tsoffset : u64 = 0;
+            for opt in idb.options.iter() {
+                match opt.code {
+                    9 /* OptionCode::IfTsresol */ => { if !opt.value.is_empty() { if_tsresol =  opt.value[0]; } },
+                    14 /* OptionCode::IfTsoffset */ => { if opt.value.len() >= 8 { if_tsoffset = LittleEndian::read_u64(opt.value); } },
+                    _ => (),
+                }
+            }
+            Interface {
+                header: idb,
+                blocks: blocks,
+                if_tsresol: if_tsresol,
+                if_tsoffset: if_tsoffset
+            }
+        })
+    )
+}
+
+pub fn parse_content_block(i: &[u8]) -> IResult<&[u8],Block> {
+    match peek!(i, le_u32) {
+        IResult::Done(rem, id) => {
+            match id {
+                SHB_MAGIC => IResult::Error(error_code!(ErrorKind::Tag)),
+                IDB_MAGIC => IResult::Error(error_code!(ErrorKind::Tag)),
                 SPB_MAGIC => call!(rem, parse_simplepacketblock),
                 EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
                 _         => call!(rem, parse_unknownblock)
@@ -434,37 +651,11 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8],Block> {
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8],PcapNGCapture> {
     do_parse!(
         i,
-        blocks: many0!(parse_block) >>
-        ({
-            // build object
-            let mut pcap = PcapNGCapture{
-                linktype: Linktype(-1),
-                snaplen: 0,
-                blocks: blocks,
-                if_tsresol: 6,
-                if_tsoffset: 0,
-                current_index: 0
-            };
-            // find IDB block and extract values
-            for b in pcap.blocks.iter() {
-                match b {
-                    &Block::InterfaceDescription(ref idb) => {
-                        pcap.linktype = Linktype(idb.linktype as i32);
-                        pcap.snaplen = idb.snaplen;
-                        // now parse options
-                        // debug!("IDB options: {:?}", idb.options);
-                        for opt in idb.options.iter() {
-                            match opt.code {
-                                9 /* OptionCode::IfTsresol */ => { if !opt.value.is_empty() { pcap.if_tsresol = opt.value[0]; } },
-                                14 /* OptionCode::IfTsoffset */ => { if opt.value.len() >= 8 { pcap.if_tsoffset = LittleEndian::read_u64(opt.value); } },
-                                _ => (),
-                            }
-                        }
-                    },
-                    _ => (),
-                }
+        sections: many1!(parse_section) >>
+        (
+            PcapNGCapture{
+                sections: sections,
             }
-            pcap
-        })
+        )
     )
 }
