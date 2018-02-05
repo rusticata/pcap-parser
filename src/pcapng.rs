@@ -4,7 +4,8 @@
 
 use nom::{IResult,ErrorKind,le_u16,le_u32,le_i64};
 
-use packet::{Packet,PacketHeader};
+use capture::Capture;
+use packet::{Packet,PacketHeader,Linktype};
 
 use byteorder::{ByteOrder,LittleEndian};
 
@@ -38,7 +39,7 @@ pub enum OptionCode {
     IfTsoffset = 14,
 }
 
-#[derive(Debug,PartialEq)]
+#[derive(Debug)]
 pub struct PcapNGCapture<'a> {
     pub sections: Vec<Section<'a>>,
 }
@@ -292,6 +293,21 @@ pub struct PcapNGHeader {
     pub network: u32
 }
 
+impl<'a> Capture for PcapNGCapture<'a> {
+    fn get_datalink(&self) -> Linktype {
+        // assume first linktype is the same
+        assert!(self.sections.len() > 0);
+        let section = &self.sections[0];
+        assert!(section.interfaces.len() > 0);
+        let interface = &section.interfaces[0];
+        Linktype(interface.header.linktype as i32)
+    }
+
+    fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
+        Box::new(self.iter())
+    }
+}
+
 
 
 
@@ -315,7 +331,7 @@ pub struct PcapNGCaptureIterator<'a> {
 impl<'a> PcapNGCapture<'a> {
     pub fn from_file(i: &[u8]) -> Result<PcapNGCapture,IResult<&[u8],PcapNGCapture>> {
         match parse_pcapng(i) {
-            IResult::Done(_, pcap) => Ok(pcap),
+            IResult::Done(_, pcap)  => Ok(pcap),
             IResult::Incomplete(e)  => Err(IResult::Incomplete(e)),
             IResult::Error(e)       => Err(IResult::Error(e)),
         }

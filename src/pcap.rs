@@ -64,17 +64,15 @@ impl PcapHeader {
 pub struct PcapCapture<'a> {
     pub header: PcapHeader,
 
-    data: &'a [u8],
-
-    current_data: &'a [u8],
+    pub blocks: Vec<Packet<'a>>,
 }
 
 impl<'a> PcapCapture<'a> {
     pub fn from_file(i: &[u8]) -> Result<PcapCapture,IResult<&[u8],PcapCapture>> {
-        match parse_pcap_header(i) {
-            IResult::Done(rem, hdr) => Ok(PcapCapture{ header:hdr, data:rem, current_data:rem }),
-            IResult::Incomplete(e)  => Err(IResult::Incomplete(e)),
-            IResult::Error(e)       => Err(IResult::Error(e)),
+        match parse_pcap(i) {
+            IResult::Done(_, pcap) => Ok(pcap),
+            IResult::Incomplete(e) => Err(IResult::Incomplete(e)),
+            IResult::Error(e)      => Err(IResult::Error(e)),
         }
     }
 }
@@ -84,22 +82,27 @@ impl<'a> Capture for PcapCapture<'a> {
         Linktype(self.header.network)
     }
 
-    fn rewind(&mut self) {
-        self.current_data = self.data;
-    }
-
-    fn next(&mut self) -> Option<Packet> {
-        match parse_pcap_frame(self.current_data) {
-            IResult::Done(rem, packet) => {
-                self.current_data = rem;
-                Some(packet)
-            },
-            _ => None,
-        }
+    fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
+        Box::new(self.blocks.iter().cloned())
     }
 }
 
 
+
+
+pub fn parse_pcap(i: &[u8]) -> IResult<&[u8],PcapCapture> {
+    do_parse!(
+        i,
+        hdr:    parse_pcap_header >>
+        blocks: many0!(parse_pcap_frame) >>
+        (
+            PcapCapture{
+                header: hdr,
+                blocks: blocks
+            }
+        )
+    )
+}
 
 pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
     do_parse!(
