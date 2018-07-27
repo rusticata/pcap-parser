@@ -27,9 +27,7 @@ impl PacketHeader {
             );
         match r {
             Ok((s,_)) => {
-                let mut v = Vec::new();
-                v.extend_from_slice(s);
-                v
+                s.to_vec()
             },
             Err(e) => panic!("error {:?}", e),
         }
