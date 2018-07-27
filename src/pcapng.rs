@@ -627,7 +627,7 @@ pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
         blocks: many0!(complete!(parse_content_block)) >>
         ({
             // XXX extract if_tsoffset and if_tsresol
-            let mut if_tsresol : u8 = 0;
+            let mut if_tsresol : u8 = 6;
             let mut if_tsoffset : u64 = 0;
             for opt in idb.options.iter() {
                 match opt.code {
