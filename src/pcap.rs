@@ -70,9 +70,8 @@ pub struct PcapCapture<'a> {
 impl<'a> PcapCapture<'a> {
     pub fn from_file(i: &[u8]) -> Result<PcapCapture,IResult<&[u8],PcapCapture>> {
         match parse_pcap(i) {
-            IResult::Done(_, pcap) => Ok(pcap),
-            IResult::Incomplete(e) => Err(IResult::Incomplete(e)),
-            IResult::Error(e)      => Err(IResult::Error(e)),
+            Ok((_, pcap)) => Ok(pcap),
+            e             => Err(e)
         }
     }
 }
@@ -94,7 +93,7 @@ pub fn parse_pcap(i: &[u8]) -> IResult<&[u8],PcapCapture> {
     do_parse!(
         i,
         hdr:    parse_pcap_header >>
-        blocks: many0!(parse_pcap_frame) >>
+        blocks: many0!(complete!(parse_pcap_frame)) >>
         (
             PcapCapture{
                 header: hdr,

@@ -2,7 +2,7 @@
 //!
 //! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
-use nom::{le_u8,le_u16,IResult};
+use nom::{le_u8,le_u16};
 use packet::Packet;
 
 // Defined in linux/netfilter/nfnetlink_log.h
@@ -39,7 +39,7 @@ named!(pub parse_nflog_header<NflogHdr>,
         af: le_u8 >>
         v:  le_u8 >>
         id: le_u16 >>
-        d:  many0!(parse_nflog_tlv) >>
+        d:  many0!(complete!(parse_nflog_tlv)) >>
         (
             NflogHdr{
                 af: af,
@@ -54,13 +54,13 @@ named!(pub parse_nflog_header<NflogHdr>,
 
 pub fn get_data_nflog<'a>(packet: &'a Packet) -> &'a[u8] {
     match parse_nflog_header(packet.data) {
-        IResult::Done(_,res) => {
+        Ok((_,res)) => {
             match res.data.into_iter().find(|v| v.t == NFULA_PAYLOAD) {
                 Some(v) => v.v, // XXX is data padded ?
                 None    => panic!("packet with no payload data"),
             }
         },
-        e @ _ => panic!("parsing nflog packet header failed: {:?}",e),
+        e @ _ => panic!("parsing nflog packet header failed: {:?}",e), // XXX panic! really ?!
     }
 }
 

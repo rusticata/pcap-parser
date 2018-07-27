@@ -1,6 +1,6 @@
 [package]
 name = "pcap-parser"
-version = "0.1.0"
+version = "0.2.0"
 description = "Parser for the PCAP/PCAPNG format"
 license = "MIT/Apache-2.0"
 keywords = ["pcap","pcapng","parser","nom"]
@@ -9,6 +9,6 @@ repository = "https://github.com/rusticata/pcap-parser.git"
 authors = ["Pierre Chifflier <chifflier@wzdftpd.net>"]
 
 [dependencies]
-nom = "3.0"
+nom = "4.0"
 cookie-factory = "*"
 byteorder = "1"

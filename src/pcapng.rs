@@ -2,7 +2,7 @@
 //!
 //! See [https://github.com/pcapng/pcapng](https://github.com/pcapng/pcapng) for details.
 
-use nom::{IResult,ErrorKind,le_u16,le_u32,le_i64};
+use nom::{IResult,Err,ErrorKind,le_u16,le_u32,le_i64};
 
 use capture::Capture;
 use packet::{Packet,PacketHeader,Linktype};
@@ -329,11 +329,10 @@ pub struct PcapNGCaptureIterator<'a> {
 }
 
 impl<'a> PcapNGCapture<'a> {
-    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture,IResult<&[u8],PcapNGCapture>> {
+    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture,IResult<&[u8],PcapNGCapture>> { // XXX change return type to just an IResult
         match parse_pcapng(i) {
-            IResult::Done(_, pcap)  => Ok(pcap),
-            IResult::Incomplete(e)  => Err(IResult::Incomplete(e)),
-            IResult::Error(e)       => Err(IResult::Error(e)),
+            Ok((_, pcap))  => Ok(pcap),
+            e              => Err(e)
         }
     }
 
@@ -406,7 +405,7 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8],SectionHeaderBlock> {
                     len1 > 28,
                     flat_map!(
                         take!(len1 - 28),
-                        many0!(parse_option)
+                        many0!(complete!(parse_option))
                         )
                   ) >>
               len2:    verify!(le_u32, |x:u32| x == len1) >>
@@ -438,7 +437,7 @@ pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8],Block> {
                     len1 > 28,
                     flat_map!(
                         take!(len1 - 28),
-                        many0!(parse_option)
+                        many0!(complete!(parse_option))
                         )
                   ) >>
               len2:    verify!(le_u32, |x:u32| x == len1) >>
@@ -469,7 +468,7 @@ pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],InterfaceDescr
                     len1 > 20,
                     flat_map!(
                         take!(len1 - 20),
-                        many0!(parse_option)
+                        many0!(complete!(parse_option))
                         )
                   ) >>
               len2:    verify!(le_u32, |x:u32| x == len1) >>
@@ -499,7 +498,7 @@ pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],Block> {
                     len1 > 20,
                     flat_map!(
                         take!(len1 - 20),
-                        many0!(parse_option)
+                        many0!(complete!(parse_option))
                         )
                   ) >>
               len2:    verify!(le_u32, |x:u32| x == len1) >>
@@ -553,7 +552,7 @@ pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8],Block> {
                     len1 > 32 + al_len,
                     flat_map!(
                         take!(len1 - (32 + al_len)),
-                        many0!(parse_option)
+                        many0!(complete!(parse_option))
                         )
                   ) >>
               len2:      verify!(le_u32, |x:u32| x == len1) >>
@@ -594,7 +593,7 @@ pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8],Block> {
 
 pub fn parse_block(i: &[u8]) -> IResult<&[u8],Block> {
     match peek!(i, le_u32) {
-        IResult::Done(rem, id) => {
+        Ok((rem, id)) => {
             match id {
                 SHB_MAGIC => call!(rem, parse_sectionheader),
                 IDB_MAGIC => call!(rem, parse_interfacedescription),
@@ -603,8 +602,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8],Block> {
                 _         => call!(rem, parse_unknownblock)
             }
         },
-        IResult::Incomplete(i) => IResult::Incomplete(i),
-        IResult::Error(e)      => IResult::Error(e),
+        Err(e)        => Err(e)
     }
 }
 
@@ -612,7 +610,7 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8],Section> {
     do_parse!(
         i,
         shb: parse_sectionheaderblock >>
-        ifs: many0!(parse_interface) >>
+        ifs: many0!(complete!(parse_interface)) >>
         ({
             Section {
                 header: shb,
@@ -626,7 +624,7 @@ pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
     do_parse!(
         i,
         idb: parse_interfacedescriptionblock >>
-        blocks: many0!(parse_content_block) >>
+        blocks: many0!(complete!(parse_content_block)) >>
         ({
             // XXX extract if_tsoffset and if_tsresol
             let mut if_tsresol : u8 = 0;
@@ -650,24 +648,23 @@ pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
 
 pub fn parse_content_block(i: &[u8]) -> IResult<&[u8],Block> {
     match peek!(i, le_u32) {
-        IResult::Done(rem, id) => {
+        Ok((rem, id)) => {
             match id {
-                SHB_MAGIC => IResult::Error(error_code!(ErrorKind::Tag)),
-                IDB_MAGIC => IResult::Error(error_code!(ErrorKind::Tag)),
+                SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+                IDB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
                 SPB_MAGIC => call!(rem, parse_simplepacketblock),
                 EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
                 _         => call!(rem, parse_unknownblock)
             }
         },
-        IResult::Incomplete(i) => IResult::Incomplete(i),
-        IResult::Error(e)      => IResult::Error(e),
+        Err(e)        => Err(e)
     }
 }
 
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8],PcapNGCapture> {
     do_parse!(
         i,
-        sections: many1!(parse_section) >>
+        sections: many1!(complete!(parse_section)) >>
         (
             PcapNGCapture{
                 sections: sections,
