@@ -303,6 +303,15 @@ impl<'a> Capture for PcapNGCapture<'a> {
         Linktype(interface.header.linktype as i32)
     }
 
+    fn get_snaplen(&self) -> u32 {
+        // assume first linktype is the same
+        assert!(self.sections.len() > 0);
+        let section = &self.sections[0];
+        assert!(section.interfaces.len() > 0);
+        let interface = &section.interfaces[0];
+        interface.header.snaplen
+    }
+
     fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
         Box::new(self.iter())
     }

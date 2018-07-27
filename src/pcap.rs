@@ -81,6 +81,10 @@ impl<'a> Capture for PcapCapture<'a> {
         Linktype(self.header.network)
     }
 
+    fn get_snaplen(&self) -> u32 {
+        self.header.snaplen
+    }
+
     fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
         Box::new(self.blocks.iter().cloned())
     }
