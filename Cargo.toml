@@ -8,7 +8,21 @@ homepage = "https://github.com/rusticata/pcap-parser"
 repository = "https://github.com/rusticata/pcap-parser.git"
 authors = ["Pierre Chifflier <chifflier@wzdftpd.net>"]
 
+categories = ["parsing"]
+
+include = [
+  "LICENSE-*",
+  ".gitignore",
+  ".travis.yml",
+  "Cargo.toml",
+  "src/*.rs",
+  "tests/*.rs"
+]
+
 [dependencies]
 nom = "4.0"
-cookie-factory = "*"
+cookie-factory = "0.2"
 byteorder = "1"
+
+[badges]
+travis-ci = { repository = "rusticata/pcap-parser" }
