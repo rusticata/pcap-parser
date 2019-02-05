@@ -50,6 +50,7 @@ pub enum Block<'a> {
     InterfaceDescription(InterfaceDescriptionBlock<'a>),
     EnhancedPacket(EnhancedPacketBlock<'a>),
     SimplePacket(SimplePacketBlock<'a>),
+    InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     Unknown(UnknownBlock<'a>)
 }
 
@@ -262,6 +263,17 @@ pub struct SimplePacketBlock<'a> {
     /// Original packet length
     pub origlen: u32,
     pub data: &'a [u8],
+    pub block_len2: u32,
+}
+
+#[derive(Debug,PartialEq)]
+pub struct InterfaceStatisticsBlock<'a> {
+    pub block_type: u32,
+    pub block_len1: u32,
+    pub if_id: u32,
+    pub ts_high: u32,
+    pub ts_low: u32,
+    pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
 }
 
@@ -582,6 +594,36 @@ pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8],Block> {
     )
 }
 
+pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8],Block> {
+    do_parse!(i,
+              magic:      verify!(le_u32, |x:u32| x == IFS_MAGIC) >>
+              len1:       le_u32 >>
+              if_id:      le_u32 >>
+              ts_high:    le_u32 >>
+              ts_low:     le_u32 >>
+              // options
+              options: cond!(
+                    len1 > 24,
+                    flat_map!(
+                        take!(len1 - 24),
+                        many0!(complete!(parse_option))
+                        )
+                  ) >>
+              len2:    verify!(le_u32, |x:u32| x == len1) >>
+              (
+                  Block::InterfaceStatistics(InterfaceStatisticsBlock{
+                      block_type: magic,
+                      block_len1: len1,
+                      if_id,
+                      ts_high,
+                      ts_low,
+                      options: options.unwrap_or(Vec::new()),
+                      block_len2: len2
+                  })
+              )
+    )
+}
+
 pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8],Block> {
     // debug!("Unknown block of ID {:x}", peek!(i, le_u32).unwrap().1);
     do_parse!(i,
@@ -604,11 +646,12 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8],Block> {
     match peek!(i, le_u32) {
         Ok((rem, id)) => {
             match id {
-                SHB_MAGIC => call!(rem, parse_sectionheader),
-                IDB_MAGIC => call!(rem, parse_interfacedescription),
-                SPB_MAGIC => call!(rem, parse_simplepacketblock),
-                EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
-                _         => call!(rem, parse_unknownblock)
+                SHB_MAGIC => parse_sectionheader(rem),
+                IDB_MAGIC => parse_interfacedescription(rem),
+                SPB_MAGIC => parse_simplepacketblock(rem),
+                EPB_MAGIC => parse_enhancedpacketblock(rem),
+                IFS_MAGIC => parse_interfacestatisticsblock(rem),
+                _         => parse_unknownblock(rem)
             }
         },
         Err(e)        => Err(e)
