@@ -6,6 +6,9 @@ extern crate nom;
 #[macro_use]
 extern crate cookie_factory;
 
+#[macro_use]
+extern crate rusticata_macros;
+
 mod packet;
 pub use packet::*;
 

@@ -27,9 +27,11 @@ pub const EPB_MAGIC : u32 = 0x00000006;
 /// Byte Order magic
 pub const BOM_MAGIC : u32 = 0x1A2B3C4D;
 
-#[derive(Clone, Copy, Debug,PartialEq)]
-#[repr(u16)]
-pub enum OptionCode {
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+pub struct OptionCode(pub u16);
+
+newtype_enum!{
+impl display OptionCode {
     EndOfOpt = 0,
     Comment = 1,
     ShbHardware = 2,
@@ -37,6 +39,7 @@ pub enum OptionCode {
     ShbUserAppl = 4,
     IfTsresol = 9,
     IfTsoffset = 14,
+}
 }
 
 #[derive(Debug)]
@@ -287,7 +290,7 @@ pub struct UnknownBlock<'a> {
 
 #[derive(Debug,PartialEq)]
 pub struct PcapNGOption<'a> {
-    pub code: u16,
+    pub code: OptionCode,
     pub len: u16,
     pub value: &'a [u8],
 }
@@ -406,9 +409,9 @@ pub fn parse_option(i: &[u8]) -> IResult<&[u8],PcapNGOption> {
               len:   le_u16 >>
               value: take!(align32!(len as u32)) >>
               ( PcapNGOption{
-                  code: code,
-                  len: len,
-                  value: value,
+                  code: OptionCode(code),
+                  len,
+                  value,
               })
     )
 }
@@ -683,8 +686,8 @@ pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
             let mut if_tsoffset : u64 = 0;
             for opt in idb.options.iter() {
                 match opt.code {
-                    9 /* OptionCode::IfTsresol */ => { if !opt.value.is_empty() { if_tsresol =  opt.value[0]; } },
-                    14 /* OptionCode::IfTsoffset */ => { if opt.value.len() >= 8 { if_tsoffset = LittleEndian::read_u64(opt.value); } },
+                    OptionCode::IfTsresol  => { if !opt.value.is_empty() { if_tsresol =  opt.value[0]; } },
+                    OptionCode::IfTsoffset => { if opt.value.len() >= 8 { if_tsoffset = LittleEndian::read_u64(opt.value); } },
                     _ => (),
                 }
             }

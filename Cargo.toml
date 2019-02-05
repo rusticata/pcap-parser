@@ -23,6 +23,7 @@ include = [
 nom = "4.0"
 cookie-factory = "0.2"
 byteorder = "1"
+rusticata-macros = "1.1"
 
 [badges]
 travis-ci = { repository = "rusticata/pcap-parser" }
