@@ -3,6 +3,20 @@
 //! See
 //! [https://wiki.wireshark.org/Development/LibpcapFileFormat](https://wiki.wireshark.org/Development/LibpcapFileFormat)
 //! for details.
+//!
+//! There are 2 main ways of parsing a PCAP file. The first method is to use
+//! [`parse_pcap`](fn.parse_pcap.html). This method requires to load the entire
+//! file to memory, and thus may not be good for large files.
+//!
+//! The [`PcapCapture`](struct.PcapCapture.html) implements the
+//! [`Capture`](../trait.Capture.html) trait to provide generic methods. However,
+//! this trait also reads the entire file.
+//!
+//! The second method is to first parse the PCAP header
+//! using [`parse_pcap_header`](fn.parse_pcap_header.html), then
+//! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
+//! This can be used in a streaming parser.
+
 
 use nom::{IResult,le_u16,le_u32,le_i32};
 use cookie_factory::GenError;
@@ -10,12 +24,20 @@ use cookie_factory::GenError;
 use packet::{Linktype,Packet,PacketHeader};
 use capture::Capture;
 
+/// PCAP global header
 #[derive(Debug,PartialEq)]
 pub struct PcapHeader {
+    /// File format and byte ordering. If equal to `0xa1b2c3d4` then the rest of
+    /// the file uses native byte ordering. If `0xd4c3b2a1` (swapped), then all
+    /// following fields will have to be swapped too.
     pub magic_number: u32,
+    /// Version major number (currently 2)
     pub version_major: u16,
+    /// Version minor number (currently 4)
     pub version_minor: u16,
+    /// The correction time in seconds between GMT (UTC) and the local timezone of the following packet header timestamps
     pub thiszone: i32,
+    /// In theory, the accuracy of time stamps in the capture; in practice, all tools set it to 0
     pub sigfigs: u32,
     /// max len of captured packets, in octets
     pub snaplen: u32,
@@ -61,6 +83,7 @@ impl PcapHeader {
     }
 }
 
+/// Generic interface for PCAP file access
 pub struct PcapCapture<'a> {
     pub header: PcapHeader,
 
@@ -93,6 +116,9 @@ impl<'a> Capture for PcapCapture<'a> {
 
 
 
+/// Parse the entire file
+///
+/// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcap(i: &[u8]) -> IResult<&[u8],PcapCapture> {
     do_parse!(
         i,
@@ -107,6 +133,9 @@ pub fn parse_pcap(i: &[u8]) -> IResult<&[u8],PcapCapture> {
     )
 }
 
+/// Read the PCAP global header
+///
+/// The global header contains the PCAP description and options
 pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
     do_parse!(
         i,
@@ -131,6 +160,10 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
     )
 }
 
+/// Read a PCAP record header and data
+///
+/// Each PCAP record starts with a small header, and is followed by packet data.
+/// The packet data format depends on the LinkType.
 pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8],Packet> {
     do_parse!(
         i,

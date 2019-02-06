@@ -1,16 +1,34 @@
 use cookie_factory::GenError;
 
+/// Packet data
+///
+/// The format of packet data depends on the
+/// [`LinkType`](struct.Linktype.html) of the file.
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct Packet<'a> {
+    /// The record header
     pub header: PacketHeader,
+    /// Actual packet data
     pub data: &'a [u8],
 }
 
+/// Record (Packet) Header
 #[derive(Debug,Clone,PartialEq,Eq)]
 pub struct PacketHeader {
+    /// The date and time when this packet was captured (seconds since epoch).
     pub ts_sec: u32,
+    /// In regular pcap files, the microseconds when this packet was captured,
+    /// as an offset to ts_sec. In nanosecond-resolution files, this is,
+    /// instead, the nanoseconds when the packet was captured, as an offset to
+    /// ts_sec
     pub ts_usec: u32,
+    /// The number of bytes of packet data actually captured and saved in the
+    /// file.
     pub caplen: u32,
+    /// The length of the packet as it appeared on the network when it was
+    /// captured.
+    /// If `cap_len` and `len` differ, the actually saved packet size was
+    /// limited by `snaplen`.
     pub len: u32,
 }
 

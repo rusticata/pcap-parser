@@ -1,5 +1,6 @@
 use packet::{Linktype,Packet};
 
+/// Generic interface for PCAP or PCAPNG file access
 pub trait Capture {
     fn get_datalink(&self) -> Linktype;
 

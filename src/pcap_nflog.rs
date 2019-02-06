@@ -1,5 +1,8 @@
 //! NFLOG link layer encapsulation for PCAP
 //!
+//! Helper module to access content of data stored using NFLOG (239)
+//! data link type.
+//!
 //! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
 use nom::{le_u8,le_u16};

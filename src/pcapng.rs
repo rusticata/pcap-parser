@@ -1,6 +1,19 @@
 //! PCAPNG file format
 //!
 //! See [https://github.com/pcapng/pcapng](https://github.com/pcapng/pcapng) for details.
+//!
+//! There are 2 main ways of parsing a PCAPNG file. The first method is to use
+//! [`parse_pcapng`](fn.parse_pcapng.html). This method requires to load the entire
+//! file to memory, and thus may not be good for large files.
+//!
+//! The [`PcapNGCapture`](struct.PcapNGCapture.html) implements the
+//! [`Capture`](../trait.Capture.html) trait to provide generic methods. However,
+//! this trait also reads the entire file.
+//!
+//! The second method is to loop over [`parse_block`](fn.parse_block.html) and match the
+//! result. The first block should be a Section header, then there should be one or more
+//! interfaces, etc.
+//! This can be used in a streaming parser.
 
 use nom::{IResult,Err,ErrorKind,le_u16,le_u32,le_i64};
 
@@ -42,6 +55,7 @@ impl display OptionCode {
 }
 }
 
+/// Generic interface for PCAPNG file access
 #[derive(Debug)]
 pub struct PcapNGCapture<'a> {
     pub sections: Vec<Section<'a>>,
@@ -716,6 +730,9 @@ pub fn parse_content_block(i: &[u8]) -> IResult<&[u8],Block> {
     }
 }
 
+/// Parse the entire file
+///
+/// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8],PcapNGCapture> {
     do_parse!(
         i,
