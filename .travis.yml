@@ -3,7 +3,21 @@ sudo: false
 matrix:
   include:
     - rust: stable
+      env:
+       - NAME="stable"
+       - FEATURES=''
     - rust: nightly
+      env:
+       - NAME="nightly"
+       - FEATURES=''
+    - rust: stable
+      env:
+       - NAME="stable,data"
+       - FEATURES='data'
+    - rust: nightly
+      env:
+       - NAME="nightly,data"
+       - FEATURES='data'
 script:
   - |
       cargo build --verbose --features "$FEATURES" &&

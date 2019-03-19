@@ -94,5 +94,8 @@ pub use pcapng::*;
 mod capture;
 pub use capture::*;
 
-pub mod pcap_nflog;
-pub use pcap_nflog::*;
+#[cfg(feature = "data")]
+pub mod data;
+
+#[cfg(feature = "data")]
+mod pcap_nflog;
