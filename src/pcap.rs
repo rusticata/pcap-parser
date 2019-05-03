@@ -18,7 +18,7 @@
 //! This can be used in a streaming parser.
 
 
-use nom::{IResult,le_u16,le_u32,le_i32};
+use nom::{IResult,be_u16,be_u32,be_i32,le_u16,le_u32,le_i32};
 use cookie_factory::GenError;
 
 use packet::{Linktype,Packet,PacketHeader};
@@ -57,6 +57,10 @@ impl PcapHeader {
             snaplen: 0,
             network: 1 // default: LINKTYPE_ETHERNET
         }
+    }
+
+    pub fn is_bigendian(&self) -> bool {
+        self.magic_number == 0xd4c3b2a1
     }
 
     pub fn to_string(&self) -> Vec<u8> {
@@ -137,25 +141,45 @@ pub fn parse_pcap(i: &[u8]) -> IResult<&[u8],PcapCapture> {
 ///
 /// The global header contains the PCAP description and options
 pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
-    do_parse!(
-        i,
-        magic:   verify!(le_u32, |x| x == 0xa1b2c3d4 || x == 0xd4c3b2a1) >>
-        major:   le_u16 >>
-        minor:   le_u16 >>
-        zone:    le_i32 >>
-        sigfigs: le_u32 >>
-        snaplen: le_u32 >>
-        network: le_i32 >>
-        (
-            PcapHeader {
-                magic_number: magic,
-                version_major: major,
-                version_minor: minor,
-                thiszone: zone,
-                sigfigs: sigfigs,
-                snaplen: snaplen,
-                network: network
-            }
+    switch!(i,
+        le_u32,
+        0xa1b2c3d4 => do_parse!(
+            major:   le_u16 >>
+            minor:   le_u16 >>
+            zone:    le_i32 >>
+            sigfigs: le_u32 >>
+            snaplen: le_u32 >>
+            network: le_i32 >>
+            (
+                PcapHeader {
+                    magic_number: 0xa1b2c3d4,
+                    version_major: major,
+                    version_minor: minor,
+                    thiszone: zone,
+                    sigfigs: sigfigs,
+                    snaplen: snaplen,
+                    network: network
+                }
+            )
+        ) |
+        0xd4c3b2a1 => do_parse!(
+            major:   be_u16 >>
+            minor:   be_u16 >>
+            zone:    be_i32 >>
+            sigfigs: be_u32 >>
+            snaplen: be_u32 >>
+            network: be_i32 >>
+            (
+                PcapHeader {
+                    magic_number: 0xd4c3b2a1,
+                    version_major: major,
+                    version_minor: minor,
+                    thiszone: zone,
+                    sigfigs: sigfigs,
+                    snaplen: snaplen,
+                    network: network
+                }
+            )
         )
     )
 }
@@ -171,6 +195,31 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8],Packet> {
         ts_usec: le_u32 >>
         caplen:  le_u32 >>
         len:     le_u32 >>
+        data:    take!(caplen) >>
+        (
+            Packet {
+                header: PacketHeader {
+                    ts_sec: ts_sec,
+                    ts_usec: ts_usec,
+                    caplen: caplen,
+                    len: len
+                },
+                data: data
+            }
+        )
+    )
+}
+/// Read a PCAP record header and data (big-endian)
+///
+/// Each PCAP record starts with a small header, and is followed by packet data.
+/// The packet data format depends on the LinkType.
+pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8],Packet> {
+    do_parse!(
+        i,
+        ts_sec:  be_u32 >>
+        ts_usec: be_u32 >>
+        caplen:  be_u32 >>
+        len:     be_u32 >>
         data:    take!(caplen) >>
         (
             Packet {
