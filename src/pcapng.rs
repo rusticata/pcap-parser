@@ -463,35 +463,8 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8],SectionHeaderBlock> {
 }
 
 pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8],Block> {
-    do_parse!(i,
-              magic:   verify!(le_u32, |x:u32| x == SHB_MAGIC) >>
-              len1:    le_u32 >>
-              bom:     verify!(le_u32, |x:u32| x == BOM_MAGIC) >>
-              major:   le_u16 >>
-              minor:   le_u16 >>
-              slen:    le_i64 >>
-              // options
-              options: cond!(
-                    len1 > 28,
-                    flat_map!(
-                        take!(len1 - 28),
-                        many0!(complete!(parse_option))
-                        )
-                  ) >>
-              len2:    verify!(le_u32, |x:u32| x == len1) >>
-              (
-                  Block::SectionHeader(SectionHeaderBlock{
-                      block_type: magic,
-                      block_len1: len1,
-                      bom: bom,
-                      major_version: major,
-                      minor_version: minor,
-                      section_len: slen,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
-                  })
-              )
-    )
+    parse_sectionheaderblock(i)
+        .map(|(r,b)| (r,Block::SectionHeader(b)))
 }
 
 pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
@@ -525,33 +498,8 @@ pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],InterfaceDescr
 }
 
 pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],Block> {
-    do_parse!(i,
-              magic:      verify!(le_u32, |x:u32| x == IDB_MAGIC) >>
-              len1:       le_u32 >>
-              linktype:   le_u16 >>
-              reserved:   le_u16 >>
-              snaplen:    le_u32 >>
-              // options
-              options: cond!(
-                    len1 > 20,
-                    flat_map!(
-                        take!(len1 - 20),
-                        many0!(complete!(parse_option))
-                        )
-                  ) >>
-              len2:    verify!(le_u32, |x:u32| x == len1) >>
-              (
-                  Block::InterfaceDescription(InterfaceDescriptionBlock{
-                      block_type: magic,
-                      block_len1: len1,
-                      linktype: linktype,
-                      reserved: reserved,
-                      snaplen: snaplen,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
-                  })
-              )
-    )
+    parse_interfacedescriptionblock(i)
+        .map(|(r,b)| (r,Block::InterfaceDescription(b)))
 }
 
 pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8],Block> {
