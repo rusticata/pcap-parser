@@ -389,7 +389,7 @@ impl<'a> PcapNGCapture<'a> {
 // impl<'a> IntoIterator for PcapNGCapture<'a> {
 //     type Item = Packet<'a>;
 //     type IntoIter = PcapNGCaptureIterator<'a>;
-// 
+//
 //     fn into_iter(self) -> Self::IntoIter {
 //         PcapNGCaptureIterator{ pcap: self, index: 0 }
 //     }

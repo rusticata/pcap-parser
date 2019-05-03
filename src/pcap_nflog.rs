@@ -37,7 +37,6 @@ pub struct NflogHdr<'a> {
 }
 
 named!(pub parse_nflog_header<NflogHdr>,
-    dbg_dmp!(
     do_parse!(
         af: le_u8 >>
         v:  le_u8 >>
@@ -51,7 +50,6 @@ named!(pub parse_nflog_header<NflogHdr>,
                 data: d,
             }
         )
-    )
     )
 );
 
