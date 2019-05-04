@@ -224,6 +224,7 @@ fn packet_of_block<'a>(interface: &'a Interface, block: &'a Block) -> Option<Pac
                         caplen: b.caplen,
                         len: b.origlen
                     },
+                    interface: b.if_id,
                     data: b.data
                 }
             )

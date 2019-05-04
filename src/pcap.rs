@@ -204,6 +204,7 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8],Packet> {
                     caplen: caplen,
                     len: len
                 },
+                interface: 0,
                 data: data
             }
         )
@@ -229,6 +230,7 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8],Packet> {
                     caplen: caplen,
                     len: len
                 },
+                interface: 0,
                 data: data
             }
         )

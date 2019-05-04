@@ -8,6 +8,8 @@ use cookie_factory::GenError;
 pub struct Packet<'a> {
     /// The record header
     pub header: PacketHeader,
+    /// The identifier of interface where the packet was captured
+    pub interface: u32,
     /// Actual packet data
     pub data: &'a [u8],
 }
@@ -76,4 +78,3 @@ impl display Linktype {
     NFLOG = 239,
 }
 }
-
