@@ -165,7 +165,7 @@ impl<'a> Iterator for SectionPacketIterator<'a> {
         for interface in &self.section.interfaces[self.index_interface..] {
             for block in &interface.blocks[self.index_block..] {
                 self.index_block += 1;
-                match packet_of_block(interface, block) {
+                match packet_of_block_ref(block, interface.if_tsoffset, interface.if_tsresol) {
                     Some(pkt) => return Some(pkt),
                     None      => (),
                 }
@@ -195,7 +195,7 @@ impl<'a> Iterator for InterfacePacketIterator<'a> {
     fn next(&mut self) -> Option<Packet<'a>> {
         for block in &self.interface.blocks[self.index_block..] {
             self.index_block += 1;
-            match packet_of_block(self.interface, block) {
+            match packet_of_block_ref(block, self.interface.if_tsoffset, self.interface.if_tsresol) {
                 Some(pkt) => return Some(pkt),
                 None      => (),
             }
@@ -204,31 +204,82 @@ impl<'a> Iterator for InterfacePacketIterator<'a> {
     }
 }
 
-fn packet_of_block<'a>(interface: &'a Interface, block: &'a Block) -> Option<Packet<'a>> {
+fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32) {
+    let if_tsoffset = ts_offset;
+    let if_tsresol = ts_resol;
+    let ts_mode = if_tsresol & 0x70;
+    let unit =
+        if ts_mode == 0 { 10u64.pow(if_tsresol as u32) }
+        else { 2u64.pow((if_tsresol & !0x70) as u32) };
+    let ts : u64 = ((ts_high as u64) << 32) | (ts_low as u64);
+    let ts_sec = (if_tsoffset + (ts / unit)) as u32;
+    let ts_usec = (ts % unit) as u32;
+    (ts_sec,ts_usec)
+}
+
+/// Try to convert a Block to a Packet, consuming the block
+///
+/// The conversion between a Block and a Packet requires to know the
+/// timestamp offset and resolution (which can be found in the interface description)
+pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
+    match block {
+        Block::EnhancedPacket(ref b) => {
+            let (ts_sec,ts_usec) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
+            let header = PacketHeader{
+                ts_sec: ts_sec,
+                ts_usec: ts_usec,
+                caplen: b.caplen,
+                len: b.origlen
+            };
+            let interface = b.if_id;
+            let data = b.data;
+            Some(Packet{header, interface, data})
+        },
+        Block::SimplePacket(ref b) => {
+            let header = PacketHeader{
+                ts_sec: 0,
+                ts_usec: 0,
+                caplen: b.data.len() as u32,
+                len: b.origlen,
+            };
+            let interface = 0;
+            let data = b.data;
+            Some(Packet{header, interface, data})
+        }
+        // e => println!("unknown: {:?}", e),
+        _ => None,
+    }
+}
+
+/// Try to convert a Block to a Packet, by reference
+///
+/// The conversion between a Block and a Packet requires to know the
+/// timestamp offset and resolution (which can be found in the interface description)
+pub fn packet_of_block_ref<'a>(block: &'a Block, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
     match block {
         &Block::EnhancedPacket(ref b) => {
-            let if_tsoffset = interface.if_tsoffset;
-            let if_tsresol = interface.if_tsresol;
-            let ts_mode = if_tsresol & 0x70;
-            let unit =
-                if ts_mode == 0 { 10u64.pow(if_tsresol as u32) }
-                else { 2u64.pow((if_tsresol & !0x70) as u32) };
-            let ts : u64 = ((b.ts_high as u64) << 32) | (b.ts_low as u64);
-            let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-            let ts_usec = (ts % unit) as u32;
-            Some(
-                Packet{
-                    header: PacketHeader{
-                        ts_sec: ts_sec,
-                        ts_usec: ts_usec,
-                        caplen: b.caplen,
-                        len: b.origlen
-                    },
-                    interface: b.if_id,
-                    data: b.data
-                }
-            )
+            let (ts_sec,ts_usec) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
+            let header = PacketHeader{
+                ts_sec: ts_sec,
+                ts_usec: ts_usec,
+                caplen: b.caplen,
+                len: b.origlen
+            };
+            let interface = b.if_id;
+            let data = b.data;
+            Some(Packet{header, interface, data})
         },
+        &Block::SimplePacket(ref b) => {
+            let header = PacketHeader{
+                ts_sec: 0,
+                ts_usec: 0,
+                caplen: b.data.len() as u32,
+                len: b.origlen,
+            };
+            let interface = 0;
+            let data = b.data;
+            Some(Packet{header, interface, data})
+        }
         // e => println!("unknown: {:?}", e),
         _ => None,
     }
