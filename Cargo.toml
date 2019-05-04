@@ -1,6 +1,6 @@
 [package]
 name = "pcap-parser"
-version = "0.4.0"
+version = "0.5.0"
 description = "Parser for the PCAP/PCAPNG format"
 license = "MIT/Apache-2.0"
 keywords = ["pcap","pcapng","parser","nom"]
@@ -9,7 +9,7 @@ repository = "https://github.com/rusticata/pcap-parser.git"
 authors = ["Pierre Chifflier <chifflier@wzdftpd.net>"]
 
 readme = "README.md"
-categories = ["parsing"]
+categories = ["network-programming", "parser-implementations"]
 
 include = [
   "LICENSE-*",
