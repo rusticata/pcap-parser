@@ -68,6 +68,8 @@ impl display Linktype {
     NULL = 0,
     ETHERNET = 1,
 
+    FDDI = 10,
+
     RAW = 101,
 
     LOOP = 108,
