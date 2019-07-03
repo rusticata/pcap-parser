@@ -79,6 +79,13 @@ See [pcap-tools](https://github.com/rusticata/pcap-tools) for examples.
 
 <!-- cargo-sync-readme end -->
 
+## Changes
+
+### 0.5.1
+
+- Fix computation of timestamp for high-resolution pcap-ng
+
+
 ## License
 
 Licensed under either of
