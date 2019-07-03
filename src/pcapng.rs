@@ -213,7 +213,8 @@ fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32) {
         else { 2u64.pow((if_tsresol & !0x70) as u32) };
     let ts : u64 = ((ts_high as u64) << 32) | (ts_low as u64);
     let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-    let ts_usec = (ts % unit) as u32;
+    const MICROS_PER_SEC : u64 = 1_000_000;
+    let ts_usec = ((ts % unit) / (unit / MICROS_PER_SEC)) as u32;
     (ts_sec,ts_usec)
 }
 
