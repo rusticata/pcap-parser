@@ -23,7 +23,9 @@ pub struct PacketHeader {
     /// as an offset to ts_sec. In nanosecond-resolution files, this is,
     /// instead, the nanoseconds when the packet was captured, as an offset to
     /// ts_sec
-    pub ts_usec: u32,
+    pub ts_fractional: u32,
+    /// Time resolution unit (in unit per seconds)
+    pub ts_unit: u64,
     /// The number of bytes of packet data actually captured and saved in the
     /// file.
     pub caplen: u32,
@@ -41,7 +43,7 @@ impl PacketHeader {
         let r = do_gen!(
             (&mut mem,0),
             gen_le_u32!(self.ts_sec) >>
-            gen_le_u32!(self.ts_usec) >>
+            gen_le_u32!(self.ts_micros()) >>
             gen_le_u32!(self.caplen) >>
             gen_le_u32!(self.len)
             );
@@ -51,6 +53,13 @@ impl PacketHeader {
             },
             Err(e) => panic!("error {:?}", e),
         }
+    }
+    pub fn ts_sec(&self) -> u32 {
+        self.ts_sec
+    }
+    pub fn ts_micros(&self) -> u32 {
+        const MICROS_PER_SEC : u64 = 1_000_000;
+        self.ts_fractional / ((self.ts_unit / MICROS_PER_SEC) as u32)
     }
 }
 

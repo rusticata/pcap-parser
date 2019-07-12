@@ -200,7 +200,8 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8],Packet> {
             Packet {
                 header: PacketHeader {
                     ts_sec: ts_sec,
-                    ts_usec: ts_usec,
+                    ts_fractional: ts_usec,
+                    ts_unit: 1_000_000,
                     caplen: caplen,
                     len: len
                 },
@@ -226,7 +227,8 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8],Packet> {
             Packet {
                 header: PacketHeader {
                     ts_sec: ts_sec,
-                    ts_usec: ts_usec,
+                    ts_fractional: ts_usec,
+                    ts_unit: 1_000_000,
                     caplen: caplen,
                     len: len
                 },

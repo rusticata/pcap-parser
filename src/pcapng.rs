@@ -125,7 +125,7 @@ impl<'a> Section<'a> {
         let mut v : Vec<_> = self.iter_packets().collect();
         v.sort_by(
             |a, b|
-            a.header.ts_sec.cmp(&b.header.ts_sec).then(a.header.ts_usec.cmp(&b.header.ts_usec))
+            a.header.ts_sec.cmp(&b.header.ts_sec).then(a.header.ts_fractional.cmp(&b.header.ts_fractional))
             );
         v
     }
@@ -204,7 +204,7 @@ impl<'a> Iterator for InterfacePacketIterator<'a> {
     }
 }
 
-fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32) {
+fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32,u64) {
     let if_tsoffset = ts_offset;
     let if_tsresol = ts_resol;
     let ts_mode = if_tsresol & 0x70;
@@ -213,9 +213,8 @@ fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32) {
         else { 2u64.pow((if_tsresol & !0x70) as u32) };
     let ts : u64 = ((ts_high as u64) << 32) | (ts_low as u64);
     let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-    const MICROS_PER_SEC : u64 = 1_000_000;
-    let ts_usec = ((ts % unit) / (unit / MICROS_PER_SEC)) as u32;
-    (ts_sec,ts_usec)
+    let ts_fractional = (ts % unit) as u32;
+    (ts_sec,ts_fractional,unit)
 }
 
 /// Try to convert a Block to a Packet, consuming the block
@@ -225,10 +224,11 @@ fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32) {
 pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
     match block {
         Block::EnhancedPacket(ref b) => {
-            let (ts_sec,ts_usec) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
+            let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
             let header = PacketHeader{
-                ts_sec: ts_sec,
-                ts_usec: ts_usec,
+                ts_sec,
+                ts_fractional,
+                ts_unit,
                 caplen: b.caplen,
                 len: b.origlen
             };
@@ -239,7 +239,8 @@ pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Opti
         Block::SimplePacket(ref b) => {
             let header = PacketHeader{
                 ts_sec: 0,
-                ts_usec: 0,
+                ts_fractional: 0,
+                ts_unit: 0,
                 caplen: b.data.len() as u32,
                 len: b.origlen,
             };
@@ -259,10 +260,11 @@ pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Opti
 pub fn packet_of_block_ref<'a>(block: &'a Block, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
     match block {
         &Block::EnhancedPacket(ref b) => {
-            let (ts_sec,ts_usec) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
+            let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
             let header = PacketHeader{
-                ts_sec: ts_sec,
-                ts_usec: ts_usec,
+                ts_sec,
+                ts_fractional,
+                ts_unit,
                 caplen: b.caplen,
                 len: b.origlen
             };
@@ -273,7 +275,8 @@ pub fn packet_of_block_ref<'a>(block: &'a Block, ts_offset:u64, ts_resol:u8) -> 
         &Block::SimplePacket(ref b) => {
             let header = PacketHeader{
                 ts_sec: 0,
-                ts_usec: 0,
+                ts_fractional: 0,
+                ts_unit: 0,
                 caplen: b.data.len() as u32,
                 len: b.origlen,
             };
