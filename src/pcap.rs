@@ -18,6 +18,7 @@
 //! This can be used in a streaming parser.
 
 use crate::packet::Linktype;
+use crate::read_u32_e;
 use crate::traits::LegacyPcapBlock;
 use cookie_factory::GenError;
 use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, map_opt, IResult};
@@ -150,7 +151,7 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
 
 fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPcapBlock> {
     let (_, hdr) = take!(i, 16)?;
-    let caplen = crate::read_u32_e!(&hdr[8..12], big_endian); // length is already tested
+    let caplen = read_u32_e!(&hdr[8..12], big_endian); // length is already tested
     map_opt!(
         i,
         take!(16 + caplen), // XXX overflow is possible

@@ -77,23 +77,21 @@ pub trait PcapNGBlock {
     fn big_endian(&self) -> bool;
     /// Raw block data (including header)
     #[inline]
-    fn raw_data(&self) -> &[u8] {
-        self.data()
-    }
+    fn raw_data(&self) -> &[u8];
     /// The type of this block
     #[inline]
     fn block_type(&self) -> u32 {
-        read_u32_e!(&self.data(), self.big_endian())
+        read_u32_e!(&self.raw_data(), self.big_endian())
     }
     /// The block length from the block header
     #[inline]
     fn block_length(&self) -> u32 {
-        read_u32_e!(&self.data()[4..8], self.big_endian())
+        read_u32_e!(&self.raw_data()[4..8], self.big_endian())
     }
     /// The block length from the block footer
     #[inline]
     fn block_length2(&self) -> u32 {
-        let data = self.data();
+        let data = self.raw_data();
         let data_len = data.len();
         read_u32_e!(&data[data_len - 4..], self.big_endian())
     }
@@ -110,7 +108,7 @@ pub trait PcapNGBlock {
     #[inline]
     fn raw_header(&self) -> &[u8] {
         let len = self.header_len();
-        &self.data()[..len]
+        &self.raw_data()[..len]
     }
     /// Return the declared offset of options.
     /// *Warning: the offset can be out of bounds, caller must test value before accessing data*
@@ -129,7 +127,7 @@ pub trait PcapNGBlock {
         if offset + 4 >= data_len {
             return &[];
         }
-        &self.data()[offset..data_len - 4]
+        &self.raw_data()[offset..data_len - 4]
     }
 }
 
@@ -137,15 +135,15 @@ pub trait PcapNGBlock {
 ///
 /// An Enhanced Packet Block (EPB) is the standard container for storing the packets coming from the network.
 pub struct EPB<'a> {
-    pub(crate) data: Data<'a>,
+    pub(crate) raw_data: Data<'a>,
     pub(crate) big_endian: bool,
     pub(crate) options: Vec<PcapNGOption<'a>>,
 }
 
 impl<'a> PcapNGBlock for EPB<'a> {
     #[inline]
-    fn data(&self) -> &[u8] {
-        self.data.as_slice()
+    fn raw_data(&self) -> &[u8] {
+        self.raw_data.as_slice()
     }
     #[inline]
     fn big_endian(&self) -> bool {
@@ -153,8 +151,12 @@ impl<'a> PcapNGBlock for EPB<'a> {
     }
     #[inline]
     fn data_len(&self) -> usize {
-        let data = &self.data()[20..24];
+        let data = &self.raw_data[20..24];
         read_u32_e!(data, self.big_endian) as usize
+    }
+    #[inline]
+    fn data(&self) -> &[u8] {
+        &self.raw_data[28..self.data_len()]
     }
     #[inline]
     fn header_len(&self) -> usize {
@@ -189,19 +191,19 @@ impl<'a> EPB<'a> {
             }
         };
         Some(EPB {
-            data: Data::Borrowed(data),
+            raw_data: Data::Borrowed(data),
             big_endian,
             options,
         })
     }
     /// Validate Pcap-NG packet header
     pub fn validate(&self) -> Result<(), &str> {
-        let data_len = self.data.len();
+        let data_len = self.raw_data.len();
         if data_len < 32 {
             return Err("Insufficient data length");
         }
-        let block_length1 = read_u32_e!(&self.data[4..], self.big_endian);
-        let block_length2 = read_u32_e!(&self.data[data_len - 4..], self.big_endian);
+        let block_length1 = read_u32_e!(&self.raw_data[4..], self.big_endian);
+        let block_length2 = read_u32_e!(&self.raw_data[data_len - 4..], self.big_endian);
         if block_length1 != block_length2 {
             return Err("Different block length");
         }
@@ -221,35 +223,35 @@ impl<'a> EPB<'a> {
     /// limited by `snaplen`.
     pub fn origlen(&self) -> u32 {
         let start = 24;
-        let data = &self.data[start..start + 4];
+        let data = &self.raw_data[start..start + 4];
         read_u32_e!(data, self.big_endian)
     }
     /// The number of bytes of packet data actually captured and saved in the
     /// file.
     pub fn caplen(&self) -> u32 {
         let start = 20;
-        let data = &self.data[start..start + 4];
+        let data = &self.raw_data[start..start + 4];
         read_u32_e!(data, self.big_endian)
     }
     /// The upper 32 bits of the timestamp
     #[inline]
     pub fn ts_high(&self) -> u32 {
         let start = 12;
-        let data = &self.data[start..start + 4];
+        let data = &self.raw_data[start..start + 4];
         read_u32_e!(data, self.big_endian)
     }
     /// The lower 32 bits of the timestamp
     #[inline]
     pub fn ts_low(&self) -> u32 {
         let start = 16;
-        let data = &self.data[start..start + 4];
+        let data = &self.raw_data[start..start + 4];
         read_u32_e!(data, self.big_endian)
     }
     /// The date and time when this packet was captured (seconds since epoch).
     /// This requires to know the timestamp offset and resolution (which can be found in the
     /// interface description)
     pub fn ts_sec(&self, ts_resol: u8, ts_offset: u64) -> u32 {
-        let data = &self.data[12..20];
+        let data = &self.raw_data[12..20];
         let ts_high = read_u32_e!(data, self.big_endian);
         let ts_low = read_u32_e!(&data[4..], self.big_endian);
         // XXX keep in cache ?
@@ -260,7 +262,7 @@ impl<'a> EPB<'a> {
     /// This requires to know the timestamp offset and resolution (which can be found in the
     /// interface description)
     pub fn ts_usec(&self, ts_resol: u8, ts_offset: u64) -> u32 {
-        let data = &self.data[12..20];
+        let data = &self.raw_data[12..20];
         let ts_high = read_u32_e!(data, self.big_endian);
         let ts_low = read_u32_e!(&data[4..], self.big_endian);
         // XXX keep in cache ?
@@ -272,7 +274,7 @@ impl<'a> EPB<'a> {
     /// This requires to know the timestamp offset and resolution (which can be found in the
     /// interface description)
     pub fn ts(&self, ts_resol: u8, ts_offset: u64) -> (u32, u32, u64) {
-        let data = &self.data[12..20];
+        let data = &self.raw_data[12..20];
         let ts_high = read_u32_e!(data, self.big_endian);
         let ts_low = read_u32_e!(&data[4..], self.big_endian);
         // XXX keep in cache ?
@@ -283,7 +285,7 @@ impl<'a> EPB<'a> {
     #[inline]
     pub fn interface(&self) -> u32 {
         let start = 8;
-        let data = &self.data[start..start + 4];
+        let data = &self.raw_data[start..start + 4];
         read_u32_e!(data, self.big_endian)
     }
     /// Network packet data
@@ -292,10 +294,10 @@ impl<'a> EPB<'a> {
     pub fn data(&self) -> &[u8] {
         let mut caplen = self.caplen() as usize;
         // if requested length is too big, truncate
-        if caplen > self.data.len() - 28 {
-            caplen = self.data.len() - 28;
+        if caplen > self.raw_data.len() - 28 {
+            caplen = self.raw_data.len() - 28;
         }
-        &self.data[28..28 + caplen]
+        &self.raw_data[28..28 + caplen]
     }
     /// The options of this block, if any
     pub fn options(&self) -> &[PcapNGOption<'a>] {
