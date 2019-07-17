@@ -2,6 +2,11 @@
 //!
 //! This crate contains several parsers for PCAP and PCAPNG files.
 //!
+//! Compared to other similar projects, it is designed to offer a complete support of the many
+//! possible formats (legacy pcap, pcapng, little or big-endian, etc.) and features (pcanpng files
+//! with multiple sections, interfaces, and endianness) while using only safe code and without
+//! copying data (zero-copy).
+//!
 //! The code is available on [Github](https://github.com/rusticata/pcap-parser)
 //! and is part of the [Rusticata](https://github.com/rusticata) project.
 //!
