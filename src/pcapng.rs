@@ -593,7 +593,6 @@ fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
         len2:      verify!(read_u32, |x:u32| x == len1) >>
         pos:       call!(current_position, i) >>
         ({
-            println!("block size: {} (total len {})", pos, len1);
             Block::EnhancedPacket(EnhancedPacketBlock{
                 raw_data: Data::Borrowed(&i[..pos]),
                 big_endian,

@@ -6,14 +6,14 @@ use pcap_parser::*;
 
 static TEST001_BE: &'static [u8] = include_bytes!("../assets/test001-be.pcapng");
 static TEST001_LE: &'static [u8] = include_bytes!("../assets/test001-le.pcapng");
+static TEST010_LE: &'static [u8] = include_bytes!("../assets/test010-le.pcapng");
 
 #[test]
 fn test_pcapng_capture_from_file_and_iter_le() {
     let cap =
         PcapNGCapture::from_file(TEST001_LE).expect("could not parse file into PcapNGCapture");
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
-    for (block,expected_len) in cap.iter().zip(expected_origlen.iter()) {
-        println!("new block");
+    for (block, expected_len) in cap.iter().zip(expected_origlen.iter()) {
         match block {
             PcapBlock::NG(Block::EnhancedPacket(epb)) => {
                 println!("block total length: {}", epb.block_length());
@@ -30,7 +30,6 @@ fn test_pcapng_capture_from_file_and_iter_be() {
     let cap =
         PcapNGCapture::from_file(TEST001_BE).expect("could not parse file into PcapNGCapture");
     for block in cap.iter() {
-        println!("new block");
         match block {
             PcapBlock::NG(Block::EnhancedPacket(epb)) => {
                 println!("block total length: {}", epb.block_length());
@@ -60,5 +59,21 @@ fn test_pcapng_iter_section_interfaces_be() {
         println!("found interface {}", idx);
         println!("  linktype: {}", interface.linktype);
         println!("  snaplen: {}", interface.snaplen);
+    }
+}
+
+#[test]
+fn test_pcapng_simple_packets() {
+    let (rem, section) = parse_section(TEST010_LE).expect("could not parse section");
+    assert!(rem.is_empty());
+    assert_eq!(section.iter_interfaces().count(), 1);
+    let expected_origlen = &[0, 0, 314, 342, 314, 342];
+    for (block, expected_len) in section.iter().zip(expected_origlen.iter()) {
+        match block {
+            PcapBlock::NG(Block::SimplePacket(spb)) => {
+                assert_eq!(spb.origlen, *expected_len);
+            }
+            _ => (),
+        }
     }
 }
