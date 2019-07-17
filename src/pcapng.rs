@@ -58,6 +58,7 @@ impl debug OptionCode {
 }
 }
 
+/// A block from a PcapNG file
 pub enum Block<'a> {
     SectionHeader(SectionHeaderBlock<'a>),
     InterfaceDescription(InterfaceDescriptionBlock<'a>),
@@ -67,12 +68,10 @@ pub enum Block<'a> {
     Unknown(UnknownBlock<'a>)
 }
 
-// XXX nope, there can be packets without interface
-// XXX packets are NOT ordered by interface. We should just store the blocks
+/// A Section (including all blocks) from a PcapNG file
 pub struct Section<'a> {
     pub header: SectionHeaderBlock<'a>,
 
-    pub interfaces: Vec<Interface<'a>>,
     pub blocks: Vec<Block<'a>>,
 }
 
@@ -105,13 +104,14 @@ pub struct Interface<'a> {
 // }
 
 impl<'a> Section<'a> {
-    pub fn iter_packets(&'a self) -> SectionPacketIterator<'a> {
-        SectionPacketIterator{ section: self, index_interface: 0, index_block: 0 }
+    /// Returns an iterator over the section blocks
+    pub fn iter(&'a self) -> SectionPacketIterator<'a> {
+        SectionPacketIterator{ section: self, index_block: 0 }
     }
 
-    pub fn iter_interfaces(&'a self) -> SectionInterfaceIterator<'a> {
-        SectionInterfaceIterator{ section: self, index_interface: 0 }
-    }
+    // pub fn iter_interfaces(&'a self) -> SectionInterfaceIterator<'a> {
+    //     SectionInterfaceIterator{ section: self, index_interface: 0 }
+    // }
 
     // /// Get a vector of packets, sorted by timestamp
     // /// The vector is allocated.
@@ -128,30 +128,29 @@ impl<'a> Section<'a> {
     // }
 }
 
-// Non-consuming iterator
-pub struct SectionInterfaceIterator<'a> {
-    section: &'a Section<'a>,
-    index_interface: usize,
-}
-
-impl<'a> Iterator for SectionInterfaceIterator<'a> {
-    type Item = &'a Interface<'a>;
-
-    fn next(&mut self) -> Option<&'a Interface<'a>> {
-        if self.index_interface < self.section.interfaces.len() {
-            let idx = self.index_interface;
-            self.index_interface += 1;
-            Some(&self.section.interfaces[idx])
-        } else {
-            None
-        }
-    }
-}
+// // Non-consuming iterator
+// pub struct SectionInterfaceIterator<'a> {
+//     section: &'a Section<'a>,
+//     index_interface: usize,
+// }
+//
+// impl<'a> Iterator for SectionInterfaceIterator<'a> {
+//     type Item = &'a Interface<'a>;
+//
+//     fn next(&mut self) -> Option<&'a Interface<'a>> {
+//         if self.index_interface < self.section.interfaces.len() {
+//             let idx = self.index_interface;
+//             self.index_interface += 1;
+//             Some(&self.section.interfaces[idx])
+//         } else {
+//             None
+//         }
+//     }
+// }
 
 // Non-consuming iterator
 pub struct SectionPacketIterator<'a> {
     section: &'a Section<'a>,
-    index_interface: usize,
     index_block: usize
 }
 
@@ -159,22 +158,9 @@ impl<'a> Iterator for SectionPacketIterator<'a> {
     type Item = PcapBlock<'a>;
 
     fn next(&mut self) -> Option<PcapBlock<'a>> {
-        println!("SectionPacketIterator::next index_interface={} index_block={}", self.index_interface, self.index_block);
-        println!("  num blocks in interface: {}", self.section.interfaces[self.index_interface].blocks.len());
-        for interface in &self.section.interfaces[self.index_interface..] {
-            for block in &interface.blocks[self.index_block..] {
-                println!("inspecting block {}", self.index_block);
-                self.index_block += 1;
-                return Some(PcapBlock::from(block));
-                // match packet_of_block_ref(block, interface.if_tsoffset, interface.if_tsresol) {
-                //     Some(pkt) => return Some(pkt),
-                //     None      => (),
-                // }
-            }
-            self.index_block = 0;
-            self.index_interface += 1;
-        }
-        None
+        let block = self.section.blocks.get(self.index_block);
+        self.index_block += 1;
+        block.map(|b| PcapBlock::from(b))
     }
 }
 
@@ -788,7 +774,6 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
     };
     let section = Section {
         header: shb,
-        interfaces: Vec::new(),
         blocks,
     };
     Ok((rem, section))

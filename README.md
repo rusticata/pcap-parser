@@ -53,19 +53,15 @@ match PcapNGCapture::from_file(&buffer) {
         for _block in capture.iter() {
             // num_blocks += 1;
         }
-        // The following code iterates all sections, for each section
-        // all interfaces, and for each interface all packets.
-        // Note that the link type can be different for each interface!
+        // The following code iterates all sections,
+        // and for each section all packets.
+        // Note that the link type can be different for each data block!
         println!("Num sections: {}", capture.sections.len());
         for (snum,section) in capture.sections.iter().enumerate() {
             println!("Section {}:", snum);
-            for (inum,interface) in section.interfaces.iter().enumerate() {
-                println!("    Interface {}:", inum);
-                println!("        Linktype: {:?}", interface.header.linktype);
-                // ...
-                for _packet in section.iter_packets() {
-                    num_blocks += 1;
-                }
+            // ...
+            for _packet in section.iter() {
+                num_blocks += 1;
             }
         }
     },
