@@ -42,6 +42,7 @@ fn test_pcapng_capture_from_file_and_iter_be() {
 #[test]
 fn test_pcapng_iter_section_interfaces() {
     let (_, section) = parse_section(TEST001_LE).expect("could not parse section");
+    assert_eq!(section.iter_interfaces().count(), 1);
     for (idx, interface) in section.iter_interfaces().enumerate() {
         println!("found interface {}", idx);
         println!("  linktype: {}", interface.linktype);
@@ -52,6 +53,7 @@ fn test_pcapng_iter_section_interfaces() {
 #[test]
 fn test_pcapng_iter_section_interfaces_be() {
     let (_, section) = parse_section(TEST001_BE).expect("could not parse section");
+    assert_eq!(section.iter_interfaces().count(), 1);
     for (idx, interface) in section.iter_interfaces().enumerate() {
         println!("found interface {}", idx);
         println!("  linktype: {}", interface.linktype);

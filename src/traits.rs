@@ -1,4 +1,4 @@
-use crate::pcapng::{parse_option, PcapNGOption};
+use crate::pcapng::{build_ts, parse_option, PcapNGOption};
 use crate::utils::{Data, MICROS_PER_SEC};
 use crate::{align32, align_n2, read_u32_e};
 
@@ -23,7 +23,7 @@ impl<'a> LegacyPcapBlock<'a> {
     /// captured.
     /// If `cap_len` and `len` differ, the actually saved packet size was
     /// limited by `snaplen`.
-    pub fn len(&self) -> u32 {
+    pub fn origlen(&self) -> u32 {
         let start = 12;
         let data = &self.data[start..start + 4];
         read_u32_e!(data, self.big_endian)
@@ -209,7 +209,7 @@ impl<'a> EPB<'a> {
         if caplen > data_len - 28 {
             return Err("Invalid capture length");
         }
-        let origlen = self.len() as usize;
+        let origlen = self.origlen() as usize;
         if caplen > origlen {
             return Err("Invalid original length");
         }
@@ -219,7 +219,7 @@ impl<'a> EPB<'a> {
     /// captured.
     /// If `cap_len` and `len` differ, the actually saved packet size was
     /// limited by `snaplen`.
-    pub fn len(&self) -> u32 {
+    pub fn origlen(&self) -> u32 {
         let start = 24;
         let data = &self.data[start..start + 4];
         read_u32_e!(data, self.big_endian)
@@ -231,6 +231,20 @@ impl<'a> EPB<'a> {
         let data = &self.data[start..start + 4];
         read_u32_e!(data, self.big_endian)
     }
+    /// The upper 32 bits of the timestamp
+    #[inline]
+    pub fn ts_high(&self) -> u32 {
+        let start = 12;
+        let data = &self.data[start..start + 4];
+        read_u32_e!(data, self.big_endian)
+    }
+    /// The lower 32 bits of the timestamp
+    #[inline]
+    pub fn ts_low(&self) -> u32 {
+        let start = 16;
+        let data = &self.data[start..start + 4];
+        read_u32_e!(data, self.big_endian)
+    }
     /// The date and time when this packet was captured (seconds since epoch).
     /// This requires to know the timestamp offset and resolution (which can be found in the
     /// interface description)
@@ -239,8 +253,7 @@ impl<'a> EPB<'a> {
         let ts_high = read_u32_e!(data, self.big_endian);
         let ts_low = read_u32_e!(&data[4..], self.big_endian);
         // XXX keep in cache ?
-        let (ts_sec, _ts_fractional, _ts_unit) =
-            build_ts(ts_high, ts_low, ts_offset, ts_resol);
+        let (ts_sec, _ts_fractional, _ts_unit) = build_ts(ts_high, ts_low, ts_offset, ts_resol);
         ts_sec
     }
     /// The date and time when this packet was captured (microseconds part).
@@ -251,8 +264,7 @@ impl<'a> EPB<'a> {
         let ts_high = read_u32_e!(data, self.big_endian);
         let ts_low = read_u32_e!(&data[4..], self.big_endian);
         // XXX keep in cache ?
-        let (_ts_sec, ts_fractional, ts_unit) =
-            build_ts(ts_high, ts_low, ts_offset, ts_resol);
+        let (_ts_sec, ts_fractional, ts_unit) = build_ts(ts_high, ts_low, ts_offset, ts_resol);
         ts_fractional / ((ts_unit / MICROS_PER_SEC) as u32)
     }
     /// The date and time when this packet was captured (full resolution).
@@ -264,8 +276,7 @@ impl<'a> EPB<'a> {
         let ts_high = read_u32_e!(data, self.big_endian);
         let ts_low = read_u32_e!(&data[4..], self.big_endian);
         // XXX keep in cache ?
-        let (ts_sec, ts_fractional, ts_unit) =
-            build_ts(ts_high, ts_low, ts_offset, ts_resol);
+        let (ts_sec, ts_fractional, ts_unit) = build_ts(ts_high, ts_low, ts_offset, ts_resol);
         (ts_sec, ts_fractional, ts_unit)
     }
     /// The identifier of interface where the packet was captured
@@ -290,21 +301,6 @@ impl<'a> EPB<'a> {
     pub fn options(&self) -> &[PcapNGOption<'a>] {
         &self.options
     }
-}
-
-pub(crate) fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32, u32, u64) {
-    let if_tsoffset = ts_offset;
-    let if_tsresol = ts_resol;
-    let ts_mode = if_tsresol & 0x70;
-    let unit = if ts_mode == 0 {
-        10u64.pow(if_tsresol as u32)
-    } else {
-        2u64.pow((if_tsresol & !0x70) as u32)
-    };
-    let ts: u64 = ((ts_high as u64) << 32) | (ts_low as u64);
-    let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-    let ts_fractional = (ts % unit) as u32;
-    (ts_sec, ts_fractional, unit)
 }
 
 /* ******************* */
@@ -382,7 +378,7 @@ F4 01 00 00"
     #[test]
     fn test_pcap_packet_functions() {
         let pkt = LegacyPcapBlock::new(FRAME_PCAP, false).expect("packet creation failed");
-        assert_eq!(pkt.len(), 74);
+        assert_eq!(pkt.origlen(), 74);
         assert_eq!(pkt.ts_usec(), 562_913);
         assert_eq!(pkt.ts_sec(), 1_515_933_236);
     }
@@ -390,7 +386,7 @@ F4 01 00 00"
     fn test_pcapng_packet_functions() {
         let pkt = EPB::new(FRAME_PCAPNG_EPB, false).expect("packet creation failed");
         assert_eq!(pkt.interface(), 1);
-        assert_eq!(pkt.len(), 84);
+        assert_eq!(pkt.origlen(), 84);
         assert_eq!(pkt.data().len(), 84);
         assert!(pkt.raw_options().is_empty());
         assert!(pkt.validate().is_ok());
@@ -399,7 +395,7 @@ F4 01 00 00"
     fn test_pcapng_packet_epb_with_options() {
         let pkt = EPB::new(FRAME_PCAPNG_EPB_WITH_OPTIONS, false).expect("packet creation failed");
         assert_eq!(pkt.interface(), 0);
-        assert_eq!(pkt.len(), 314);
+        assert_eq!(pkt.origlen(), 314);
         assert_eq!(pkt.data().len(), 314);
         // use nom::HexDisplay;
         // println!("raw_options:\n{}", pkt.raw_options().to_hex(16));
@@ -410,7 +406,7 @@ F4 01 00 00"
             .expect("packet parsing failed");
         assert!(rem.is_empty());
         assert_eq!(pkt.interface(), 0);
-        assert_eq!(pkt.len(), 314);
+        assert_eq!(pkt.origlen(), 314);
         assert_eq!(pkt.data().len(), 314);
         println!("options: {:?}", pkt.options());
         // use nom::HexDisplay;

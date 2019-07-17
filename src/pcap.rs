@@ -166,7 +166,7 @@ pub mod tests {
     fn test_parse_pcap_frame() {
         let (rem, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet parsing failed");
         assert!(rem.is_empty());
-        assert_eq!(pkt.len(), 74);
+        assert_eq!(pkt.origlen(), 74);
         assert_eq!(pkt.ts_usec(), 562_913);
         assert_eq!(pkt.ts_sec(), 1_515_933_236);
     }

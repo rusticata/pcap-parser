@@ -68,6 +68,16 @@ pub enum Block<'a> {
     Unknown(UnknownBlock<'a>)
 }
 
+impl<'a> Block<'a> {
+    /// Returns true if blocks contains a network packet
+    pub fn is_data_block(&self) -> bool {
+        match self {
+            &Block::EnhancedPacket(_) | &Block::SimplePacket(_) => true,
+            _ => false
+        }
+    }
+}
+
 /// A Section (including all blocks) from a PcapNG file
 pub struct Section<'a> {
     /// The list of blocks
@@ -91,6 +101,7 @@ impl<'a> Section<'a> {
         SectionBlockIterator{ section: self, index_block: 0 }
     }
 
+    /// Returns an iterator over the interface description blocks
     pub fn iter_interfaces(&'a self) -> InterfaceBlockIterator<'a> {
         InterfaceBlockIterator{ section: self, index_block: 0 }
     }
@@ -110,27 +121,7 @@ impl<'a> Section<'a> {
     // }
 }
 
-// // Non-consuming iterator
-// pub struct SectionInterfaceIterator<'a> {
-//     section: &'a Section<'a>,
-//     index_interface: usize,
-// }
-//
-// impl<'a> Iterator for SectionInterfaceIterator<'a> {
-//     type Item = &'a Interface<'a>;
-//
-//     fn next(&mut self) -> Option<&'a Interface<'a>> {
-//         if self.index_interface < self.section.interfaces.len() {
-//             let idx = self.index_interface;
-//             self.index_interface += 1;
-//             Some(&self.section.interfaces[idx])
-//         } else {
-//             None
-//         }
-//     }
-// }
-
-// Non-consuming iterator
+// Non-consuming iterator over blocks of a Section
 pub struct SectionBlockIterator<'a> {
     section: &'a Section<'a>,
     index_block: usize
@@ -146,7 +137,7 @@ impl<'a> Iterator for SectionBlockIterator<'a> {
     }
 }
 
-// Non-consuming iterator over interface description blocks
+// Non-consuming iterator over interface description blocks of a Section
 pub struct InterfaceBlockIterator<'a> {
     section: &'a Section<'a>,
     index_block: usize
@@ -167,90 +158,22 @@ impl<'a> Iterator for InterfaceBlockIterator<'a> {
     }
 }
 
-// fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32,u64) {
-//     let if_tsoffset = ts_offset;
-//     let if_tsresol = ts_resol;
-//     let ts_mode = if_tsresol & 0x70;
-//     let unit =
-//         if ts_mode == 0 { 10u64.pow(if_tsresol as u32) }
-//         else { 2u64.pow((if_tsresol & !0x70) as u32) };
-//     let ts : u64 = ((ts_high as u64) << 32) | (ts_low as u64);
-//     let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-//     let ts_fractional = (ts % unit) as u32;
-//     (ts_sec,ts_fractional,unit)
-// }
-
-// /// Try to convert a Block to a Packet, consuming the block
-// ///
-// /// The conversion between a Block and a Packet requires to know the
-// /// timestamp offset and resolution (which can be found in the interface description)
-// pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
-//     match block {
-//         Block::EnhancedPacket(ref b) => {
-//             let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
-//             let header = PacketHeader{
-//                 ts_sec,
-//                 ts_fractional,
-//                 ts_unit,
-//                 caplen: b.caplen,
-//                 len: b.origlen
-//             };
-//             let interface = b.if_id;
-//             let data = b.data;
-//             Some(Packet{header, interface, data})
-//         },
-//         Block::SimplePacket(ref b) => {
-//             let header = PacketHeader{
-//                 ts_sec: 0,
-//                 ts_fractional: 0,
-//                 ts_unit: 0,
-//                 caplen: b.data.len() as u32,
-//                 len: b.origlen,
-//             };
-//             let interface = 0;
-//             let data = b.data;
-//             Some(Packet{header, interface, data})
-//         }
-//         // e => println!("unknown: {:?}", e),
-//         _ => None,
-//     }
-// }
-
-// /// Try to convert a Block to a Packet, by reference
-// ///
-// /// The conversion between a Block and a Packet requires to know the
-// /// timestamp offset and resolution (which can be found in the interface description)
-// pub fn packet_of_block_ref<'a>(block: &'a Block, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
-//     match block {
-//         &Block::EnhancedPacket(ref b) => {
-//             let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
-//             let header = PacketHeader{
-//                 ts_sec,
-//                 ts_fractional,
-//                 ts_unit,
-//                 caplen: b.caplen,
-//                 len: b.origlen
-//             };
-//             let interface = b.if_id;
-//             let data = b.data;
-//             Some(Packet{header, interface, data})
-//         },
-//         &Block::SimplePacket(ref b) => {
-//             let header = PacketHeader{
-//                 ts_sec: 0,
-//                 ts_fractional: 0,
-//                 ts_unit: 0,
-//                 caplen: b.data.len() as u32,
-//                 len: b.origlen,
-//             };
-//             let interface = 0;
-//             let data = b.data;
-//             Some(Packet{header, interface, data})
-//         }
-//         // e => println!("unknown: {:?}", e),
-//         _ => None,
-//     }
-// }
+/// Given the timestamp parameters, return the timestamp seconds, fractional part and precision
+/// (unit) of the fractional part.
+pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32, u32, u64) {
+    let if_tsoffset = ts_offset;
+    let if_tsresol = ts_resol;
+    let ts_mode = if_tsresol & 0x70;
+    let unit = if ts_mode == 0 {
+        10u64.pow(if_tsresol as u32)
+    } else {
+        2u64.pow((if_tsresol & !0x70) as u32)
+    };
+    let ts: u64 = ((ts_high as u64) << 32) | (ts_low as u64);
+    let ts_sec = (if_tsoffset + (ts / unit)) as u32;
+    let ts_fractional = (ts % unit) as u32;
+    (ts_sec, ts_fractional, unit)
+}
 
 #[derive(Debug,PartialEq)]
 pub struct SectionHeaderBlock<'a> {
