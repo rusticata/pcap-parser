@@ -91,9 +91,9 @@ impl<'a> Section<'a> {
         SectionBlockIterator{ section: self, index_block: 0 }
     }
 
-    // pub fn iter_interfaces(&'a self) -> SectionInterfaceIterator<'a> {
-    //     SectionInterfaceIterator{ section: self, index_interface: 0 }
-    // }
+    pub fn iter_interfaces(&'a self) -> InterfaceBlockIterator<'a> {
+        InterfaceBlockIterator{ section: self, index_block: 0 }
+    }
 
     // /// Get a vector of packets, sorted by timestamp
     // /// The vector is allocated.
@@ -146,32 +146,26 @@ impl<'a> Iterator for SectionBlockIterator<'a> {
     }
 }
 
-// impl<'a> Interface<'a> {
-//     pub fn iter_packets(&'a self) -> InterfacePacketIterator<'a> {
-//         InterfacePacketIterator{ interface: self, index_block: 0 }
-//     }
-// }
+// Non-consuming iterator over interface description blocks
+pub struct InterfaceBlockIterator<'a> {
+    section: &'a Section<'a>,
+    index_block: usize
+}
 
-// // Non-consuming iterator
-// pub struct InterfacePacketIterator<'a> {
-//     interface: &'a Interface<'a>,
-//     index_block: usize
-// }
-// 
-// impl<'a> Iterator for InterfacePacketIterator<'a> {
-//     type Item = Packet<'a>;
-// 
-//     fn next(&mut self) -> Option<Packet<'a>> {
-//         for block in &self.interface.blocks[self.index_block..] {
-//             self.index_block += 1;
-//             match packet_of_block_ref(block, self.interface.if_tsoffset, self.interface.if_tsresol) {
-//                 Some(pkt) => return Some(pkt),
-//                 None      => (),
-//             }
-//         }
-//         None
-//     }
-// }
+impl<'a> Iterator for InterfaceBlockIterator<'a> {
+    type Item = &'a InterfaceDescriptionBlock<'a>;
+
+    fn next(&mut self) -> Option<&'a InterfaceDescriptionBlock<'a>> {
+        if self.index_block >= self.section.blocks.len() { return None; }
+        for block in &self.section.blocks[self.index_block..] {
+            self.index_block += 1;
+            if let Block::InterfaceDescription(ref idb) = block {
+                return Some(idb);
+            }
+        }
+        None
+    }
+}
 
 // fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32,u64) {
 //     let if_tsoffset = ts_offset;

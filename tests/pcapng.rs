@@ -2,7 +2,7 @@ extern crate pcap_parser;
 
 use pcap_parser::pcapng::Block;
 use pcap_parser::traits::PcapNGBlock;
-use pcap_parser::{PcapBlock, PcapNGCapture};
+use pcap_parser::*;
 
 static TEST001_BE: &'static [u8] = include_bytes!("../assets/test001-be.pcapng");
 static TEST001_LE: &'static [u8] = include_bytes!("../assets/test001-le.pcapng");
@@ -36,5 +36,15 @@ fn test_pcapng_capture_from_file_and_iter_be() {
             }
             _ => (),
         }
+    }
+}
+
+#[test]
+fn test_pcapng_iter_section_interfaces() {
+    let (_, section) = parse_section(TEST001_LE).expect("could not parse section");
+    for (idx, interface) in section.iter_interfaces().enumerate() {
+        println!("found interface {}", idx);
+        println!("  linktype {}", interface.linktype);
+        println!("  snaplen {}", interface.snaplen);
     }
 }
