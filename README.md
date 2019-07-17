@@ -24,7 +24,7 @@ and is part of the [Rusticata](https://github.com/rusticata) project.
 
 The following code shows how to parse a file either in PCAP or PCAPNG format.
 
-```rust,no_run
+```rust
 use pcap_parser::*;
 use nom::IResult;
 use std::fs::File;

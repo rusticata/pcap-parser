@@ -14,7 +14,7 @@
 //!
 //! The following code shows how to parse a file either in PCAP or PCAPNG format.
 //!
-//! ```rust,no_run
+//! ```rust
 //! # extern crate nom;
 //! # extern crate pcap_parser;
 //! use pcap_parser::*;
@@ -23,7 +23,7 @@
 //! use std::io::Read;
 //!
 //! # fn main() {
-//! # let path = "/tmp/file.pcap";
+//! # let path = "assets/test001-le.pcapng";
 //! let mut file = File::open(path).unwrap();
 //! let mut buffer = Vec::new();
 //! file.read_to_end(&mut buffer).unwrap();
