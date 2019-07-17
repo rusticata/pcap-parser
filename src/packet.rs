@@ -1,10 +1,31 @@
+use crate::pcapng::Block;
+use crate::traits::*;
 use cookie_factory::GenError;
+use std::convert::From;
+
+/// A block from a Pcap or PcapNG file
+pub enum PcapBlock<'a> {
+    Legacy(&'a LegacyPcapBlock<'a>),
+    NG(&'a Block<'a>),
+}
+
+impl<'a> From<&'a LegacyPcapBlock<'a>> for PcapBlock<'a> {
+    fn from(b: &'a LegacyPcapBlock) -> PcapBlock<'a> {
+        PcapBlock::Legacy(b)
+    }
+}
+
+impl<'a> From<&'a Block<'a>> for PcapBlock<'a> {
+    fn from(b: &'a Block) -> PcapBlock<'a> {
+        PcapBlock::NG(b)
+    }
+}
 
 /// Packet data
 ///
 /// The format of packet data depends on the
 /// [`LinkType`](struct.Linktype.html) of the file.
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Packet<'a> {
     /// The record header
     pub header: PacketHeader,
@@ -15,7 +36,7 @@ pub struct Packet<'a> {
 }
 
 /// Record (Packet) Header
-#[derive(Debug,Clone,PartialEq,Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacketHeader {
     /// The date and time when this packet was captured (seconds since epoch).
     pub ts_sec: u32,
@@ -38,19 +59,17 @@ pub struct PacketHeader {
 
 impl PacketHeader {
     pub fn to_string(&self) -> Vec<u8> {
-        let mut mem : [u8;16] = [0; 16];
+        let mut mem: [u8; 16] = [0; 16];
 
-        let r = do_gen!(
+        let r = do_gen! {
             (&mut mem,0),
             gen_le_u32!(self.ts_sec) >>
             gen_le_u32!(self.ts_micros()) >>
             gen_le_u32!(self.caplen) >>
             gen_le_u32!(self.len)
-            );
+        };
         match r {
-            Ok((s,_)) => {
-                s.to_vec()
-            },
+            Ok((s, _)) => s.to_vec(),
             Err(e) => panic!("error {:?}", e),
         }
     }
@@ -58,7 +77,7 @@ impl PacketHeader {
         self.ts_sec
     }
     pub fn ts_micros(&self) -> u32 {
-        const MICROS_PER_SEC : u64 = 1_000_000;
+        const MICROS_PER_SEC: u64 = 1_000_000;
         self.ts_fractional / ((self.ts_unit / MICROS_PER_SEC) as u32)
     }
 }
@@ -69,10 +88,10 @@ impl PacketHeader {
 /// of the packet.
 ///
 /// See [http://www.tcpdump.org/linktypes.html](http://www.tcpdump.org/linktypes.html)
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Linktype(pub i32);
 
-newtype_enum!{
+newtype_enum! {
 impl display Linktype {
     NULL = 0,
     ETHERNET = 1,

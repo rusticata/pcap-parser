@@ -17,15 +17,12 @@
 //! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
 //! This can be used in a streaming parser.
 
-
-use nom::{IResult,be_u16,be_u32,be_i32,le_u16,le_u32,le_i32};
 use cookie_factory::GenError;
-
-use packet::{Linktype,Packet,PacketHeader};
-use capture::Capture;
+use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, map_opt, IResult};
+use traits::LegacyPcapBlock;
 
 /// PCAP global header
-#[derive(Debug,PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct PcapHeader {
     /// File format and byte ordering. If equal to `0xa1b2c3d4` then the rest of
     /// the file uses native byte ordering. If `0xd4c3b2a1` (swapped), then all
@@ -42,20 +39,19 @@ pub struct PcapHeader {
     /// max len of captured packets, in octets
     pub snaplen: u32,
     /// Data link type
-    pub network: i32
+    pub network: i32,
 }
-
 
 impl PcapHeader {
     pub fn new() -> PcapHeader {
-        PcapHeader{
+        PcapHeader {
             magic_number: 0xa1b2c3d4, // native order
             version_major: 2,
             version_minor: 4,
             thiszone: 0,
             sigfigs: 0,
             snaplen: 0,
-            network: 1 // default: LINKTYPE_ETHERNET
+            network: 1, // default: LINKTYPE_ETHERNET
         }
     }
 
@@ -64,9 +60,9 @@ impl PcapHeader {
     }
 
     pub fn to_string(&self) -> Vec<u8> {
-        let mut mem : [u8;24] = [0; 24];
+        let mut mem: [u8; 24] = [0; 24];
 
-        let r = do_gen!(
+        let r = do_gen! {
             (&mut mem,0),
             gen_le_u32!(self.magic_number) >>
             gen_le_u16!(self.version_major) >>
@@ -75,73 +71,24 @@ impl PcapHeader {
             gen_le_u32!(self.sigfigs) >>
             gen_le_u32!(self.snaplen) >>
             gen_le_u32!(self.network)
-            );
+        };
         match r {
-            Ok((s,_)) => {
+            Ok((s, _)) => {
                 let mut v = Vec::new();
                 v.extend_from_slice(s);
                 v
-            },
+            }
             Err(e) => panic!("error {:?}", e),
         }
     }
 }
 
-/// Generic interface for PCAP file access
-pub struct PcapCapture<'a> {
-    pub header: PcapHeader,
-
-    pub blocks: Vec<Packet<'a>>,
-}
-
-impl<'a> PcapCapture<'a> {
-    pub fn from_file(i: &[u8]) -> Result<PcapCapture,IResult<&[u8],PcapCapture>> {
-        match parse_pcap(i) {
-            Ok((_, pcap)) => Ok(pcap),
-            e             => Err(e)
-        }
-    }
-}
-
-impl<'a> Capture for PcapCapture<'a> {
-    fn get_datalink(&self) -> Linktype {
-        Linktype(self.header.network)
-    }
-
-    fn get_snaplen(&self) -> u32 {
-        self.header.snaplen
-    }
-
-    fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
-        Box::new(self.blocks.iter().cloned())
-    }
-}
-
-
-
-
-/// Parse the entire file
-///
-/// Note: this requires the file to be fully loaded to memory.
-pub fn parse_pcap(i: &[u8]) -> IResult<&[u8],PcapCapture> {
-    do_parse!(
-        i,
-        hdr:    parse_pcap_header >>
-        blocks: many0!(complete!(parse_pcap_frame)) >>
-        (
-            PcapCapture{
-                header: hdr,
-                blocks: blocks
-            }
-        )
-    )
-}
-
 /// Read the PCAP global header
 ///
 /// The global header contains the PCAP description and options
-pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
-    switch!(i,
+pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader> {
+    switch! {
+        i,
         le_u32,
         0xa1b2c3d4 => do_parse!(
             major:   le_u16 >>
@@ -181,60 +128,45 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8],PcapHeader> {
                 }
             )
         )
-    )
+    }
 }
 
 /// Read a PCAP record header and data
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8],Packet> {
-    do_parse!(
-        i,
-        ts_sec:  le_u32 >>
-        ts_usec: le_u32 >>
-        caplen:  le_u32 >>
-        len:     le_u32 >>
-        data:    take!(caplen) >>
-        (
-            Packet {
-                header: PacketHeader {
-                    ts_sec: ts_sec,
-                    ts_fractional: ts_usec,
-                    ts_unit: 1_000_000,
-                    caplen: caplen,
-                    len: len
-                },
-                interface: 0,
-                data: data
-            }
-        )
-    )
+pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
+    inner_parse_pcap_frame(i, false)
 }
+
 /// Read a PCAP record header and data (big-endian)
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8],Packet> {
-    do_parse!(
+pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
+    inner_parse_pcap_frame(i, true)
+}
+
+fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPcapBlock> {
+    let (_, hdr) = take!(i, 16)?;
+    let caplen = crate::read_u32_e!(&hdr[8..12], big_endian); // length is already tested
+    map_opt!(
         i,
-        ts_sec:  be_u32 >>
-        ts_usec: be_u32 >>
-        caplen:  be_u32 >>
-        len:     be_u32 >>
-        data:    take!(caplen) >>
-        (
-            Packet {
-                header: PacketHeader {
-                    ts_sec: ts_sec,
-                    ts_fractional: ts_usec,
-                    ts_unit: 1_000_000,
-                    caplen: caplen,
-                    len: len
-                },
-                interface: 0,
-                data: data
-            }
-        )
+        take!(16 + caplen), // XXX overflow is possible
+        |d| LegacyPcapBlock::new(d, big_endian)
     )
+}
+
+#[cfg(test)]
+pub mod tests {
+    use crate::pcap::parse_pcap_frame;
+    use crate::traits::tests::FRAME_PCAP;
+    #[test]
+    fn test_parse_pcap_frame() {
+        let (rem, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet parsing failed");
+        assert!(rem.is_empty());
+        assert_eq!(pkt.len(), 74);
+        assert_eq!(pkt.ts_usec(), 562_913);
+        assert_eq!(pkt.ts_sec(), 1_515_933_236);
+    }
 }

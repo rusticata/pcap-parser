@@ -15,14 +15,13 @@
 //! interfaces, etc.
 //! This can be used in a streaming parser.
 
+use crate::{align32, align_n2};
+use crate::packet::PcapBlock;
+use crate::traits::EPB;
 use nom::{IResult,Err,ErrorKind,be_u16,be_u32,be_i64,le_u16,le_u32,le_i64};
-
-use capture::Capture;
-use packet::{Packet,PacketHeader,Linktype};
-
+// use packet::{Packet,PacketHeader};
 use byteorder::{ByteOrder,LittleEndian};
-
-use std::fmt;
+// use std::fmt;
 
 /// Section Header Block magic
 pub const SHB_MAGIC : u32 = 0x0A0D0D0A;
@@ -40,11 +39,11 @@ pub const EPB_MAGIC : u32 = 0x00000006;
 /// Byte Order magic
 pub const BOM_MAGIC : u32 = 0x1A2B3C4D;
 
-#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+#[derive(Clone,Copy,Eq,PartialEq)]
 pub struct OptionCode(pub u16);
 
 newtype_enum!{
-impl display OptionCode {
+impl debug OptionCode {
     EndOfOpt = 0,
     Comment = 1,
     ShbHardware = 2,
@@ -52,33 +51,31 @@ impl display OptionCode {
     ShbUserAppl = 4,
     IfTsresol = 9,
     IfTsoffset = 14,
+    Custom2988 = 2988,
+    Custom2989 = 2989,
+    Custom19372 = 19372,
+    Custom19373 = 19373,
 }
 }
 
-/// Generic interface for PCAPNG file access
-#[derive(Debug)]
-pub struct PcapNGCapture<'a> {
-    pub sections: Vec<Section<'a>>,
-}
-
-#[derive(Debug,PartialEq)]
 pub enum Block<'a> {
     SectionHeader(SectionHeaderBlock<'a>),
     InterfaceDescription(InterfaceDescriptionBlock<'a>),
-    EnhancedPacket(EnhancedPacketBlock<'a>),
+    EnhancedPacket(EPB<'a>),
     SimplePacket(SimplePacketBlock<'a>),
     InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     Unknown(UnknownBlock<'a>)
 }
 
-#[derive(Debug, PartialEq)]
+// XXX nope, there can be packets without interface
+// XXX packets are NOT ordered by interface. We should just store the blocks
 pub struct Section<'a> {
     pub header: SectionHeaderBlock<'a>,
 
     pub interfaces: Vec<Interface<'a>>,
+    pub blocks: Vec<Block<'a>>,
 }
 
-#[derive(PartialEq)]
 pub struct Interface<'a> {
     pub header: InterfaceDescriptionBlock<'a>,
 
@@ -89,23 +86,23 @@ pub struct Interface<'a> {
     pub if_tsoffset: u64
 }
 
-/// Compact (debug) display of interface and blocks
-impl<'a> fmt::Debug for Interface<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        writeln!(f, "Interface:")?;
-        writeln!(f, "    header: {:?}", self.header)?;
-        for b in self.blocks.iter() {
-            let s = match b {
-                &Block::EnhancedPacket(ref e) => format!("EPB(if={}, caplen={}, origlen={})", e.if_id, e.caplen, e.origlen),
-                &Block::SimplePacket(ref e)   => format!("SPB(origlen={})", e.origlen),
-                &Block::Unknown(ref e)        => format!("Unk(type={}, blocklen={})", e.block_type, e.block_len1),
-                _ => format!(""),
-            };
-            writeln!(f, "    {}", s)?;
-        }
-        Ok(())
-    }
-}
+// /// Compact (debug) display of interface and blocks
+// impl<'a> fmt::Debug for Interface<'a> {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+//         writeln!(f, "Interface:")?;
+//         writeln!(f, "    header: {:?}", self.header)?;
+//         for b in self.blocks.iter() {
+//             let s = match b {
+//                 &Block::EnhancedPacket(ref e) => format!("EPB(if={}, caplen={}, origlen={})", e.if_id, e.caplen, e.origlen),
+//                 &Block::SimplePacket(ref e)   => format!("SPB(origlen={})", e.origlen),
+//                 &Block::Unknown(ref e)        => format!("Unk(type={}, blocklen={})", e.block_type, e.block_len1),
+//                 _ => format!(""),
+//             };
+//             writeln!(f, "    {}", s)?;
+//         }
+//         Ok(())
+//     }
+// }
 
 impl<'a> Section<'a> {
     pub fn iter_packets(&'a self) -> SectionPacketIterator<'a> {
@@ -116,19 +113,19 @@ impl<'a> Section<'a> {
         SectionInterfaceIterator{ section: self, index_interface: 0 }
     }
 
-    /// Get a vector of packets, sorted by timestamp
-    /// The vector is allocated.
-    ///
-    /// Choose `sort_by` because it is likely the packets are already almost sorted,
-    /// or are series of almost-soted packets (if there are multiple interfaces)
-    pub fn sorted_by_timestamp(&self) -> Vec<Packet> {
-        let mut v : Vec<_> = self.iter_packets().collect();
-        v.sort_by(
-            |a, b|
-            a.header.ts_sec.cmp(&b.header.ts_sec).then(a.header.ts_fractional.cmp(&b.header.ts_fractional))
-            );
-        v
-    }
+    // /// Get a vector of packets, sorted by timestamp
+    // /// The vector is allocated.
+    // ///
+    // /// Choose `sort_by` because it is likely the packets are already almost sorted,
+    // /// or are series of almost-soted packets (if there are multiple interfaces)
+    // pub fn sorted_by_timestamp(&self) -> Vec<Packet> {
+    //     let mut v : Vec<_> = self.iter_packets().collect();
+    //     v.sort_by(
+    //         |a, b|
+    //         a.header.ts_sec.cmp(&b.header.ts_sec).then(a.header.ts_fractional.cmp(&b.header.ts_fractional))
+    //         );
+    //     v
+    // }
 }
 
 // Non-consuming iterator
@@ -159,16 +156,20 @@ pub struct SectionPacketIterator<'a> {
 }
 
 impl<'a> Iterator for SectionPacketIterator<'a> {
-    type Item = Packet<'a>;
+    type Item = PcapBlock<'a>;
 
-    fn next(&mut self) -> Option<Packet<'a>> {
+    fn next(&mut self) -> Option<PcapBlock<'a>> {
+        println!("SectionPacketIterator::next index_interface={} index_block={}", self.index_interface, self.index_block);
+        println!("  num blocks in interface: {}", self.section.interfaces[self.index_interface].blocks.len());
         for interface in &self.section.interfaces[self.index_interface..] {
             for block in &interface.blocks[self.index_block..] {
+                println!("inspecting block {}", self.index_block);
                 self.index_block += 1;
-                match packet_of_block_ref(block, interface.if_tsoffset, interface.if_tsresol) {
-                    Some(pkt) => return Some(pkt),
-                    None      => (),
-                }
+                return Some(PcapBlock::from(block));
+                // match packet_of_block_ref(block, interface.if_tsoffset, interface.if_tsresol) {
+                //     Some(pkt) => return Some(pkt),
+                //     None      => (),
+                // }
             }
             self.index_block = 0;
             self.index_interface += 1;
@@ -177,117 +178,117 @@ impl<'a> Iterator for SectionPacketIterator<'a> {
     }
 }
 
-impl<'a> Interface<'a> {
-    pub fn iter_packets(&'a self) -> InterfacePacketIterator<'a> {
-        InterfacePacketIterator{ interface: self, index_block: 0 }
-    }
-}
+// impl<'a> Interface<'a> {
+//     pub fn iter_packets(&'a self) -> InterfacePacketIterator<'a> {
+//         InterfacePacketIterator{ interface: self, index_block: 0 }
+//     }
+// }
 
-// Non-consuming iterator
-pub struct InterfacePacketIterator<'a> {
-    interface: &'a Interface<'a>,
-    index_block: usize
-}
+// // Non-consuming iterator
+// pub struct InterfacePacketIterator<'a> {
+//     interface: &'a Interface<'a>,
+//     index_block: usize
+// }
+// 
+// impl<'a> Iterator for InterfacePacketIterator<'a> {
+//     type Item = Packet<'a>;
+// 
+//     fn next(&mut self) -> Option<Packet<'a>> {
+//         for block in &self.interface.blocks[self.index_block..] {
+//             self.index_block += 1;
+//             match packet_of_block_ref(block, self.interface.if_tsoffset, self.interface.if_tsresol) {
+//                 Some(pkt) => return Some(pkt),
+//                 None      => (),
+//             }
+//         }
+//         None
+//     }
+// }
 
-impl<'a> Iterator for InterfacePacketIterator<'a> {
-    type Item = Packet<'a>;
+// fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32,u64) {
+//     let if_tsoffset = ts_offset;
+//     let if_tsresol = ts_resol;
+//     let ts_mode = if_tsresol & 0x70;
+//     let unit =
+//         if ts_mode == 0 { 10u64.pow(if_tsresol as u32) }
+//         else { 2u64.pow((if_tsresol & !0x70) as u32) };
+//     let ts : u64 = ((ts_high as u64) << 32) | (ts_low as u64);
+//     let ts_sec = (if_tsoffset + (ts / unit)) as u32;
+//     let ts_fractional = (ts % unit) as u32;
+//     (ts_sec,ts_fractional,unit)
+// }
 
-    fn next(&mut self) -> Option<Packet<'a>> {
-        for block in &self.interface.blocks[self.index_block..] {
-            self.index_block += 1;
-            match packet_of_block_ref(block, self.interface.if_tsoffset, self.interface.if_tsresol) {
-                Some(pkt) => return Some(pkt),
-                None      => (),
-            }
-        }
-        None
-    }
-}
+// /// Try to convert a Block to a Packet, consuming the block
+// ///
+// /// The conversion between a Block and a Packet requires to know the
+// /// timestamp offset and resolution (which can be found in the interface description)
+// pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
+//     match block {
+//         Block::EnhancedPacket(ref b) => {
+//             let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
+//             let header = PacketHeader{
+//                 ts_sec,
+//                 ts_fractional,
+//                 ts_unit,
+//                 caplen: b.caplen,
+//                 len: b.origlen
+//             };
+//             let interface = b.if_id;
+//             let data = b.data;
+//             Some(Packet{header, interface, data})
+//         },
+//         Block::SimplePacket(ref b) => {
+//             let header = PacketHeader{
+//                 ts_sec: 0,
+//                 ts_fractional: 0,
+//                 ts_unit: 0,
+//                 caplen: b.data.len() as u32,
+//                 len: b.origlen,
+//             };
+//             let interface = 0;
+//             let data = b.data;
+//             Some(Packet{header, interface, data})
+//         }
+//         // e => println!("unknown: {:?}", e),
+//         _ => None,
+//     }
+// }
 
-fn build_ts(ts_high:u32, ts_low:u32, ts_offset:u64, ts_resol:u8) -> (u32,u32,u64) {
-    let if_tsoffset = ts_offset;
-    let if_tsresol = ts_resol;
-    let ts_mode = if_tsresol & 0x70;
-    let unit =
-        if ts_mode == 0 { 10u64.pow(if_tsresol as u32) }
-        else { 2u64.pow((if_tsresol & !0x70) as u32) };
-    let ts : u64 = ((ts_high as u64) << 32) | (ts_low as u64);
-    let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-    let ts_fractional = (ts % unit) as u32;
-    (ts_sec,ts_fractional,unit)
-}
-
-/// Try to convert a Block to a Packet, consuming the block
-///
-/// The conversion between a Block and a Packet requires to know the
-/// timestamp offset and resolution (which can be found in the interface description)
-pub fn packet_of_block<'a>(block: Block<'a>, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
-    match block {
-        Block::EnhancedPacket(ref b) => {
-            let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
-            let header = PacketHeader{
-                ts_sec,
-                ts_fractional,
-                ts_unit,
-                caplen: b.caplen,
-                len: b.origlen
-            };
-            let interface = b.if_id;
-            let data = b.data;
-            Some(Packet{header, interface, data})
-        },
-        Block::SimplePacket(ref b) => {
-            let header = PacketHeader{
-                ts_sec: 0,
-                ts_fractional: 0,
-                ts_unit: 0,
-                caplen: b.data.len() as u32,
-                len: b.origlen,
-            };
-            let interface = 0;
-            let data = b.data;
-            Some(Packet{header, interface, data})
-        }
-        // e => println!("unknown: {:?}", e),
-        _ => None,
-    }
-}
-
-/// Try to convert a Block to a Packet, by reference
-///
-/// The conversion between a Block and a Packet requires to know the
-/// timestamp offset and resolution (which can be found in the interface description)
-pub fn packet_of_block_ref<'a>(block: &'a Block, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
-    match block {
-        &Block::EnhancedPacket(ref b) => {
-            let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
-            let header = PacketHeader{
-                ts_sec,
-                ts_fractional,
-                ts_unit,
-                caplen: b.caplen,
-                len: b.origlen
-            };
-            let interface = b.if_id;
-            let data = b.data;
-            Some(Packet{header, interface, data})
-        },
-        &Block::SimplePacket(ref b) => {
-            let header = PacketHeader{
-                ts_sec: 0,
-                ts_fractional: 0,
-                ts_unit: 0,
-                caplen: b.data.len() as u32,
-                len: b.origlen,
-            };
-            let interface = 0;
-            let data = b.data;
-            Some(Packet{header, interface, data})
-        }
-        // e => println!("unknown: {:?}", e),
-        _ => None,
-    }
-}
+// /// Try to convert a Block to a Packet, by reference
+// ///
+// /// The conversion between a Block and a Packet requires to know the
+// /// timestamp offset and resolution (which can be found in the interface description)
+// pub fn packet_of_block_ref<'a>(block: &'a Block, ts_offset:u64, ts_resol:u8) -> Option<Packet<'a>> {
+//     match block {
+//         &Block::EnhancedPacket(ref b) => {
+//             let (ts_sec,ts_fractional,ts_unit) = build_ts(b.ts_high, b.ts_low, ts_offset, ts_resol);
+//             let header = PacketHeader{
+//                 ts_sec,
+//                 ts_fractional,
+//                 ts_unit,
+//                 caplen: b.caplen,
+//                 len: b.origlen
+//             };
+//             let interface = b.if_id;
+//             let data = b.data;
+//             Some(Packet{header, interface, data})
+//         },
+//         &Block::SimplePacket(ref b) => {
+//             let header = PacketHeader{
+//                 ts_sec: 0,
+//                 ts_fractional: 0,
+//                 ts_unit: 0,
+//                 caplen: b.data.len() as u32,
+//                 len: b.origlen,
+//             };
+//             let interface = 0;
+//             let data = b.data;
+//             Some(Packet{header, interface, data})
+//         }
+//         // e => println!("unknown: {:?}", e),
+//         _ => None,
+//     }
+// }
 
 #[derive(Debug,PartialEq)]
 pub struct SectionHeaderBlock<'a> {
@@ -384,95 +385,8 @@ pub struct PcapNGHeader {
     pub network: u32
 }
 
-impl<'a> Capture for PcapNGCapture<'a> {
-    fn get_datalink(&self) -> Linktype {
-        // assume first linktype is the same
-        assert!(self.sections.len() > 0);
-        let section = &self.sections[0];
-        assert!(section.interfaces.len() > 0);
-        let interface = &section.interfaces[0];
-        Linktype(interface.header.linktype as i32)
-    }
-
-    fn get_snaplen(&self) -> u32 {
-        // assume first linktype is the same
-        assert!(self.sections.len() > 0);
-        let section = &self.sections[0];
-        assert!(section.interfaces.len() > 0);
-        let interface = &section.interfaces[0];
-        interface.header.snaplen
-    }
-
-    fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
-        Box::new(self.iter())
-    }
-}
 
 
-
-
-/// true only if n is a power of 2
-macro_rules! align_n2 {
-    ($x:expr, $n:expr) => ( ($x + ($n - 1)) & !($n - 1) );
-}
-
-macro_rules! align32 {
-    ($x:expr) => ( align_n2!($x, 4u32) );
-}
-
-
-// Non-consuming iterator
-pub struct PcapNGCaptureIterator<'a> {
-    pcap: &'a PcapNGCapture<'a>,
-    index_section: usize,
-    it: SectionPacketIterator<'a>,
-}
-
-impl<'a> PcapNGCapture<'a> {
-    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture,IResult<&[u8],PcapNGCapture>> { // XXX change return type to just an IResult
-        match parse_pcapng(i) {
-            Ok((_, pcap))  => Ok(pcap),
-            e              => Err(e)
-        }
-    }
-
-    pub fn iter(&'a self) -> PcapNGCaptureIterator<'a> {
-        assert!(self.sections.len() > 0);
-        PcapNGCaptureIterator{
-            pcap: self,
-            index_section: 0,
-            it: self.sections[0].iter_packets()
-        }
-    }
-}
-
-// XXX IntoIterator seems to generate only consuming iterators, or I don't understand how to use it
-
-// impl<'a> IntoIterator for PcapNGCapture<'a> {
-//     type Item = Packet<'a>;
-//     type IntoIter = PcapNGCaptureIterator<'a>;
-//
-//     fn into_iter(self) -> Self::IntoIter {
-//         PcapNGCaptureIterator{ pcap: self, index: 0 }
-//     }
-// }
-
-impl<'a> Iterator for PcapNGCaptureIterator<'a> {
-    type Item = Packet<'a>;
-
-    fn next(&mut self) -> Option<Packet<'a>> {
-        loop {
-            match self.it.next() {
-                Some(p) => { return Some(p); },
-                _       => (),
-            }
-            self.index_section += 1;
-            if self.index_section >= self.pcap.sections.len() { break; }
-            self.it = self.pcap.sections[self.index_section].iter_packets();
-        }
-        None
-    }
-}
 
 
 
@@ -592,7 +506,7 @@ pub fn parse_sectionheader_be(i: &[u8]) -> IResult<&[u8],Block> {
         .map(|(r,b)| (r,Block::SectionHeader(b)))
 }
 
-pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
+pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
     do_parse!(i,
               magic:      verify!(le_u32, |x:u32| x == IDB_MAGIC) >>
               len1:       le_u32 >>
@@ -622,12 +536,12 @@ pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],InterfaceDescr
     )
 }
 
-pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],Block> {
-    parse_interfacedescriptionblock(i)
+pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],Block> {
+    parse_interfacedescription(i)
         .map(|(r,b)| (r,Block::InterfaceDescription(b)))
 }
 
-pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
+pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
     do_parse!(i,
               magic:      verify!(be_u32, |x:u32| x == IDB_MAGIC) >>
               len1:       be_u32 >>
@@ -657,8 +571,8 @@ pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8],InterfaceDe
     )
 }
 
-pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8],Block> {
-    parse_interfacedescriptionblock_be(i)
+pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8],Block> {
+    parse_interfacedescription_be(i)
         .map(|(r,b)| (r,Block::InterfaceDescription(b)))
 }
 
@@ -704,76 +618,24 @@ pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8],Block> {
     )
 }
 
-pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8],Block> {
-    do_parse!(i,
-                         verify!(le_u32, |x:u32| x == EPB_MAGIC) >>
-              len1:      verify!(le_u32, |val:u32| val >= 32) >>
-              if_id:     le_u32 >>
-              ts_high:   le_u32 >>
-              ts_low:    le_u32 >>
-              caplen:    verify!(le_u32, |x| x < ::std::u32::MAX - 4) >>
-              origlen:   le_u32 >>
-              al_len:    value!(align32!(caplen)) >>
-              data:      take!(al_len) >>
-              options:   cond!(
-                    len1 > 32 + al_len,
-                    flat_map!(
-                        take!(len1 - (32 + al_len)),
-                        many0!(complete!(parse_option))
-                        )
-                  ) >>
-              len2:      verify!(le_u32, |x:u32| x == len1) >>
-              (
-                  Block::EnhancedPacket(EnhancedPacketBlock{
-                      block_type: EPB_MAGIC,
-                      block_len1: len1,
-                      if_id: if_id,
-                      ts_high: ts_high,
-                      ts_low: ts_low,
-                      caplen: caplen,
-                      origlen: origlen,
-                      data: data,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
-                  })
-              )
+fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+    let (_,(magic,block_len)) = match big_endian {
+        true => tuple!(i,be_u32,be_u32)?,
+        false => tuple!(i,le_u32,le_u32)?,
+    };
+    error_if!(i, magic != EPB_MAGIC, ErrorKind::Tag)?;
+    map_opt!(i,
+        take!(block_len),
+        |d| EPB::new(d, big_endian).map(|epb| Block::EnhancedPacket(epb))
     )
 }
 
+pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_enhancedpacketblock(i, false)
+}
+
 pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8],Block> {
-    do_parse!(i,
-                         verify!(be_u32, |x:u32| x == EPB_MAGIC) >>
-              len1:      verify!(be_u32, |val:u32| val >= 32) >>
-              if_id:     be_u32 >>
-              ts_high:   be_u32 >>
-              ts_low:    be_u32 >>
-              caplen:    verify!(be_u32, |x| x < ::std::u32::MAX - 4) >>
-              origlen:   be_u32 >>
-              al_len:    value!(align32!(caplen)) >>
-              data:      take!(al_len) >>
-              options:   cond!(
-                    len1 > 32 + al_len,
-                    flat_map!(
-                        take!(len1 - (32 + al_len)),
-                        many0!(complete!(parse_option_be))
-                        )
-                  ) >>
-              len2:      verify!(be_u32, |x:u32| x == len1) >>
-              (
-                  Block::EnhancedPacket(EnhancedPacketBlock{
-                      block_type: EPB_MAGIC,
-                      block_len1: len1,
-                      if_id: if_id,
-                      ts_high: ts_high,
-                      ts_low: ts_low,
-                      caplen: caplen,
-                      origlen: origlen,
-                      data: data,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
-                  })
-              )
-    )
+    inner_parse_enhancedpacketblock(i, true)
 }
 
 pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8],Block> {
@@ -881,7 +743,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8],Block> {
         Ok((rem, id)) => {
             match id {
                 SHB_MAGIC => parse_sectionheader(rem),
-                IDB_MAGIC => parse_interfacedescription(rem),
+                IDB_MAGIC => parse_interfacedescriptionblock(rem),
                 SPB_MAGIC => parse_simplepacketblock(rem),
                 EPB_MAGIC => parse_enhancedpacketblock(rem),
                 IFS_MAGIC => parse_interfacestatisticsblock(rem),
@@ -901,7 +763,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8],Block> {
         Ok((rem, id)) => {
             match id {
                 SHB_MAGIC => parse_sectionheader_be(rem),
-                IDB_MAGIC => parse_interfacedescription_be(rem),
+                IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
                 SPB_MAGIC => parse_simplepacketblock_be(rem),
                 EPB_MAGIC => parse_enhancedpacketblock_be(rem),
                 IFS_MAGIC => parse_interfacestatisticsblock_be(rem),
@@ -912,24 +774,30 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8],Block> {
     }
 }
 
-pub fn parse_section(i: &[u8]) -> IResult<&[u8],Section> {
-    do_parse!(
-        i,
-        shb: parse_sectionheaderblock >>
-        ifs: many0!(complete!(parse_interface)) >>
-        ({
-            Section {
-                header: shb,
-                interfaces: ifs,
-            }
-        })
-    )
+// XXX nope, there can be packets without interface
+// XXX packets are NOT ordered by interface. We should just store the blocks
+// XXX store shb as first block
+// XXX
+// XXX we should store interfaces indexes
+pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
+    let (rem,shb) = parse_sectionheaderblock(i)?;
+    let (rem,blocks) = if shb.is_bigendian() {
+        many0!(rem, complete!(parse_section_content_block_be))?
+    } else {
+        many0!(rem, complete!(parse_section_content_block))?
+    };
+    let section = Section {
+        header: shb,
+        interfaces: Vec::new(),
+        blocks,
+    };
+    Ok((rem, section))
 }
 
-pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
+pub fn parse_interface(i: &[u8]) -> IResult<&[u8], Interface> {
     do_parse!(
         i,
-        idb: parse_interfacedescriptionblock >>
+        idb: parse_interfacedescription >>
         blocks: many0!(complete!(parse_content_block)) >>
         ({
             // XXX extract if_tsoffset and if_tsresol
@@ -952,6 +820,36 @@ pub fn parse_interface(i: &[u8]) -> IResult<&[u8],Interface> {
     )
 }
 
+pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8],Block> {
+    match peek!(i, le_u32) {
+        Ok((rem, id)) => {
+            match id {
+                SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+                IDB_MAGIC => call!(rem, parse_interfacedescriptionblock),
+                SPB_MAGIC => call!(rem, parse_simplepacketblock),
+                EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
+                _         => call!(rem, parse_unknownblock)
+            }
+        },
+        Err(e)        => Err(e)
+    }
+}
+
+pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
+    match peek!(i, be_u32) {
+        Ok((rem, id)) => {
+            match id {
+                SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+                IDB_MAGIC => call!(rem, parse_interfacedescriptionblock_be),
+                SPB_MAGIC => call!(rem, parse_simplepacketblock_be),
+                EPB_MAGIC => call!(rem, parse_enhancedpacketblock_be),
+                _         => call!(rem, parse_unknownblock_be)
+            }
+        },
+        Err(e)        => Err(e)
+    }
+}
+
 pub fn parse_content_block(i: &[u8]) -> IResult<&[u8],Block> {
     match peek!(i, le_u32) {
         Ok((rem, id)) => {
@@ -967,17 +865,11 @@ pub fn parse_content_block(i: &[u8]) -> IResult<&[u8],Block> {
     }
 }
 
-/// Parse the entire file
-///
-/// Note: this requires the file to be fully loaded to memory.
-pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8],PcapNGCapture> {
-    do_parse!(
-        i,
-        sections: many1!(complete!(parse_section)) >>
-        (
-            PcapNGCapture{
-                sections: sections,
-            }
-        )
+pub fn traits_parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8],EPB> {
+    let (_,(magic,block_len)) = tuple!(i,le_u32,le_u32)?;
+    error_if!(i, magic != EPB_MAGIC, ErrorKind::Tag)?;
+    map_opt!(i,
+        take!(block_len),
+        |d| EPB::new(d, false)
     )
 }

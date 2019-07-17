@@ -28,13 +28,13 @@ use std::io::Read;
 let mut file = File::open(path).unwrap();
 let mut buffer = Vec::new();
 file.read_to_end(&mut buffer).unwrap();
-let mut num_packets = 0;
+let mut num_blocks = 0;
 // try pcap first
 match PcapCapture::from_file(&buffer) {
     Ok(capture) => {
         println!("Format: PCAP");
-        for _packet in capture.iter_packets() {
-            num_packets += 1;
+        for _block in capture.iter() {
+            num_blocks += 1;
         }
         return;
     },
@@ -50,8 +50,8 @@ match PcapNGCapture::from_file(&buffer) {
         // sections and interfaces. It will usually work only if there
         // is one section with one interface
         // otherwise, the next iteration code is better
-        for _packet in capture.iter_packets() {
-            // num_packets += 1;
+        for _block in capture.iter() {
+            // num_blocks += 1;
         }
         // The following code iterates all sections, for each section
         // all interfaces, and for each interface all packets.
@@ -64,7 +64,7 @@ match PcapNGCapture::from_file(&buffer) {
                 println!("        Linktype: {:?}", interface.header.linktype);
                 // ...
                 for _packet in section.iter_packets() {
-                    num_packets += 1;
+                    num_blocks += 1;
                 }
             }
         }
@@ -80,6 +80,10 @@ See [pcap-tools](https://github.com/rusticata/pcap-tools) for examples.
 <!-- cargo-sync-readme end -->
 
 ## Changes
+
+### 0.6.0
+
+- Complete rewrite of the crate (breaks API)
 
 ### 0.5.1
 

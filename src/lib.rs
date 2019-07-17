@@ -22,13 +22,13 @@
 //! let mut file = File::open(path).unwrap();
 //! let mut buffer = Vec::new();
 //! file.read_to_end(&mut buffer).unwrap();
-//! let mut num_packets = 0;
+//! let mut num_blocks = 0;
 //! // try pcap first
 //! match PcapCapture::from_file(&buffer) {
 //!     Ok(capture) => {
 //!         println!("Format: PCAP");
-//!         for _packet in capture.iter_packets() {
-//!             num_packets += 1;
+//!         for _block in capture.iter() {
+//!             num_blocks += 1;
 //!         }
 //!         return;
 //!     },
@@ -44,8 +44,8 @@
 //!         // sections and interfaces. It will usually work only if there
 //!         // is one section with one interface
 //!         // otherwise, the next iteration code is better
-//!         for _packet in capture.iter_packets() {
-//!             // num_packets += 1;
+//!         for _block in capture.iter() {
+//!             // num_blocks += 1;
 //!         }
 //!         // The following code iterates all sections, for each section
 //!         // all interfaces, and for each interface all packets.
@@ -58,7 +58,7 @@
 //!                 println!("        Linktype: {:?}", interface.header.linktype);
 //!                 // ...
 //!                 for _packet in section.iter_packets() {
-//!                     num_packets += 1;
+//!                     num_blocks += 1;
 //!                 }
 //!             }
 //!         }
@@ -83,6 +83,9 @@ extern crate cookie_factory;
 #[macro_use]
 extern crate rusticata_macros;
 
+mod utils;
+pub use utils::{Data, MutableData};
+
 mod packet;
 pub use packet::*;
 
@@ -91,11 +94,21 @@ pub use pcap::*;
 pub mod pcapng;
 pub use pcapng::*;
 
+pub mod traits;
+
 mod capture;
+mod capture_pcap;
+mod capture_pcapng;
 pub use capture::*;
+pub use capture_pcap::*;
+pub use capture_pcapng::*;
 
 #[cfg(feature = "data")]
 pub mod data;
 
 #[cfg(feature = "data")]
 mod pcap_nflog;
+
+#[cfg(test)]
+#[macro_use]
+extern crate hex_literal;
