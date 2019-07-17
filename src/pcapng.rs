@@ -522,7 +522,7 @@ pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
 pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
-        magic:     verify!(le_u32, |x:u32| x == EPB_MAGIC) >>
+        magic:     verify!(le_u32, |x:u32| x == SPB_MAGIC) >>
         len1:      verify!(le_u32, |val:u32| val >= 32) >>
         origlen:   le_u32 >>
         // XXX if snaplen is < origlen, we MUST use snaplen
@@ -544,7 +544,7 @@ pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
 pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
-        magic:     verify!(be_u32, |x:u32| x == EPB_MAGIC) >>
+        magic:     verify!(be_u32, |x:u32| x == SPB_MAGIC) >>
         len1:      verify!(be_u32, |val:u32| val >= 32) >>
         origlen:   be_u32 >>
         // XXX if snaplen is < origlen, we MUST use snaplen
