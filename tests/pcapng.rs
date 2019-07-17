@@ -44,7 +44,17 @@ fn test_pcapng_iter_section_interfaces() {
     let (_, section) = parse_section(TEST001_LE).expect("could not parse section");
     for (idx, interface) in section.iter_interfaces().enumerate() {
         println!("found interface {}", idx);
-        println!("  linktype {}", interface.linktype);
-        println!("  snaplen {}", interface.snaplen);
+        println!("  linktype: {}", interface.linktype);
+        println!("  snaplen: {}", interface.snaplen);
+    }
+}
+
+#[test]
+fn test_pcapng_iter_section_interfaces_be() {
+    let (_, section) = parse_section(TEST001_BE).expect("could not parse section");
+    for (idx, interface) in section.iter_interfaces().enumerate() {
+        println!("found interface {}", idx);
+        println!("  linktype: {}", interface.linktype);
+        println!("  snaplen: {}", interface.snaplen);
     }
 }

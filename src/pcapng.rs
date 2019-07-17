@@ -16,7 +16,7 @@
 //! This can be used in a streaming parser.
 
 use crate::{align32, align_n2};
-use crate::packet::PcapBlock;
+use crate::packet::{Linktype, PcapBlock};
 use crate::traits::EPB;
 use nom::{IResult,Err,ErrorKind,be_u16,be_u32,be_i64,le_u16,le_u32,le_i64};
 // use packet::{Packet,PacketHeader};
@@ -275,7 +275,7 @@ impl<'a> SectionHeaderBlock<'a> {
 pub struct InterfaceDescriptionBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
-    pub linktype: u16,
+    pub linktype: Linktype,
     pub reserved: u16,
     pub snaplen: u32,
     pub options: Vec<PcapNGOption<'a>>,
@@ -505,7 +505,7 @@ pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescripti
                   InterfaceDescriptionBlock{
                       block_type: magic,
                       block_len1: len1,
-                      linktype,
+                      linktype: Linktype(linktype as i32),
                       reserved,
                       snaplen,
                       options,
@@ -543,7 +543,7 @@ pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8], InterfaceDescri
                   InterfaceDescriptionBlock{
                       block_type: magic,
                       block_len1: len1,
-                      linktype,
+                      linktype: Linktype(linktype as i32),
                       reserved,
                       snaplen,
                       options,
