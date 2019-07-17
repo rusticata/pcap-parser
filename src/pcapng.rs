@@ -75,34 +75,6 @@ pub struct Section<'a> {
     pub blocks: Vec<Block<'a>>,
 }
 
-pub struct Interface<'a> {
-    pub header: InterfaceDescriptionBlock<'a>,
-
-    pub blocks: Vec<Block<'a>>,
-
-    // extracted values
-    pub if_tsresol: u8,
-    pub if_tsoffset: u64
-}
-
-// /// Compact (debug) display of interface and blocks
-// impl<'a> fmt::Debug for Interface<'a> {
-//     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-//         writeln!(f, "Interface:")?;
-//         writeln!(f, "    header: {:?}", self.header)?;
-//         for b in self.blocks.iter() {
-//             let s = match b {
-//                 &Block::EnhancedPacket(ref e) => format!("EPB(if={}, caplen={}, origlen={})", e.if_id, e.caplen, e.origlen),
-//                 &Block::SimplePacket(ref e)   => format!("SPB(origlen={})", e.origlen),
-//                 &Block::Unknown(ref e)        => format!("Unk(type={}, blocklen={})", e.block_type, e.block_len1),
-//                 _ => format!(""),
-//             };
-//             writeln!(f, "    {}", s)?;
-//         }
-//         Ok(())
-//     }
-// }
-
 impl<'a> Section<'a> {
     /// Returns an iterator over the section blocks
     pub fn iter(&'a self) -> SectionPacketIterator<'a> {
@@ -304,6 +276,8 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub snaplen: u32,
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
+    pub if_tsresol: u8,
+    pub if_tsoffset: u64,
 }
 
 #[derive(Debug,PartialEq)]
@@ -492,8 +466,21 @@ pub fn parse_sectionheader_be(i: &[u8]) -> IResult<&[u8],Block> {
         .map(|(r,b)| (r,Block::SectionHeader(b)))
 }
 
-pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
-    do_parse!(i,
+fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
+    let mut if_tsresol : u8 = 6;
+    let mut if_tsoffset : u64 = 0;
+    for opt in options {
+        match opt.code {
+            OptionCode::IfTsresol  => { if !opt.value.is_empty() { if_tsresol =  opt.value[0]; } },
+            OptionCode::IfTsoffset => { if opt.value.len() >= 8 { if_tsoffset = LittleEndian::read_u64(opt.value); } },
+            _ => (),
+        }
+    }
+    (if_tsresol, if_tsoffset)
+}
+
+pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
+    do_parse!{i,
               magic:      verify!(le_u32, |x:u32| x == IDB_MAGIC) >>
               len1:       le_u32 >>
               linktype:   le_u16 >>
@@ -508,33 +495,36 @@ pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8],InterfaceDescriptio
                         )
                   ) >>
               len2:    verify!(le_u32, |x:u32| x == len1) >>
-              (
+              ({
+                  let options = options.unwrap_or(Vec::new());
+                  let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
                   InterfaceDescriptionBlock{
                       block_type: magic,
                       block_len1: len1,
-                      linktype: linktype,
-                      reserved: reserved,
-                      snaplen: snaplen,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
+                      linktype,
+                      reserved,
+                      snaplen,
+                      options,
+                      block_len2: len2,
+                      if_tsresol,
+                      if_tsoffset,
                   }
-              )
-    )
+              })
+    }
 }
 
-pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8],Block> {
+pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block> {
     parse_interfacedescription(i)
         .map(|(r,b)| (r,Block::InterfaceDescription(b)))
 }
 
-pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8],InterfaceDescriptionBlock> {
-    do_parse!(i,
+pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
+    do_parse!{i,
               magic:      verify!(be_u32, |x:u32| x == IDB_MAGIC) >>
               len1:       be_u32 >>
               linktype:   be_u16 >>
               reserved:   be_u16 >>
               snaplen:    be_u32 >>
-              // options
               options: cond!(
                     len1 > 20,
                     flat_map!(
@@ -543,21 +533,25 @@ pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8],InterfaceDescrip
                         )
                   ) >>
               len2:    verify!(be_u32, |x:u32| x == len1) >>
-              (
+              ({
+                  let options = options.unwrap_or(Vec::new());
+                  let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
                   InterfaceDescriptionBlock{
                       block_type: magic,
                       block_len1: len1,
-                      linktype: linktype,
-                      reserved: reserved,
-                      snaplen: snaplen,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
+                      linktype,
+                      reserved,
+                      snaplen,
+                      options,
+                      block_len2: len2,
+                      if_tsresol,
+                      if_tsoffset,
                   }
-              )
-    )
+              })
+    }
 }
 
-pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8],Block> {
+pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     parse_interfacedescription_be(i)
         .map(|(r,b)| (r,Block::InterfaceDescription(b)))
 }
@@ -777,32 +771,6 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
         blocks,
     };
     Ok((rem, section))
-}
-
-pub fn parse_interface(i: &[u8]) -> IResult<&[u8], Interface> {
-    do_parse!(
-        i,
-        idb: parse_interfacedescription >>
-        blocks: many0!(complete!(parse_content_block)) >>
-        ({
-            // XXX extract if_tsoffset and if_tsresol
-            let mut if_tsresol : u8 = 6;
-            let mut if_tsoffset : u64 = 0;
-            for opt in idb.options.iter() {
-                match opt.code {
-                    OptionCode::IfTsresol  => { if !opt.value.is_empty() { if_tsresol =  opt.value[0]; } },
-                    OptionCode::IfTsoffset => { if opt.value.len() >= 8 { if_tsoffset = LittleEndian::read_u64(opt.value); } },
-                    _ => (),
-                }
-            }
-            Interface {
-                header: idb,
-                blocks: blocks,
-                if_tsresol: if_tsresol,
-                if_tsoffset: if_tsoffset
-            }
-        })
-    )
 }
 
 pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8],Block> {
