@@ -1,6 +1,6 @@
 use crate::Packet;
 
-pub use pcap_nflog::*;
+pub use crate::pcap_nflog::*;
 
 pub fn get_data_raw<'a>(packet: &'a Packet) -> &'a[u8] {
     // debug!("data.len: {}, caplen: {}", packet.data.len(), packet.header.caplen);

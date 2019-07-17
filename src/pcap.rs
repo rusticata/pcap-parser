@@ -17,10 +17,10 @@
 //! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
 //! This can be used in a streaming parser.
 
-use cookie_factory::GenError;
 use crate::packet::Linktype;
+use crate::traits::LegacyPcapBlock;
+use cookie_factory::GenError;
 use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, map_opt, IResult};
-use traits::LegacyPcapBlock;
 
 /// PCAP global header
 #[derive(Debug, PartialEq)]

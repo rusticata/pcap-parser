@@ -1,6 +1,6 @@
 use crate::packet::PcapBlock;
+use crate::pcapng::*;
 use nom::IResult;
-use pcapng::*;
 use std::fmt;
 
 /// Generic interface for PCAPNG file access

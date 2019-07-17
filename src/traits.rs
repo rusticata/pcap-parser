@@ -312,7 +312,7 @@ pub(crate) fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) 
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use pcapng::traits_parse_enhancedpacketblock;
+    use crate::pcapng::traits_parse_enhancedpacketblock;
     // tls12-23.pcap frame 0
     pub const FRAME_PCAP: &'static [u8] = &hex!(
         "

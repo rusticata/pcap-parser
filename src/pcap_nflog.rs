@@ -5,8 +5,8 @@
 //!
 //! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
+use crate::packet::Packet;
 use nom::{be_u16,le_u8,le_u16};
-use packet::Packet;
 
 // Defined in linux/netfilter/nfnetlink_log.h
 #[derive(Copy,Clone)]
