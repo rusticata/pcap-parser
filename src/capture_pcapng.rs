@@ -24,8 +24,10 @@ impl<'a> Iterator for PcapNGCaptureIterator<'a> {
     type Item = PcapBlock<'a>;
 
     fn next(&mut self) -> Option<PcapBlock<'a>> {
-        // XXX the shb will never be parsed
-        assert!(self.cap.sections.len() == 1); // XXX only one section supported
+        if self.cap.sections.len() != 1 {
+            // XXX only one section supported
+            unimplemented!();
+        }
         self.cap.sections[0].blocks.get(self.idx).map(|b| {
             self.idx += 1;
             PcapBlock::from(b)

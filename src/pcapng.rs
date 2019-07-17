@@ -70,15 +70,25 @@ pub enum Block<'a> {
 
 /// A Section (including all blocks) from a PcapNG file
 pub struct Section<'a> {
-    pub header: SectionHeaderBlock<'a>,
-
+    /// The list of blocks
     pub blocks: Vec<Block<'a>>,
+    /// True if encoding is big-endian
+    pub big_endian: bool,
 }
 
 impl<'a> Section<'a> {
+    /// Returns the section header
+    pub fn header<'section>(&'section self) -> Option<&'section SectionHeaderBlock<'section>> {
+        if let Some(Block::SectionHeader(ref b)) = self.blocks.get(0) {
+            Some(b)
+        } else {
+            None
+        }
+    }
+
     /// Returns an iterator over the section blocks
-    pub fn iter(&'a self) -> SectionPacketIterator<'a> {
-        SectionPacketIterator{ section: self, index_block: 0 }
+    pub fn iter(&'a self) -> SectionBlockIterator<'a> {
+        SectionBlockIterator{ section: self, index_block: 0 }
     }
 
     // pub fn iter_interfaces(&'a self) -> SectionInterfaceIterator<'a> {
@@ -121,12 +131,12 @@ impl<'a> Section<'a> {
 // }
 
 // Non-consuming iterator
-pub struct SectionPacketIterator<'a> {
+pub struct SectionBlockIterator<'a> {
     section: &'a Section<'a>,
     index_block: usize
 }
 
-impl<'a> Iterator for SectionPacketIterator<'a> {
+impl<'a> Iterator for SectionBlockIterator<'a> {
     type Item = PcapBlock<'a>;
 
     fn next(&mut self) -> Option<PcapBlock<'a>> {
@@ -754,21 +764,20 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8],Block> {
     }
 }
 
-// XXX nope, there can be packets without interface
-// XXX packets are NOT ordered by interface. We should just store the blocks
-// XXX store shb as first block
-// XXX
-// XXX we should store interfaces indexes
 pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
-    let (rem,shb) = parse_sectionheaderblock(i)?;
-    let (rem,blocks) = if shb.is_bigendian() {
+    let (rem, shb) = parse_sectionheaderblock(i)?;
+    let big_endian = shb.is_bigendian();
+    let (rem, mut b) = if big_endian {
         many0!(rem, complete!(parse_section_content_block_be))?
     } else {
         many0!(rem, complete!(parse_section_content_block))?
     };
+    let mut blocks = Vec::with_capacity(b.len() + 1);
+    blocks.push(Block::SectionHeader(shb));
+    blocks.append(&mut b);
     let section = Section {
-        header: shb,
         blocks,
+        big_endian,
     };
     Ok((rem, section))
 }
