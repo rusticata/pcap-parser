@@ -38,7 +38,7 @@ impl<'a> Iterator for LegacyPcapIterator<'a> {
 
 impl<'a> Capture for PcapCapture<'a> {
     fn get_datalink(&self) -> Linktype {
-        Linktype(self.header.network)
+        self.header.network
     }
 
     fn get_snaplen(&self) -> u32 {

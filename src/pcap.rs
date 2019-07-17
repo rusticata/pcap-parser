@@ -18,6 +18,7 @@
 //! This can be used in a streaming parser.
 
 use cookie_factory::GenError;
+use crate::packet::Linktype;
 use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, map_opt, IResult};
 use traits::LegacyPcapBlock;
 
@@ -39,7 +40,7 @@ pub struct PcapHeader {
     /// max len of captured packets, in octets
     pub snaplen: u32,
     /// Data link type
-    pub network: i32,
+    pub network: Linktype,
 }
 
 impl PcapHeader {
@@ -51,7 +52,7 @@ impl PcapHeader {
             thiszone: 0,
             sigfigs: 0,
             snaplen: 0,
-            network: 1, // default: LINKTYPE_ETHERNET
+            network: Linktype(1), // default: LINKTYPE_ETHERNET
         }
     }
 
@@ -70,7 +71,7 @@ impl PcapHeader {
             gen_le_i32!(self.thiszone) >>
             gen_le_u32!(self.sigfigs) >>
             gen_le_u32!(self.snaplen) >>
-            gen_le_u32!(self.network)
+            gen_le_u32!(self.network.0)
         };
         match r {
             Ok((s, _)) => {
@@ -105,7 +106,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader> {
                     thiszone: zone,
                     sigfigs: sigfigs,
                     snaplen: snaplen,
-                    network: network
+                    network: Linktype(network)
                 }
             )
         ) |
@@ -124,7 +125,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader> {
                     thiszone: zone,
                     sigfigs: sigfigs,
                     snaplen: snaplen,
-                    network: network
+                    network: Linktype(network)
                 }
             )
         )
