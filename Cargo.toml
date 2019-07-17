@@ -16,6 +16,7 @@ include = [
   ".gitignore",
   ".travis.yml",
   "Cargo.toml",
+  "assets/*.pcapng",
   "src/*.rs",
   "tests/*.rs"
 ]
