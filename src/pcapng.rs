@@ -519,6 +519,9 @@ pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     parse_interfacedescription_be(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
 
+/// Parse a Simple Packet Block
+///
+/// *Note: this function does not remove padding*
 pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
@@ -526,8 +529,9 @@ pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
         len1:      verify!(le_u32, |val:u32| val >= 32) >>
         origlen:   le_u32 >>
         // XXX if snaplen is < origlen, we MUST use snaplen
-        al_len:    value!(align32!(origlen)) >>
-        data:      take!(al_len) >>
+        // al_len:    value!(align32!(origlen)) >>
+        // data:      take!(al_len) >>
+        data:      take!(len1 - 16) >>
         len2:      verify!(le_u32, |x:u32| x == len1) >>
         (
             Block::SimplePacket(SimplePacketBlock{
@@ -541,6 +545,9 @@ pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
     }
 }
 
+/// Parse a Simple Packet Block (big-endian)
+///
+/// *Note: this function does not remove padding*
 pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
@@ -548,8 +555,9 @@ pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
         len1:      verify!(be_u32, |val:u32| val >= 32) >>
         origlen:   be_u32 >>
         // XXX if snaplen is < origlen, we MUST use snaplen
-        al_len:    value!(align32!(origlen)) >>
-        data:      take!(al_len) >>
+        // al_len:    value!(align32!(origlen)) >>
+        // data:      take!(al_len) >>
+        data:      take!(len1 - 16) >>
         len2:      verify!(be_u32, |x:u32| x == len1) >>
         (
             Block::SimplePacket(SimplePacketBlock{
