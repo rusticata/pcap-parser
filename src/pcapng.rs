@@ -768,6 +768,10 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
     Ok((rem, section))
 }
 
+/// Parse multiple sections
+pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>> {
+    many1!(i, complete!(parse_section))
+}
 pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
     match peek!(i, le_u32) {
         Ok((rem, id)) => match id {
