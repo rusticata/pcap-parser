@@ -33,7 +33,7 @@ pub const SPB_MAGIC: u32 = 0x00000003;
 /// Name Resolution Block magic
 pub const NMR_MAGIC: u32 = 0x00000004;
 /// Interface Statistic Block magic
-pub const IFS_MAGIC: u32 = 0x00000005;
+pub const ISB_MAGIC: u32 = 0x00000005;
 /// Enhanced Packet Block magic
 pub const EPB_MAGIC: u32 = 0x00000006;
 
@@ -630,7 +630,7 @@ pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
 pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
-        magic:      verify!(le_u32, |x:u32| x == IFS_MAGIC) >>
+        magic:      verify!(le_u32, |x:u32| x == ISB_MAGIC) >>
         len1:       le_u32 >>
         if_id:      le_u32 >>
         ts_high:    le_u32 >>
@@ -661,7 +661,7 @@ pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block> {
 pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
-        magic:      verify!(be_u32, |x:u32| x == IFS_MAGIC) >>
+        magic:      verify!(be_u32, |x:u32| x == ISB_MAGIC) >>
         len1:       be_u32 >>
         if_id:      be_u32 >>
         ts_high:    be_u32 >>
@@ -736,7 +736,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock(rem),
             SPB_MAGIC => parse_simplepacketblock(rem),
             EPB_MAGIC => parse_enhancedpacketblock(rem),
-            IFS_MAGIC => parse_interfacestatisticsblock(rem),
+            ISB_MAGIC => parse_interfacestatisticsblock(rem),
             _ => parse_unknownblock(rem),
         },
         Err(e) => Err(e),
@@ -754,7 +754,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
             SPB_MAGIC => parse_simplepacketblock_be(rem),
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
-            IFS_MAGIC => parse_interfacestatisticsblock_be(rem),
+            ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             _ => parse_unknownblock_be(rem),
         },
         Err(e) => Err(e),
@@ -784,10 +784,11 @@ pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
     match peek!(i, le_u32) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-            IDB_MAGIC => call!(rem, parse_interfacedescriptionblock),
-            SPB_MAGIC => call!(rem, parse_simplepacketblock),
-            EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
-            _ => call!(rem, parse_unknownblock),
+            IDB_MAGIC => parse_interfacedescriptionblock(rem),
+            SPB_MAGIC => parse_simplepacketblock(rem),
+            EPB_MAGIC => parse_enhancedpacketblock(rem),
+            ISB_MAGIC => parse_interfacestatisticsblock(rem),
+            _ => parse_unknownblock(rem),
         },
         Err(e) => Err(e),
     }
@@ -797,10 +798,11 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
     match peek!(i, be_u32) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-            IDB_MAGIC => call!(rem, parse_interfacedescriptionblock_be),
-            SPB_MAGIC => call!(rem, parse_simplepacketblock_be),
-            EPB_MAGIC => call!(rem, parse_enhancedpacketblock_be),
-            _ => call!(rem, parse_unknownblock_be),
+            IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
+            SPB_MAGIC => parse_simplepacketblock_be(rem),
+            EPB_MAGIC => parse_enhancedpacketblock_be(rem),
+            ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
+            _ => parse_unknownblock_be(rem),
         },
         Err(e) => Err(e),
     }
