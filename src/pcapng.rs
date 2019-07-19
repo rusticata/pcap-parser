@@ -37,6 +37,12 @@ pub const ISB_MAGIC: u32 = 0x00000005;
 /// Enhanced Packet Block magic
 pub const EPB_MAGIC: u32 = 0x00000006;
 
+/// Custom Block magic
+pub const CB_MAGIC: u32 = 0x00000BAD;
+
+/// Do-not-copy Custom Block magic
+pub const DCB_MAGIC: u32 = 0x40000BAD;
+
 /// Byte Order magic
 pub const BOM_MAGIC: u32 = 0x1A2B3C4D;
 
@@ -67,6 +73,7 @@ pub enum Block<'a> {
     SimplePacket(SimplePacketBlock<'a>),
     NameResolution(NameResolutionBlock<'a>),
     InterfaceStatistics(InterfaceStatisticsBlock<'a>),
+    Custom(CustomBlock<'a>),
     Unknown(UnknownBlock<'a>),
 }
 
@@ -292,6 +299,24 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub ts_low: u32,
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
+}
+
+#[derive(Debug)]
+pub struct CustomBlock<'a> {
+    big_endian: bool,
+    pub block_type: u32,
+    pub block_len1: u32,
+    // Private Enterprise Number (PEN)
+    pub pen: u32,
+    pub data: &'a [u8],
+    // pub options: &'a [u8],
+    pub block_len2: u32,
+}
+
+impl<'a> CustomBlock<'a> {
+    pub fn do_not_copy(&self) -> bool {
+        self.block_type == DCB_MAGIC
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -660,11 +685,7 @@ fn parse_name_record(i: &[u8]) -> IResult<&[u8], NameRecord> {
 }
 
 fn parse_name_record_list(i: &[u8]) -> IResult<&[u8], Vec<NameRecord>> {
-    many_till!(
-        i,
-        parse_name_record,
-        verify!(le_u32, |x:u32| x == 0)
-    ).map(|(rem, (v,_))| (rem, v))
+    many_till!(i, parse_name_record, verify!(le_u32, |x: u32| x == 0)).map(|(rem, (v, _))| (rem, v))
 }
 
 fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
@@ -758,6 +779,37 @@ pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     }
 }
 
+fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    do_parse! {
+        i,
+        blocktype: read_u32 >>
+        len1:      verify!(read_u32, |val: u32| val >= 16) >>
+        pen:       read_u32 >>
+        data:      take!(len1 - 16) >>
+        // options cannot be parsed, we don't know the length of data
+        len2:      verify!(read_u32, |x: u32| x == len1) >>
+        (
+            Block::Custom(CustomBlock {
+                big_endian,
+                block_type: blocktype,
+                block_len1: len1,
+                pen,
+                data,
+                block_len2: len2
+            })
+        )
+    }
+}
+
+pub fn parse_customblock(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_customblock(i, false)
+}
+
+pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_customblock(i, true)
+}
+
 pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block> {
     // debug!("Unknown block of ID {:x}", peek!(i, le_u32).unwrap().1);
     do_parse! {
@@ -807,6 +859,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block> {
             EPB_MAGIC => parse_enhancedpacketblock(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
+            CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
             _ => parse_unknownblock(rem),
         },
         Err(e) => Err(e),
@@ -826,6 +879,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
+            CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => parse_unknownblock_be(rem),
         },
         Err(e) => Err(e),
@@ -860,6 +914,7 @@ pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
             EPB_MAGIC => parse_enhancedpacketblock(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
+            CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
             _ => parse_unknownblock(rem),
         },
         Err(e) => Err(e),
@@ -875,6 +930,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
+            CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => parse_unknownblock_be(rem),
         },
         Err(e) => Err(e),
