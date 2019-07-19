@@ -16,7 +16,7 @@
 //! This can be used in a streaming parser.
 
 use crate::packet::{Linktype, PcapBlock};
-use crate::traits::{PcapNGBlock, EPB};
+use crate::traits::PcapNGBlock;
 use crate::utils::Data;
 use crate::{align32, align_n2};
 use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult, Offset};
@@ -820,14 +820,15 @@ pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_customblock(i, true)
 }
 
-pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block> {
+fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
     // debug!("Unknown block of ID {:x}", peek!(i, le_u32).unwrap().1);
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
-        blocktype: le_u32 >>
-        len1:      verify!(le_u32, |val: u32| val >= 12) >>
+        blocktype: read_u32 >>
+        len1:      verify!(read_u32, |val: u32| val >= 12) >>
         data:      take!(len1 - 12) >>
-        len2:      verify!(le_u32, |x: u32| x == len1) >>
+        len2:      verify!(read_u32, |x: u32| x == len1) >>
         (
             Block::Unknown(UnknownBlock {
                 block_type: blocktype,
@@ -839,21 +840,12 @@ pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block> {
     }
 }
 
+pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_unknownblock(i, false)
+}
+
 pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block> {
-    // debug!("Unknown block of ID {:x}", peek!(i, le_u32).unwrap().1);
-    do_parse!(
-        i,
-        blocktype: be_u32
-            >> len1: verify!(be_u32, |val: u32| val >= 12)
-            >> data: take!(len1 - 12)
-            >> len2: verify!(be_u32, |x: u32| x == len1)
-            >> (Block::Unknown(UnknownBlock {
-                block_type: blocktype,
-                block_len1: len1,
-                data: data,
-                block_len2: len2
-            }))
-    )
+    inner_parse_unknownblock(i, true)
 }
 
 /// Parse any block, as little-endian
@@ -896,6 +888,25 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
     }
 }
 
+/// Parse any block from a section
+pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
+    let (rem, block) = parse_block(i)?;
+    match block {
+        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+        _ => Ok((rem, block)),
+    }
+}
+
+/// Parse any block from a section (big-endian version)
+pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
+    let (rem, block) = parse_block_be(i)?;
+    match block {
+        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+        _ => Ok((rem, block)),
+    }
+}
+
+/// Parse one section
 pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.is_bigendian();
@@ -914,26 +925,4 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
 /// Parse multiple sections
 pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>> {
     many1!(i, complete!(parse_section))
-}
-
-pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
-    let (rem, block) = parse_block(i)?;
-    match block {
-        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-        _ => Ok((rem, block))
-    }
-}
-
-pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
-    let (rem, block) = parse_block_be(i)?;
-    match block {
-        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-        _ => Ok((rem, block))
-    }
-}
-
-pub fn traits_parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], EPB> {
-    let (_, (magic, block_len)) = tuple!(i, le_u32, le_u32)?;
-    error_if!(i, magic != EPB_MAGIC, ErrorKind::Tag)?;
-    map_opt!(i, take!(block_len), |d| EPB::new(d, false))
 }
