@@ -19,7 +19,7 @@ use crate::packet::{Linktype, PcapBlock};
 use crate::traits::{PcapNGBlock, EPB};
 use crate::utils::Data;
 use crate::{align32, align_n2};
-use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, Err, ErrorKind, IResult, Offset};
+use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult, Offset};
 // use packet::{Packet,PacketHeader};
 use byteorder::{ByteOrder, LittleEndian};
 // use std::fmt;
@@ -31,7 +31,7 @@ pub const IDB_MAGIC: u32 = 0x00000001;
 /// Simple Packet Block magic
 pub const SPB_MAGIC: u32 = 0x00000003;
 /// Name Resolution Block magic
-pub const NMR_MAGIC: u32 = 0x00000004;
+pub const NRB_MAGIC: u32 = 0x00000004;
 /// Interface Statistic Block magic
 pub const ISB_MAGIC: u32 = 0x00000005;
 /// Enhanced Packet Block magic
@@ -65,6 +65,7 @@ pub enum Block<'a> {
     InterfaceDescription(InterfaceDescriptionBlock<'a>),
     EnhancedPacket(EnhancedPacketBlock<'a>),
     SimplePacket(SimplePacketBlock<'a>),
+    NameResolution(NameResolutionBlock<'a>),
     InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     Unknown(UnknownBlock<'a>),
 }
@@ -263,6 +264,22 @@ pub struct SimplePacketBlock<'a> {
     /// Original packet length
     pub origlen: u32,
     pub data: &'a [u8],
+    pub block_len2: u32,
+}
+
+#[derive(Debug)]
+pub struct NameRecord<'a> {
+    pub record_type: u16,
+    pub record_value: &'a [u8],
+}
+
+#[derive(Debug)]
+pub struct NameResolutionBlock<'a> {
+    big_endian: bool,
+    pub block_type: u32,
+    pub block_len1: u32,
+    pub nr: Vec<NameRecord<'a>>,
+    pub opt: &'a [u8],
     pub block_len2: u32,
 }
 
@@ -627,6 +644,58 @@ pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_enhancedpacketblock(i, true)
 }
 
+fn parse_name_record(i: &[u8]) -> IResult<&[u8], NameRecord> {
+    do_parse! {
+        i,
+        record_type: le_u16 >>
+        record_len: le_u16 >>
+        record_value: take!(align32!(record_len)) >>
+        (
+            NameRecord{
+                record_type,
+                record_value,
+            }
+        )
+    }
+}
+
+fn parse_name_record_list(i: &[u8]) -> IResult<&[u8], Vec<NameRecord>> {
+    many_till!(
+        i,
+        parse_name_record,
+        verify!(le_u32, |x:u32| x == 0)
+    ).map(|(rem, (v,_))| (rem, v))
+}
+
+fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    do_parse! {
+        i,
+                    verify!(read_u32, |x:u32| x == NRB_MAGIC) >>
+        len1:       verify!(read_u32, |val:u32| val >= 32) >>
+        nr_and_opt: flat_map!(
+            take!(len1 - 12),
+            tuple!(parse_name_record_list, rest)
+            ) >>
+        len2:       verify!(read_u32, |x:u32| x == len1) >>
+        ({
+            println!("nr: {:?}", nr_and_opt.0);
+            Block::NameResolution(NameResolutionBlock{
+                big_endian,
+                block_type: EPB_MAGIC,
+                block_len1: len1,
+                nr: nr_and_opt.0,
+                opt: nr_and_opt.1,
+                block_len2: len2
+            })
+        })
+    }
+}
+
+pub fn parse_nameresolutionblock(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_nameresolutionblock(i, false)
+}
+
 pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block> {
     do_parse! {
         i,
@@ -736,6 +805,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock(rem),
             SPB_MAGIC => parse_simplepacketblock(rem),
             EPB_MAGIC => parse_enhancedpacketblock(rem),
+            NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
             _ => parse_unknownblock(rem),
         },
@@ -754,6 +824,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
             SPB_MAGIC => parse_simplepacketblock_be(rem),
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
+            NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             _ => parse_unknownblock_be(rem),
         },
@@ -787,6 +858,7 @@ pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock(rem),
             SPB_MAGIC => parse_simplepacketblock(rem),
             EPB_MAGIC => parse_enhancedpacketblock(rem),
+            NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
             _ => parse_unknownblock(rem),
         },
@@ -801,21 +873,9 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
             SPB_MAGIC => parse_simplepacketblock_be(rem),
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
+            NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             _ => parse_unknownblock_be(rem),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub fn parse_content_block(i: &[u8]) -> IResult<&[u8], Block> {
-    match peek!(i, le_u32) {
-        Ok((rem, id)) => match id {
-            SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-            IDB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-            SPB_MAGIC => call!(rem, parse_simplepacketblock),
-            EPB_MAGIC => call!(rem, parse_enhancedpacketblock),
-            _ => call!(rem, parse_unknownblock),
         },
         Err(e) => Err(e),
     }
