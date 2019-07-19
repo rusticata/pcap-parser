@@ -488,22 +488,32 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
     (if_tsresol, if_tsoffset)
 }
 
-pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
+fn inner_parse_interfacedescription(
+    i: &[u8],
+    big_endian: bool,
+) -> IResult<&[u8], InterfaceDescriptionBlock> {
+    let read_u16 = if big_endian { be_u16 } else { le_u16 };
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    let read_option = if big_endian {
+        parse_option_be
+    } else {
+        parse_option
+    };
     do_parse! {i,
-              magic:      verify!(le_u32, |x:u32| x == IDB_MAGIC) >>
-              len1:       le_u32 >>
-              linktype:   le_u16 >>
-              reserved:   le_u16 >>
-              snaplen:    le_u32 >>
+              magic:      verify!(read_u32, |x:u32| x == IDB_MAGIC) >>
+              len1:       read_u32 >>
+              linktype:   read_u16 >>
+              reserved:   read_u16 >>
+              snaplen:    read_u32 >>
               // options
               options: cond!(
                     len1 > 20,
                     flat_map!(
                         take!(len1 - 20),
-                        many0!(complete!(parse_option))
+                        many0!(complete!(read_option))
                         )
                   ) >>
-              len2:    verify!(le_u32, |x:u32| x == len1) >>
+              len2:    verify!(read_u32, |x:u32| x == len1) >>
               ({
                   let options = options.unwrap_or(Vec::new());
                   let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
@@ -523,41 +533,17 @@ pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescripti
 }
 
 #[inline]
-pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block> {
-    parse_interfacedescription(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
+pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
+    inner_parse_interfacedescription(i, false)
 }
 
+#[inline]
 pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
-    do_parse! {i,
-              magic:      verify!(be_u32, |x:u32| x == IDB_MAGIC) >>
-              len1:       be_u32 >>
-              linktype:   be_u16 >>
-              reserved:   be_u16 >>
-              snaplen:    be_u32 >>
-              options: cond!(
-                    len1 > 20,
-                    flat_map!(
-                        take!(len1 - 20),
-                        many0!(complete!(parse_option_be))
-                        )
-                  ) >>
-              len2:    verify!(be_u32, |x:u32| x == len1) >>
-              ({
-                  let options = options.unwrap_or(Vec::new());
-                  let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
-                  InterfaceDescriptionBlock{
-                      block_type: magic,
-                      block_len1: len1,
-                      linktype: Linktype(linktype as i32),
-                      reserved,
-                      snaplen,
-                      options,
-                      block_len2: len2,
-                      if_tsresol,
-                      if_tsoffset,
-                  }
-              })
-    }
+    inner_parse_interfacedescription(i, true)
+}
+#[inline]
+pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block> {
+    parse_interfacedescription(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
 
 #[inline]
@@ -565,20 +551,18 @@ pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     parse_interfacedescription_be(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
 
-/// Parse a Simple Packet Block
-///
-/// *Note: this function does not remove padding*
-pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
+fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
-        magic:     verify!(le_u32, |x:u32| x == SPB_MAGIC) >>
-        len1:      verify!(le_u32, |val:u32| val >= 32) >>
+        magic:     verify!(read_u32, |x:u32| x == SPB_MAGIC) >>
+        len1:      verify!(read_u32, |val:u32| val >= 32) >>
         origlen:   le_u32 >>
         // XXX if snaplen is < origlen, we MUST use snaplen
         // al_len:    value!(align32!(origlen)) >>
         // data:      take!(al_len) >>
         data:      take!(len1 - 16) >>
-        len2:      verify!(le_u32, |x:u32| x == len1) >>
+        len2:      verify!(read_u32, |x:u32| x == len1) >>
         (
             Block::SimplePacket(SimplePacketBlock{
                 block_type: magic,
@@ -591,30 +575,21 @@ pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
     }
 }
 
+
+/// Parse a Simple Packet Block
+///
+/// *Note: this function does not remove padding*
+#[inline]
+pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_simplepacketblock(i, false)
+}
+
 /// Parse a Simple Packet Block (big-endian)
 ///
 /// *Note: this function does not remove padding*
+#[inline]
 pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
-    do_parse! {
-        i,
-        magic:     verify!(be_u32, |x:u32| x == SPB_MAGIC) >>
-        len1:      verify!(be_u32, |val:u32| val >= 32) >>
-        origlen:   be_u32 >>
-        // XXX if snaplen is < origlen, we MUST use snaplen
-        // al_len:    value!(align32!(origlen)) >>
-        // data:      take!(al_len) >>
-        data:      take!(len1 - 16) >>
-        len2:      verify!(be_u32, |x:u32| x == len1) >>
-        (
-            Block::SimplePacket(SimplePacketBlock{
-                block_type: magic,
-                block_len1: len1,
-                origlen: origlen,
-                data: data,
-                block_len2: len2
-            })
-        )
-    }
+    inner_parse_simplepacketblock(i, true)
 }
 
 #[inline]
