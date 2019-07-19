@@ -310,7 +310,7 @@ impl<'a> EPB<'a> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::pcapng::traits_parse_enhancedpacketblock;
+    use crate::pcapng::{parse_block, Block};
     // tls12-23.pcap frame 0
     pub const FRAME_PCAP: &'static [u8] = &hex!(
         "
@@ -386,32 +386,39 @@ F4 01 00 00"
     }
     #[test]
     fn test_pcapng_packet_functions() {
-        let pkt = EPB::new(FRAME_PCAPNG_EPB, false).expect("packet creation failed");
-        assert_eq!(pkt.interface(), 1);
-        assert_eq!(pkt.origlen(), 84);
-        assert_eq!(pkt.data().len(), 84);
-        assert!(pkt.raw_options().is_empty());
-        assert!(pkt.validate().is_ok());
+        let (rem, pkt) = parse_block(FRAME_PCAPNG_EPB).expect("packet creation failed");
+        assert!(rem.is_empty());
+        if let Block::EnhancedPacket(epb) = pkt {
+            assert_eq!(epb.if_id, 1);
+            assert_eq!(epb.origlen, 84);
+            assert_eq!(epb.data_len(), 84);
+            assert!(epb.options.is_empty());
+        }
     }
     #[test]
     fn test_pcapng_packet_epb_with_options() {
-        let pkt = EPB::new(FRAME_PCAPNG_EPB_WITH_OPTIONS, false).expect("packet creation failed");
-        assert_eq!(pkt.interface(), 0);
-        assert_eq!(pkt.origlen(), 314);
-        assert_eq!(pkt.data().len(), 314);
-        // use nom::HexDisplay;
-        // println!("raw_options:\n{}", pkt.raw_options().to_hex(16));
+        let (rem, pkt) =
+            parse_block(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet creation failed");
+        assert!(rem.is_empty());
+        if let Block::EnhancedPacket(epb) = pkt {
+            assert_eq!(epb.if_id, 0);
+            assert_eq!(epb.origlen, 314);
+            assert_eq!(epb.data_len(), 314);
+        }
     }
     #[test]
     fn test_parse_enhancepacketblock() {
-        let (rem, pkt) = traits_parse_enhancedpacketblock(FRAME_PCAPNG_EPB_WITH_OPTIONS)
-            .expect("packet parsing failed");
+        let (rem, pkt) = parse_block(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet parsing failed");
         assert!(rem.is_empty());
-        assert_eq!(pkt.interface(), 0);
-        assert_eq!(pkt.origlen(), 314);
-        assert_eq!(pkt.data().len(), 314);
-        println!("options: {:?}", pkt.options());
+        if let Block::EnhancedPacket(epb) = pkt {
+            assert_eq!(epb.if_id, 0);
+            assert_eq!(epb.origlen, 314);
+            assert_eq!(epb.data_len(), 314);
+            println!("options: {:?}", epb.options);
         // use nom::HexDisplay;
         // println!("raw_options:\n{}", pkt.raw_options().to_hex(16));
+        } else {
+            panic!("wrong packet type");
+        }
     }
 }
