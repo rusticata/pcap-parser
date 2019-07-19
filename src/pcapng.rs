@@ -679,14 +679,13 @@ fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
     do_parse! {
         i,
                     verify!(read_u32, |x:u32| x == NRB_MAGIC) >>
-        len1:       verify!(read_u32, |val:u32| val >= 32) >>
+        len1:       verify!(read_u32, |val:u32| val >= 16) >>
         nr_and_opt: flat_map!(
             take!(len1 - 12),
             tuple!(call!(parse_name_record_list, big_endian), rest)
             ) >>
         len2:       verify!(read_u32, |x:u32| x == len1) >>
         ({
-            println!("nr: {:?}", nr_and_opt.0);
             Block::NameResolution(NameResolutionBlock{
                 big_endian,
                 block_type: EPB_MAGIC,
