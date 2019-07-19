@@ -200,5 +200,3 @@ macro_rules! align32 {
         align_n2!($x, 4)
     };
 }
-
-

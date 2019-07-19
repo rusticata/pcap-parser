@@ -575,7 +575,6 @@ fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], B
     }
 }
 
-
 /// Parse a Simple Packet Block
 ///
 /// *Note: this function does not remove padding*

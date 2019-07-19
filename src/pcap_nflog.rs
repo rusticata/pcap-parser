@@ -6,10 +6,10 @@
 //! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
 use crate::packet::Packet;
-use nom::{be_u16,le_u8,le_u16};
+use nom::{be_u16, le_u16, le_u8};
 
 // Defined in linux/netfilter/nfnetlink_log.h
-#[derive(Copy,Clone)]
+#[derive(Copy, Clone)]
 #[repr(u16)]
 pub enum NfAttrType {
     /// packet header structure: hardware protocol (2 bytes), nf hook (1 byte), padding (1 byte)
@@ -60,7 +60,7 @@ pub struct NflogTlv<'a> {
     /// Type of data (see `NfAttrType`)
     pub t: u16,
     /// Data
-    pub v: &'a[u8],
+    pub v: &'a [u8],
 }
 
 named!(pub parse_nflog_tlv<NflogTlv>,
@@ -107,13 +107,12 @@ named!(pub parse_nflog_header<NflogHdr>,
 );
 
 impl<'a> NflogPacket<'a> {
-    pub fn get(&self, attr:NfAttrType) -> Option<&NflogTlv> {
+    pub fn get(&self, attr: NfAttrType) -> Option<&NflogTlv> {
         self.data.iter().find(|v| v.t == attr as u16)
     }
 
     pub fn get_payload(&self) -> Option<&[u8]> {
-        self.get(NfAttrType::Payload)
-            .map(|tlv| tlv.v)
+        self.get(NfAttrType::Payload).map(|tlv| tlv.v)
     }
 }
 
@@ -131,14 +130,18 @@ named!(pub parse_nflog<NflogPacket>,
 );
 
 /// Parse nflog data, and extract only packet payload
-pub fn get_data_nflog<'a>(packet: &'a Packet) -> Option<&'a[u8]> {
+pub fn get_data_nflog<'a>(packet: &'a Packet) -> Option<&'a [u8]> {
     match parse_nflog(packet.data) {
-        Ok((_,res)) => {
-            match res.data.into_iter().find(|v| v.t == NfAttrType::Payload as u16) {
+        Ok((_, res)) => {
+            match res
+                .data
+                .into_iter()
+                .find(|v| v.t == NfAttrType::Payload as u16)
+            {
                 Some(v) => Some(v.v),
-                None    => None,
+                None => None,
             }
-        },
+        }
         _ => None,
     }
 }

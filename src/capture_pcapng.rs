@@ -45,10 +45,7 @@ impl<'a> PcapNGCapture<'a> {
     }
 
     pub fn iter(&'a self) -> PcapNGCaptureIterator<'a> {
-        PcapNGCaptureIterator {
-            cap: self,
-            idx: 0,
-        }
+        PcapNGCaptureIterator { cap: self, idx: 0 }
     }
 }
 

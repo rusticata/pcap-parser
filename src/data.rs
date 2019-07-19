@@ -2,7 +2,7 @@ use crate::Packet;
 
 pub use crate::pcap_nflog::*;
 
-pub fn get_data_raw<'a>(packet: &'a Packet) -> &'a[u8] {
+pub fn get_data_raw<'a>(packet: &'a Packet) -> &'a [u8] {
     // debug!("data.len: {}, caplen: {}", packet.data.len(), packet.header.caplen);
     let maxlen = packet.header.caplen as usize;
     &packet.data[..maxlen]
@@ -16,20 +16,20 @@ pub fn get_data_raw<'a>(packet: &'a Packet) -> &'a[u8] {
 // captured; if a live capture is being done, ``host byte order'' is the byte order of the machine
 // capturing the packets, but if a ``savefile'' is being read, the byte order is not necessarily
 // that of the machine reading the capture file.
-pub fn get_data_null<'a>(packet: &'a Packet) -> &'a[u8] {
+pub fn get_data_null<'a>(packet: &'a Packet) -> &'a [u8] {
     // debug!("data.len: {}, caplen: {}", packet.data.len(), packet.header.caplen);
     let maxlen = packet.header.caplen as usize;
     &packet.data[4..maxlen]
 }
 
-pub fn get_data_ethernet<'a>(packet: &'a Packet) -> &'a[u8] {
+pub fn get_data_ethernet<'a>(packet: &'a Packet) -> &'a [u8] {
     // debug!("data.len: {}, caplen: {}", packet.data.len(), packet.header.caplen);
     let maxlen = packet.header.caplen as usize;
     &packet.data[14..maxlen]
 }
 
 /// See http://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html
-pub fn get_data_linux_cooked<'a>(packet: &'a Packet) -> &'a[u8] {
+pub fn get_data_linux_cooked<'a>(packet: &'a Packet) -> &'a [u8] {
     // debug!("data.len: {}, caplen: {}", packet.data.len(), packet.header.caplen);
     let maxlen = packet.header.caplen as usize;
     &packet.data[16..maxlen]
