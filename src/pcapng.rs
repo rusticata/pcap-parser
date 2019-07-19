@@ -905,35 +905,20 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
 pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>> {
     many1!(i, complete!(parse_section))
 }
+
 pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
-    match peek!(i, le_u32) {
-        Ok((rem, id)) => match id {
-            SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-            IDB_MAGIC => parse_interfacedescriptionblock(rem),
-            SPB_MAGIC => parse_simplepacketblock(rem),
-            EPB_MAGIC => parse_enhancedpacketblock(rem),
-            NRB_MAGIC => parse_nameresolutionblock(rem),
-            ISB_MAGIC => parse_interfacestatisticsblock(rem),
-            CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
-            _ => parse_unknownblock(rem),
-        },
-        Err(e) => Err(e),
+    let (rem, block) = parse_block(i)?;
+    match block {
+        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+        _ => Ok((rem, block))
     }
 }
 
 pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
-    match peek!(i, be_u32) {
-        Ok((rem, id)) => match id {
-            SHB_MAGIC => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
-            IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
-            SPB_MAGIC => parse_simplepacketblock_be(rem),
-            EPB_MAGIC => parse_enhancedpacketblock_be(rem),
-            NRB_MAGIC => parse_nameresolutionblock(rem),
-            ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
-            CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
-            _ => parse_unknownblock_be(rem),
-        },
-        Err(e) => Err(e),
+    let (rem, block) = parse_block_be(i)?;
+    match block {
+        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+        _ => Ok((rem, block))
     }
 }
 
