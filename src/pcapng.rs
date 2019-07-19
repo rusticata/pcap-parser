@@ -457,10 +457,12 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock> 
     })
 }
 
+#[inline]
 pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block> {
     parse_sectionheaderblock_le(i).map(|(r, b)| (r, Block::SectionHeader(b)))
 }
 
+#[inline]
 pub fn parse_sectionheader_be(i: &[u8]) -> IResult<&[u8], Block> {
     parse_sectionheaderblock_be(i).map(|(r, b)| (r, Block::SectionHeader(b)))
 }
@@ -520,6 +522,7 @@ pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescripti
     }
 }
 
+#[inline]
 pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block> {
     parse_interfacedescription(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
@@ -557,6 +560,7 @@ pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8], InterfaceDescri
     }
 }
 
+#[inline]
 pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     parse_interfacedescription_be(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
@@ -661,10 +665,12 @@ fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
     }
 }
 
+#[inline]
 pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_enhancedpacketblock(i, false)
 }
 
+#[inline]
 pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_enhancedpacketblock(i, true)
 }
@@ -719,10 +725,12 @@ fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
     }
 }
 
+#[inline]
 pub fn parse_nameresolutionblock(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_nameresolutionblock(i, false)
 }
 
+#[inline]
 pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_nameresolutionblock(i, true)
 }
@@ -812,10 +820,12 @@ fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> 
     }
 }
 
+#[inline]
 pub fn parse_customblock(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_customblock(i, false)
 }
 
+#[inline]
 pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_customblock(i, true)
 }
@@ -840,10 +850,12 @@ fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block>
     }
 }
 
+#[inline]
 pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_unknownblock(i, false)
 }
 
+#[inline]
 pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_unknownblock(i, true)
 }
@@ -923,6 +935,7 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
 }
 
 /// Parse multiple sections
+#[inline]
 pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>> {
     many1!(i, complete!(parse_section))
 }
