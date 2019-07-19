@@ -669,11 +669,12 @@ pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_enhancedpacketblock(i, true)
 }
 
-fn parse_name_record(i: &[u8]) -> IResult<&[u8], NameRecord> {
+fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord> {
+    let read_u16 = if big_endian { be_u16 } else { le_u16 };
     do_parse! {
         i,
-        record_type: le_u16 >>
-        record_len: le_u16 >>
+        record_type: read_u16 >>
+        record_len: read_u16 >>
         record_value: take!(align32!(record_len)) >>
         (
             NameRecord{
@@ -684,8 +685,13 @@ fn parse_name_record(i: &[u8]) -> IResult<&[u8], NameRecord> {
     }
 }
 
-fn parse_name_record_list(i: &[u8]) -> IResult<&[u8], Vec<NameRecord>> {
-    many_till!(i, parse_name_record, verify!(le_u32, |x: u32| x == 0)).map(|(rem, (v, _))| (rem, v))
+fn parse_name_record_list(i: &[u8], big_endian: bool) -> IResult<&[u8], Vec<NameRecord>> {
+    many_till!(
+        i,
+        call!(parse_name_record, big_endian),
+        verify!(le_u32, |x: u32| x == 0)
+    )
+    .map(|(rem, (v, _))| (rem, v))
 }
 
 fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
@@ -696,7 +702,7 @@ fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
         len1:       verify!(read_u32, |val:u32| val >= 32) >>
         nr_and_opt: flat_map!(
             take!(len1 - 12),
-            tuple!(parse_name_record_list, rest)
+            tuple!(call!(parse_name_record_list, big_endian), rest)
             ) >>
         len2:       verify!(read_u32, |x:u32| x == len1) >>
         ({
@@ -715,6 +721,10 @@ fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
 
 pub fn parse_nameresolutionblock(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_nameresolutionblock(i, false)
+}
+
+pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+    inner_parse_nameresolutionblock(i, true)
 }
 
 pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block> {
@@ -877,7 +887,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
             SPB_MAGIC => parse_simplepacketblock_be(rem),
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
-            NRB_MAGIC => parse_nameresolutionblock(rem),
+            NRB_MAGIC => parse_nameresolutionblock_be(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => parse_unknownblock_be(rem),
