@@ -459,12 +459,7 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock> 
 
 #[inline]
 pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block> {
-    parse_sectionheaderblock_le(i).map(|(r, b)| (r, Block::SectionHeader(b)))
-}
-
-#[inline]
-pub fn parse_sectionheader_be(i: &[u8]) -> IResult<&[u8], Block> {
-    parse_sectionheaderblock_be(i).map(|(r, b)| (r, Block::SectionHeader(b)))
+    parse_sectionheaderblock(i).map(|(r, b)| (r, Block::SectionHeader(b)))
 }
 
 fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
@@ -860,7 +855,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block> {
 pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
     match peek!(i, be_u32) {
         Ok((rem, id)) => match id {
-            SHB_MAGIC => parse_sectionheader_be(rem),
+            SHB_MAGIC => parse_sectionheader(rem),
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
             SPB_MAGIC => parse_simplepacketblock_be(rem),
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
