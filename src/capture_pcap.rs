@@ -1,8 +1,67 @@
 use crate::capture::Capture;
-use crate::packet::{Linktype, PcapBlock};
+use crate::packet::{Linktype, PcapBlock, PcapBlockOwned};
 use crate::pcap::{parse_pcap_frame, parse_pcap_header, PcapHeader};
 use crate::traits::LegacyPcapBlock;
+use nom;
 use nom::IResult;
+
+/// Iterator over legacy pcap files
+///
+/// ```rust
+/// # extern crate nom;
+/// # extern crate pcap_parser;
+/// use pcap_parser::*;
+/// use nom::IResult;
+/// use std::fs::File;
+/// use std::io::Read;
+///
+/// # fn main() {
+/// # let path = "assets/ntp.pcap";
+/// let mut file = File::open(path).unwrap();
+/// let mut buffer = Vec::new();
+/// file.read_to_end(&mut buffer).unwrap();
+/// let mut num_blocks = 0;
+/// match LegacyPcapSlice::from_slice(&buffer) {
+///     Ok(iter) => {
+///         println!("Format: PCAP");
+///         for _block in iter {
+///             num_blocks += 1;
+///         }
+///         return;
+///     },
+///     _ => ()
+/// }
+/// # }
+/// ```
+pub struct LegacyPcapSlice<'a> {
+    pub header: PcapHeader,
+    // remaining (unparsed) data
+    rem: &'a [u8],
+}
+
+impl<'a> LegacyPcapSlice<'a> {
+    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, nom::Err<&[u8]>> {
+        let (rem, header) = parse_pcap_header(i)?;
+        Ok(LegacyPcapSlice { header, rem })
+    }
+}
+
+/// Iterator for LegacyPcapSlice. Returns a result so parsing errors are not
+/// silently ignored
+impl<'a> Iterator for LegacyPcapSlice<'a> {
+    type Item = Result<PcapBlockOwned<'a>, nom::Err<&'a [u8]>>;
+
+    fn next(&mut self) -> Option<Result<PcapBlockOwned<'a>, nom::Err<&'a [u8]>>> {
+        if self.rem.is_empty() {
+            return None;
+        }
+        let r = parse_pcap_frame(self.rem).map(|(rem, b)| {
+            self.rem = rem;
+            PcapBlockOwned::from(b)
+        });
+        Some(r)
+    }
+}
 
 /// Generic interface for PCAP file access
 pub struct PcapCapture<'a> {

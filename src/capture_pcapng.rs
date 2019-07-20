@@ -1,7 +1,77 @@
-use crate::packet::PcapBlock;
+use crate::packet::{PcapBlock, PcapBlockOwned};
 use crate::pcapng::*;
 use nom::IResult;
 use std::fmt;
+
+#[derive(Default)]
+pub struct CurrentSectionInfo {
+    big_endian: bool,
+}
+
+/// Iterator over PcapNG files
+///
+/// ```rust
+/// # extern crate nom;
+/// # extern crate pcap_parser;
+/// use pcap_parser::*;
+/// use nom::IResult;
+/// use std::fs::File;
+/// use std::io::Read;
+///
+/// # fn main() {
+/// # let path = "assets/test001-le.pcapng";
+/// let mut file = File::open(path).unwrap();
+/// let mut buffer = Vec::new();
+/// file.read_to_end(&mut buffer).unwrap();
+/// let mut num_blocks = 0;
+/// let capture = PcapNGSlice::from_slice(&buffer).expect("parse file");
+/// for _block in capture {
+///     num_blocks += 1;
+/// }
+/// # }
+pub struct PcapNGSlice<'a> {
+    info: CurrentSectionInfo,
+    // remaining (unparsed) data
+    rem: &'a [u8],
+}
+
+impl<'a> PcapNGSlice<'a> {
+    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, nom::Err<&[u8]>> {
+        // just check that first block is a valid one
+        let (_rem, _shb) = parse_sectionheaderblock(i)?;
+        let info = CurrentSectionInfo::default();
+        let rem = i;
+        Ok(PcapNGSlice { info, rem })
+    }
+}
+
+/// Iterator for PcapNGSlice. Returns a result so parsing errors are not
+/// silently ignored
+impl<'a> Iterator for PcapNGSlice<'a> {
+    type Item = Result<PcapBlockOwned<'a>, nom::Err<&'a [u8]>>;
+
+    fn next(&mut self) -> Option<Result<PcapBlockOwned<'a>, nom::Err<&'a [u8]>>> {
+        if self.rem.is_empty() {
+            return None;
+        }
+        let parse = if self.info.big_endian {
+            parse_block_be
+        } else {
+            parse_block
+        };
+        let r = parse(self.rem).map(|(rem, b)| {
+            self.rem = rem;
+            match b {
+                Block::SectionHeader(ref shb) => {
+                    self.info.big_endian = shb.is_bigendian();
+                }
+                _ => (),
+            }
+            PcapBlockOwned::from(b)
+        });
+        Some(r)
+    }
+}
 
 /// Generic interface for PCAPNG file access
 pub struct PcapNGCapture<'a> {
