@@ -4,6 +4,7 @@ use crate::pcap::{parse_pcap_frame, parse_pcap_header, PcapHeader};
 use crate::traits::LegacyPcapBlock;
 use nom;
 use nom::IResult;
+use std::fmt;
 
 /// Iterator over legacy pcap files
 ///
@@ -76,6 +77,12 @@ impl<'a> PcapCapture<'a> {
             Ok((_, pcap)) => Ok(pcap),
             e => Err(e),
         }
+    }
+}
+
+impl<'a> fmt::Debug for PcapCapture<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        writeln!(f, "PcapCapture:")
     }
 }
 
