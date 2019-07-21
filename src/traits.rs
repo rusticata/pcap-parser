@@ -1,6 +1,8 @@
+use crate::packet::PcapBlockOwned;
 use crate::pcapng::{build_ts, parse_option, PcapNGOption};
 use crate::utils::{Data, MICROS_PER_SEC};
 use crate::{align32, align_n2, read_u32_e};
+use std::io::BufRead;
 
 /// Container for network data in legacy Pcap files
 pub struct LegacyPcapBlock<'a> {
@@ -129,6 +131,15 @@ pub trait PcapNGBlock {
         }
         &self.raw_data()[offset..data_len - 4]
     }
+}
+
+/// Iterator over pcap files (streaming parser over BufRead)
+pub trait PcapReaderIterator<B>
+where
+    B: BufRead,
+{
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>>;
+    fn consume(&mut self, offset: usize);
 }
 
 /// Enhanced Packet Block

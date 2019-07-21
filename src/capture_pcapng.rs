@@ -1,14 +1,102 @@
 use crate::packet::{PcapBlock, PcapBlockOwned};
 use crate::pcapng::*;
-use nom::IResult;
+use nom::{IResult, Offset};
 use std::fmt;
+use std::io::BufRead;
+
+/// Iterator over legacy pcap-ng files (streaming parser over BufRead)
+///
+/// ```rust
+/// # extern crate nom;
+/// # extern crate pcap_parser;
+/// use pcap_parser::*;
+/// use pcap_parser::traits::PcapReaderIterator;
+/// use nom::{ErrorKind, IResult};
+/// use std::fs::File;
+/// use std::io::{BufReader, Read};
+///
+/// # fn main() {
+/// # let path = "assets/test001-le.pcapng";
+/// let mut file = File::open(path).unwrap();
+/// let buffered = BufReader::new(file);
+/// let mut num_blocks = 0;
+/// let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+/// loop {
+///     match reader.next() {
+///         Ok((offset, _block)) => {
+///             println!("got new block");
+///             num_blocks += 1;
+///             reader.consume(offset);
+///         },
+///         Err(ErrorKind::Eof) => break,
+///         Err(e) => panic!("error while reading: {:?}", e),
+///     }
+/// }
+/// println!("num_blocks: {}", num_blocks);
+/// # }
+/// ```
+pub struct PcapNGReader<B>
+where
+    B: BufRead,
+{
+    info: CurrentSectionInfo,
+    reader: B,
+}
+
+impl<B> PcapNGReader<B>
+where
+    B: BufRead,
+{
+    pub fn new(mut reader: B) -> Result<PcapNGReader<B>, nom::ErrorKind<u32>> {
+        if let Ok(buffer) = reader.fill_buf() {
+            // just check that first block is a valid one
+            let (_rem, _shb) =
+                parse_sectionheaderblock(&buffer).map_err(|e| e.into_error_kind())?;
+            let info = CurrentSectionInfo::default();
+            Ok(PcapNGReader { info, reader })
+        } else {
+            Err(nom::ErrorKind::Custom(0))
+        }
+    }
+
+    pub fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
+        if let Ok(buffer) = self.reader.fill_buf() {
+            if buffer.is_empty() {
+                return Err(nom::ErrorKind::Eof);
+            }
+            let parse = if self.info.big_endian {
+                parse_block_be
+            } else {
+                parse_block
+            };
+            match parse(&buffer) {
+                Ok((rem, b)) => {
+                    let offset = buffer.offset(rem);
+                    match b {
+                        Block::SectionHeader(ref shb) => {
+                            self.info.big_endian = shb.is_bigendian();
+                        }
+                        _ => (),
+                    }
+                    Ok((offset, PcapBlockOwned::from(b)))
+                }
+                Err(e) => Err(e.into_error_kind()),
+            }
+        } else {
+            Err(nom::ErrorKind::Custom(0))
+        }
+    }
+    pub fn consume(&mut self, offset: usize) {
+        self.reader.consume(offset);
+    }
+}
 
 #[derive(Default)]
 pub struct CurrentSectionInfo {
     big_endian: bool,
 }
 
-/// Iterator over PcapNG files
+/// Iterator over pcap-ng files (requires slice to be loaded into memory)
 ///
 /// ```rust
 /// # extern crate nom;

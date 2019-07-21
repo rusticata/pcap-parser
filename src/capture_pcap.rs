@@ -1,12 +1,95 @@
 use crate::capture::Capture;
 use crate::packet::{Linktype, PcapBlock, PcapBlockOwned};
-use crate::pcap::{parse_pcap_frame, parse_pcap_header, PcapHeader};
-use crate::traits::LegacyPcapBlock;
-use nom;
-use nom::IResult;
+use crate::pcap::{parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, PcapHeader};
+use crate::traits::{LegacyPcapBlock, PcapReaderIterator};
+use nom::{self, IResult, Offset};
 use std::fmt;
+use std::io::BufRead;
 
-/// Iterator over legacy pcap files
+/// Iterator over legacy pcap files (streaming parser over BufRead)
+///
+/// ```rust
+/// # extern crate nom;
+/// # extern crate pcap_parser;
+/// use pcap_parser::*;
+/// use pcap_parser::traits::PcapReaderIterator;
+/// use nom::{ErrorKind, IResult};
+/// use std::fs::File;
+/// use std::io::{BufReader, Read};
+///
+/// # fn main() {
+/// # let path = "assets/ntp.pcap";
+/// let mut file = File::open(path).unwrap();
+/// let buffered = BufReader::new(file);
+/// let mut num_blocks = 0;
+/// let mut reader = LegacyPcapReader::new(buffered).expect("LegacyPcapReader");
+/// loop {
+///     match reader.next() {
+///         Ok((offset, _block)) => {
+///             println!("got new block");
+///             num_blocks += 1;
+///             reader.consume(offset);
+///         },
+///         Err(ErrorKind::Eof) => break,
+///         Err(e) => panic!("error while reading: {:?}", e),
+///     }
+/// }
+/// println!("num_blocks: {}", num_blocks);
+/// # }
+/// ```
+pub struct LegacyPcapReader<B>
+where
+    B: BufRead,
+{
+    header: PcapHeader,
+    reader: B,
+}
+
+impl<B> LegacyPcapReader<B>
+where
+    B: BufRead,
+{
+    pub fn new(mut reader: B) -> Result<LegacyPcapReader<B>, nom::ErrorKind<u32>> {
+        let mut buffer = [0; 24];
+        reader
+            .read(&mut buffer)
+            .or(Err(nom::ErrorKind::Custom(0)))?;
+        let (_rem, header) = parse_pcap_header(&buffer).map_err(|e| e.into_error_kind())?;
+        Ok(LegacyPcapReader { header, reader })
+    }
+}
+
+impl<B> PcapReaderIterator<B> for LegacyPcapReader<B>
+where
+    B: BufRead,
+{
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
+        if let Ok(buffer) = self.reader.fill_buf() {
+            if buffer.is_empty() {
+                return Err(nom::ErrorKind::Eof);
+            }
+            let parse = if self.header.is_bigendian() {
+                parse_pcap_frame_be
+            } else {
+                parse_pcap_frame
+            };
+            match parse(&buffer) {
+                Ok((rem, b)) => {
+                    let offset = buffer.offset(rem);
+                    Ok((offset, PcapBlockOwned::from(b)))
+                }
+                Err(e) => Err(e.into_error_kind()),
+            }
+        } else {
+            Err(nom::ErrorKind::Custom(0))
+        }
+    }
+    fn consume(&mut self, offset: usize) {
+        self.reader.consume(offset);
+    }
+}
+
+/// Iterator over legacy pcap files (requires slice to be loaded into memory)
 ///
 /// ```rust
 /// # extern crate nom;

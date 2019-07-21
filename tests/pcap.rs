@@ -1,23 +1,49 @@
+extern crate nom;
 extern crate pcap_parser;
 
-use pcap_parser::pcapng::Block;
-use pcap_parser::traits::PcapNGBlock;
+use nom::ErrorKind;
+use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
+use std::fs::File;
+use std::io::BufReader;
 
 static TEST_NTP: &'static [u8] = include_bytes!("../assets/ntp.pcap");
 
 #[test]
 fn test_pcap_capture_from_file_and_iter_le() {
     let cap = PcapCapture::from_file(TEST_NTP).expect("could not parse file into PcapNGCapture");
-    let expected_origlen = &[0, 0, 314, 342, 314, 342];
-    for (block, expected_len) in cap.iter().zip(expected_origlen.iter()) {
+    for block in cap.iter() {
         match block {
-            PcapBlock::NG(Block::EnhancedPacket(epb)) => {
-                println!("block total length: {}", epb.block_length());
-                println!("captured length: {}", epb.caplen);
-                assert_eq!(epb.caplen, *expected_len);
+            PcapBlock::Legacy(b) => {
+                assert_eq!(b.caplen(), 90);
             }
-            _ => (),
+            PcapBlock::NG(_) => panic!("unexpected NG data"),
         }
     }
+}
+
+#[test]
+fn test_pcap_reader() {
+    let path = "assets/ntp.pcap";
+    let file = File::open(path).unwrap();
+    let buffered = BufReader::new(file);
+    let mut num_blocks = 0;
+    let mut reader = LegacyPcapReader::new(buffered).expect("LegacyPcapReader");
+    loop {
+        match reader.next() {
+            Ok((offset, block)) => {
+                num_blocks += 1;
+                match block {
+                    PcapBlockOwned::Legacy(b) => {
+                        assert_eq!(b.caplen(), 90);
+                    }
+                    PcapBlockOwned::NG(_) => panic!("unexpected NG data"),
+                }
+                reader.consume(offset);
+            }
+            Err(ErrorKind::Eof) => break,
+            Err(e) => panic!("error while reading: {:?}", e),
+        }
+    }
+    assert_eq!(num_blocks, 12);
 }

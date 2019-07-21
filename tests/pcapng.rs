@@ -1,8 +1,12 @@
+extern crate nom;
 extern crate pcap_parser;
 
+use nom::ErrorKind;
 use pcap_parser::pcapng::Block;
 use pcap_parser::traits::PcapNGBlock;
 use pcap_parser::*;
+use std::fs::File;
+use std::io::BufReader;
 
 static TEST001_BE: &'static [u8] = include_bytes!("../assets/test001-be.pcapng");
 static TEST001_LE: &'static [u8] = include_bytes!("../assets/test001-le.pcapng");
@@ -76,4 +80,54 @@ fn test_pcapng_simple_packets() {
             _ => (),
         }
     }
+}
+
+#[test]
+fn test_pcapng_reader() {
+    let path = "assets/test001-le.pcapng";
+    let file = File::open(path).unwrap();
+    let buffered = BufReader::new(file);
+    let mut num_blocks = 0;
+    let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+    let expected_origlen = &[0, 0, 314, 342, 314, 342];
+    while let Ok((offset, block)) = reader.next() {
+        match block {
+            PcapBlockOwned::NG(Block::EnhancedPacket(epb)) => {
+                assert_eq!(expected_origlen[num_blocks], epb.origlen);
+            }
+            PcapBlockOwned::NG(_) => (),
+            PcapBlockOwned::Legacy(_) => panic!("unexpected Legacy data"),
+        }
+        num_blocks += 1;
+        reader.consume(offset);
+    }
+    assert_eq!(num_blocks, 6);
+}
+
+#[test]
+fn test_pcapng_reader_be() {
+    let path = "assets/test001-be.pcapng";
+    let file = File::open(path).unwrap();
+    let buffered = BufReader::new(file);
+    let mut num_blocks = 0;
+    let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+    let expected_origlen = &[0, 0, 314, 342, 314, 342];
+    loop {
+        match reader.next() {
+            Ok((offset, block)) => {
+                match block {
+                    PcapBlockOwned::NG(Block::EnhancedPacket(epb)) => {
+                        assert_eq!(expected_origlen[num_blocks], epb.origlen);
+                    }
+                    PcapBlockOwned::NG(_) => (),
+                    PcapBlockOwned::Legacy(_) => panic!("unexpected Legacy data"),
+                }
+                num_blocks += 1;
+                reader.consume(offset);
+            }
+            Err(ErrorKind::Eof) => break,
+            Err(e) => panic!("error while reading: {:?}", e),
+        }
+    }
+    assert_eq!(num_blocks, 6);
 }
