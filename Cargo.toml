@@ -29,6 +29,10 @@ default = []
 # include parsers for data (depending on linktype)
 data = []
 
+[package.metadata.docs.rs]
+features = [ "data" ]
+all-features = true
+
 [dependencies]
 nom = "4.0"
 cookie-factory = "0.2"
