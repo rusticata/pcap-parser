@@ -1,4 +1,4 @@
-use crate::packet::{PcapBlock, PcapBlockOwned};
+use crate::blocks::{PcapBlock, PcapBlockOwned};
 use crate::pcapng::*;
 use nom::{IResult, Offset};
 use std::fmt;

@@ -1,4 +1,4 @@
-use crate::packet::PcapBlockOwned;
+use crate::blocks::PcapBlockOwned;
 use crate::pcapng::{build_ts, parse_option, PcapNGOption};
 use crate::utils::{Data, MICROS_PER_SEC};
 use crate::{align32, align_n2, read_u32_e};

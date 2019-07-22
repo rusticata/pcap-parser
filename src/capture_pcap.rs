@@ -1,6 +1,6 @@
+use crate::blocks::{PcapBlock, PcapBlockOwned};
 use crate::capture::Capture;
 use crate::linktype::Linktype;
-use crate::packet::{PcapBlock, PcapBlockOwned};
 use crate::pcap::{parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, PcapHeader};
 use crate::traits::{LegacyPcapBlock, PcapReaderIterator};
 use nom::{self, IResult, Offset};

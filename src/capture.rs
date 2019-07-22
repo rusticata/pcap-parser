@@ -1,5 +1,5 @@
+use crate::blocks::PcapBlock;
 use crate::linktype::Linktype;
-use crate::packet::PcapBlock;
 
 /// Generic interface for PCAP or PCAPNG file access
 pub trait Capture {
