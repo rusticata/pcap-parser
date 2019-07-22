@@ -1,3 +1,6 @@
+//! Helper functions to access block contents (depending in linktype)
+
+use crate::packet::Linktype;
 pub use crate::pcap_nflog::*;
 use crate::read_u32_e;
 use nom::{be_u16, be_u64};
@@ -5,6 +8,7 @@ use nom::{be_u16, be_u64};
 pub const ETHERTYPE_IPV4: u16 = 0x0800;
 pub const ETHERTYPE_IPV6: u16 = 0x86dd;
 
+/// Contents of a pcap/pcap-ng block. This can be network data, USB, etc.
 pub enum PacketData<'a> {
     L2(&'a [u8]),
     L3(u16, &'a [u8]),
@@ -115,4 +119,39 @@ named! {
                 proto,
             })
     )
+}
+
+/// Get packet data for LINKTYPE_IPV4 (228)
+///
+/// Raw IPv4; the packet begins with an IPv4 header.
+pub fn get_packetdata_ipv4<'a>(i: &'a [u8], _caplen: usize) -> Option<PacketData<'a>> {
+    Some(PacketData::L3(ETHERTYPE_IPV4, i))
+}
+
+/// Get packet data for LINKTYPE_IPV6 (229)
+///
+/// Raw IPv4; the packet begins with an IPv6 header.
+pub fn get_packetdata_ipv6<'a>(i: &'a [u8], _caplen: usize) -> Option<PacketData<'a>> {
+    Some(PacketData::L3(ETHERTYPE_IPV6, i))
+}
+
+/// Get packet data, depending on linktype.
+///
+/// Get packet data, depending on linktype.
+///
+/// Returns None if data could not be extracted (for ex, inner parsing error). If linktype is not
+/// supported, `PacketData::Unsupported` is used.
+pub fn get_packetdata<'a>(
+    i: &'a [u8],
+    linktype: Linktype,
+    caplen: usize,
+) -> Option<PacketData<'a>> {
+    match linktype {
+        Linktype::NULL => get_packetdata_null(i, caplen),
+        Linktype::ETHERNET => get_packetdata_ethernet(i, caplen),
+        Linktype::RAW => get_packetdata_raw(i, caplen),
+        Linktype::LINUX_SLL => get_packetdata_linux_sll(i, caplen),
+        Linktype::NFLOG => get_packetdata_nflog(i, caplen),
+        _ => Some(PacketData::Unsupported(i)),
+    }
 }
