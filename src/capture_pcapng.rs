@@ -207,47 +207,10 @@ impl<'a> PcapNGCapture<'a> {
     }
 }
 
-// XXX IntoIterator seems to generate only consuming iterators, or I don't understand how to use it
-
-// impl<'a> IntoIterator for PcapNGCapture<'a> {
-//     type Item = Packet<'a>;
-//     type IntoIter = PcapNGCaptureIterator<'a>;
-//
-//     fn into_iter(self) -> Self::IntoIter {
-//         PcapNGCaptureIterator{ pcap: self, index: 0 }
-//     }
-// }
-
-// impl<'a> Capture for PcapNGCapture<'a> {
-//     fn get_datalink(&self) -> Linktype {
-//         // assume first linktype is the same
-//         assert!(self.sections.len() > 0);
-//         let section = &self.sections[0];
-//         assert!(section.interfaces.len() > 0);
-//         let interface = &section.interfaces[0];
-//         Linktype(interface.header.linktype as i32)
-//     }
-//
-//     fn get_snaplen(&self) -> u32 {
-//         // assume first linktype is the same
-//         assert!(self.sections.len() > 0);
-//         let section = &self.sections[0];
-//         assert!(section.interfaces.len() > 0);
-//         let interface = &section.interfaces[0];
-//         interface.header.snaplen
-//     }
-//
-//     fn iter_packets<'b>(&'b self) -> Box<Iterator<Item=Packet> + 'b> {
-//         Box::new(self.iter())
-//     }
-// }
-
 /// Parse the entire file
 ///
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture> {
-    // XXX wrong
-    // XXX file must be parsed iteratively, dealing with endianness
     do_parse!(
         i,
         sections: many1!(complete!(parse_section)) >> (PcapNGCapture { sections })

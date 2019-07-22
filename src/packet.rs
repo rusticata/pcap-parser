@@ -1,6 +1,5 @@
 use crate::pcapng::Block;
 use crate::traits::*;
-use cookie_factory::GenError;
 use std::convert::From;
 
 /// A block from a Pcap or PcapNG file
@@ -36,67 +35,6 @@ impl<'a> From<&'a LegacyPcapBlock<'a>> for PcapBlock<'a> {
 impl<'a> From<&'a Block<'a>> for PcapBlock<'a> {
     fn from(b: &'a Block) -> PcapBlock<'a> {
         PcapBlock::NG(b)
-    }
-}
-
-/// Packet data
-///
-/// The format of packet data depends on the
-/// [`LinkType`](struct.Linktype.html) of the file.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Packet<'a> {
-    /// The record header
-    pub header: PacketHeader,
-    /// The identifier of interface where the packet was captured
-    pub interface: u32,
-    /// Actual packet data
-    pub data: &'a [u8],
-}
-
-/// Record (Packet) Header
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct PacketHeader {
-    /// The date and time when this packet was captured (seconds since epoch).
-    pub ts_sec: u32,
-    /// In regular pcap files, the microseconds when this packet was captured,
-    /// as an offset to ts_sec. In nanosecond-resolution files, this is,
-    /// instead, the nanoseconds when the packet was captured, as an offset to
-    /// ts_sec
-    pub ts_fractional: u32,
-    /// Time resolution unit (in unit per seconds)
-    pub ts_unit: u64,
-    /// The number of bytes of packet data actually captured and saved in the
-    /// file.
-    pub caplen: u32,
-    /// The length of the packet as it appeared on the network when it was
-    /// captured.
-    /// If `cap_len` and `len` differ, the actually saved packet size was
-    /// limited by `snaplen`.
-    pub len: u32,
-}
-
-impl PacketHeader {
-    pub fn to_string(&self) -> Vec<u8> {
-        let mut mem: [u8; 16] = [0; 16];
-
-        let r = do_gen! {
-            (&mut mem,0),
-            gen_le_u32!(self.ts_sec) >>
-            gen_le_u32!(self.ts_micros()) >>
-            gen_le_u32!(self.caplen) >>
-            gen_le_u32!(self.len)
-        };
-        match r {
-            Ok((s, _)) => s.to_vec(),
-            Err(e) => panic!("error {:?}", e),
-        }
-    }
-    pub fn ts_sec(&self) -> u32 {
-        self.ts_sec
-    }
-    pub fn ts_micros(&self) -> u32 {
-        const MICROS_PER_SEC: u64 = 1_000_000;
-        self.ts_fractional / ((self.ts_unit / MICROS_PER_SEC) as u32)
     }
 }
 

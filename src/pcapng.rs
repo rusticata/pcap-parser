@@ -19,10 +19,8 @@ use crate::packet::{Linktype, PcapBlock};
 use crate::traits::PcapNGBlock;
 use crate::utils::Data;
 use crate::{align32, align_n2};
-use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult, Offset};
-// use packet::{Packet,PacketHeader};
 use byteorder::{ByteOrder, LittleEndian};
-// use std::fmt;
+use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult, Offset};
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D0D0A;
@@ -120,20 +118,6 @@ impl<'a> Section<'a> {
             index_block: 0,
         }
     }
-
-    // /// Get a vector of packets, sorted by timestamp
-    // /// The vector is allocated.
-    // ///
-    // /// Choose `sort_by` because it is likely the packets are already almost sorted,
-    // /// or are series of almost-soted packets (if there are multiple interfaces)
-    // pub fn sorted_by_timestamp(&self) -> Vec<Packet> {
-    //     let mut v : Vec<_> = self.iter_packets().collect();
-    //     v.sort_by(
-    //         |a, b|
-    //         a.header.ts_sec.cmp(&b.header.ts_sec).then(a.header.ts_fractional.cmp(&b.header.ts_fractional))
-    //         );
-    //     v
-    // }
 }
 
 // Non-consuming iterator over blocks of a Section
