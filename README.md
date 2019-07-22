@@ -74,9 +74,42 @@ match PcapNGCapture::from_file(&buffer) {
 }
 ```
 
-The above code requires the file to be entirely loaded into memory. Other functions
-in this crate allows for writing streaming parsers.
-See [pcap-tools](https://github.com/rusticata/pcap-tools) for examples.
+The above code requires the file to be entirely loaded into memory.
+
+# Example: streaming parsers
+
+The following code shows how to parse a file either in PCAP or PCAPNG format,
+using a [`BufReader`](https://doc.rust-lang.org/std/io/struct.BufReader.html) for buffered I/O.
+
+```rust
+use pcap_parser::*;
+use pcap_parser::traits::PcapReaderIterator;
+use nom::{ErrorKind, IResult};
+use std::fs::File;
+use std::io::{BufReader, Read};
+
+let mut file = File::open(path).unwrap();
+let buffered = BufReader::new(file);
+let mut num_blocks = 0;
+let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+loop {
+    match reader.next() {
+        Ok((offset, _block)) => {
+            println!("got new block");
+            num_blocks += 1;
+            reader.consume(offset);
+        },
+        Err(ErrorKind::Eof) => break,
+        Err(e) => panic!("error while reading: {:?}", e),
+    }
+}
+println!("num_blocks: {}", num_blocks);
+```
+
+To control to size of the reading buffer, see
+[`BufReader::with_capacity`](https://doc.rust-lang.org/std/io/struct.BufReader.html#method.with_capacity).
+
+See [pcap-tools](https://github.com/rusticata/pcap-tools) for more examples.
 
 <!-- cargo-sync-readme end -->
 
