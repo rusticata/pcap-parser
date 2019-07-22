@@ -5,7 +5,7 @@
 //!
 //! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
-use crate::packet::Packet;
+use crate::data::{PacketData, ETHERTYPE_IPV4, ETHERTYPE_IPV6};
 use nom::{be_u16, le_u16, le_u8};
 
 // Defined in linux/netfilter/nfnetlink_log.h
@@ -63,7 +63,8 @@ pub struct NflogTlv<'a> {
     pub v: &'a [u8],
 }
 
-named!(pub parse_nflog_tlv<NflogTlv>,
+named! {
+    pub parse_nflog_tlv<NflogTlv>,
     do_parse!(
         l: le_u16 >>
         t: le_u16 >>
@@ -71,7 +72,7 @@ named!(pub parse_nflog_tlv<NflogTlv>,
         _padding: cond!(l % 4 != 0,take!(4-(l%4))) >>
         ( NflogTlv{l:l,t:t,v:v} )
     )
-);
+}
 
 #[derive(Debug)]
 pub struct NflogHdr {
@@ -91,7 +92,8 @@ pub struct NflogPacket<'a> {
     pub data: Vec<NflogTlv<'a>>,
 }
 
-named!(pub parse_nflog_header<NflogHdr>,
+named! {
+    pub parse_nflog_header<NflogHdr>,
     do_parse!(
         af: le_u8 >>
         v:  le_u8 >>
@@ -104,7 +106,7 @@ named!(pub parse_nflog_header<NflogHdr>,
             }
         )
     )
-);
+}
 
 impl<'a> NflogPacket<'a> {
     pub fn get(&self, attr: NfAttrType) -> Option<&NflogTlv> {
@@ -116,29 +118,36 @@ impl<'a> NflogPacket<'a> {
     }
 }
 
-named!(pub parse_nflog<NflogPacket>,
+named! {
+    pub parse_nflog<NflogPacket>,
     do_parse!(
-        hdr: parse_nflog_header >>
-        d:   many0!(complete!(parse_nflog_tlv)) >>
+        header: parse_nflog_header >>
+        data:   many0!(complete!(parse_nflog_tlv)) >>
         (
-            NflogPacket{
-                header: hdr,
-                data: d,
-            }
+            NflogPacket{ header, data }
         )
     )
-);
+}
 
+/// Get packet data for LINKTYPE_NFLOG (239)
+///
 /// Parse nflog data, and extract only packet payload
-pub fn get_data_nflog<'a>(packet: &'a Packet) -> Option<&'a [u8]> {
-    match parse_nflog(packet.data) {
+///
+/// See http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html
+pub fn get_packetdata_nflog<'a>(i: &'a [u8], _caplen: usize) -> Option<PacketData<'a>> {
+    match parse_nflog(i) {
         Ok((_, res)) => {
+            let ethertype = match res.header.af {
+                2 => ETHERTYPE_IPV4,
+                10 => ETHERTYPE_IPV6,
+                _ => 0,
+            };
             match res
                 .data
                 .into_iter()
                 .find(|v| v.t == NfAttrType::Payload as u16)
             {
-                Some(v) => Some(v.v),
+                Some(v) => Some(PacketData::L3(ethertype, v.v)),
                 None => None,
             }
         }
