@@ -125,12 +125,14 @@ extern crate rusticata_macros;
 mod utils;
 pub use utils::{Data, MutableData};
 
+mod linktype;
 mod packet;
+pub use linktype::*;
 pub use packet::*;
 
 pub mod pcap;
-pub use pcap::*;
 pub mod pcapng;
+pub use pcap::*;
 pub use pcapng::*;
 
 pub mod traits;

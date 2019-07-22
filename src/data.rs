@@ -1,6 +1,6 @@
 //! Helper functions to access block contents (depending in linktype)
 
-use crate::packet::Linktype;
+use crate::linktype::Linktype;
 pub use crate::pcap_nflog::*;
 use crate::read_u32_e;
 use nom::{be_u16, be_u64};

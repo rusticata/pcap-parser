@@ -15,7 +15,8 @@
 //! interfaces, etc.
 //! This can be used in a streaming parser.
 
-use crate::packet::{Linktype, PcapBlock};
+use crate::linktype::Linktype;
+use crate::packet::PcapBlock;
 use crate::traits::PcapNGBlock;
 use crate::utils::Data;
 use crate::{align32, align_n2};

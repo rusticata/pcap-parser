@@ -17,7 +17,7 @@
 //! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
 //! This can be used in a streaming parser.
 
-use crate::packet::Linktype;
+use crate::linktype::Linktype;
 use crate::read_u32_e;
 use crate::traits::LegacyPcapBlock;
 use cookie_factory::GenError;
