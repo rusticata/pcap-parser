@@ -1,5 +1,6 @@
 use crate::blocks::{PcapBlock, PcapBlockOwned};
 use crate::pcapng::*;
+use crate::traits::PcapReaderIterator;
 use nom::{IResult, Offset};
 use std::fmt;
 use std::io::BufRead;
@@ -58,8 +59,13 @@ where
             Err(nom::ErrorKind::Custom(0))
         }
     }
+}
 
-    pub fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
+impl<B> PcapReaderIterator<B> for PcapNGReader<B>
+where
+    B: BufRead,
+{
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
         if let Ok(buffer) = self.reader.fill_buf() {
             if buffer.is_empty() {
                 return Err(nom::ErrorKind::Eof);
@@ -86,7 +92,7 @@ where
             Err(nom::ErrorKind::Custom(0))
         }
     }
-    pub fn consume(&mut self, offset: usize) {
+    fn consume(&mut self, offset: usize) {
         self.reader.consume(offset);
     }
 }

@@ -3,7 +3,7 @@ extern crate pcap_parser;
 
 use nom::ErrorKind;
 use pcap_parser::pcapng::Block;
-use pcap_parser::traits::PcapNGBlock;
+use pcap_parser::traits::{PcapNGBlock, PcapReaderIterator};
 use pcap_parser::*;
 use std::fs::File;
 use std::io::BufReader;
