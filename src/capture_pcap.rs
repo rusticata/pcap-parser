@@ -25,7 +25,7 @@ use std::io::Read;
 /// # extern crate pcap_parser;
 /// use pcap_parser::*;
 /// use pcap_parser::traits::PcapReaderIterator;
-/// use nom::{ErrorKind, IResult};
+/// use nom::ErrorKind;
 /// use std::fs::File;
 /// use std::io::Read;
 ///

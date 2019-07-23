@@ -17,8 +17,23 @@ pub trait Capture {
     fn iter<'a>(&'a self) -> Box<Iterator<Item = PcapBlock> + 'a>;
 }
 
-/// Get a generic PcapReaderIterator, given a buffered input. The input is probed for pca-ng first,
+/// Get a generic `PcapReaderIterator`, given a `Read` input. The input is probed for pcap-ng first,
 /// then pcap.
+///
+/// ```rust
+/// # extern crate nom;
+/// # extern crate pcap_parser;
+/// # use pcap_parser::*;
+/// # use nom::ErrorKind;
+/// # use std::fs::File;
+/// # use std::io::Read;
+/// #
+/// # fn main() {
+/// # let path = "assets/ntp.pcap";
+/// let mut file = File::open(path).expect("File open failed");
+/// let mut reader = create_reader(65536, file).expect("LegacyPcapReader");
+/// # }
+/// ```
 pub fn create_reader<'b, R>(
     capacity: usize,
     mut reader: R,

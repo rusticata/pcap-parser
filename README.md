@@ -78,8 +78,8 @@ The above code requires the file to be entirely loaded into memory.
 
 # Example: streaming parsers
 
-The following code shows how to parse a file either in PCAP or PCAPNG format,
-using a [`BufReader`](https://doc.rust-lang.org/std/io/struct.BufReader.html) for buffered I/O.
+The following code shows how to parse a file either in PCAP or PCAPNG format, using a
+[PcapNGReader](struct.LegacyPcapReader.html) streaming parser.
 
 ```rust
 use pcap_parser::*;
@@ -104,9 +104,6 @@ loop {
 }
 println!("num_blocks: {}", num_blocks);
 ```
-
-To control to size of the reading buffer, see
-[`BufReader::with_capacity`](https://doc.rust-lang.org/std/io/struct.BufReader.html#method.with_capacity).
 
 See [pcap-tools](https://github.com/rusticata/pcap-tools) for more examples.
 
