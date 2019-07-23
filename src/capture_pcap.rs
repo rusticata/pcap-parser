@@ -36,9 +36,18 @@ use std::io::Read;
 /// let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
 /// loop {
 ///     match reader.next() {
-///         Ok((offset, _block)) => {
+///         Ok((offset, block)) => {
 ///             println!("got new block");
 ///             num_blocks += 1;
+///             match block {
+///                 PcapBlockOwned::LegacyHeader(_hdr) => {
+///                     // save hdr.network (linktype)
+///                 },
+///                 PcapBlockOwned::Legacy(_b) => {
+///                     // use linktype to parse b.data()
+///                 },
+///                 PcapBlockOwned::NG(_) => unreachable!(),
+///             }
 ///             reader.consume(offset);
 ///         },
 ///         Err(ErrorKind::Eof) => break,
