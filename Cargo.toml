@@ -34,9 +34,10 @@ features = [ "data" ]
 all-features = true
 
 [dependencies]
-nom = "4.0"
-cookie-factory = "0.2"
 byteorder = "1"
+circular = "0.3"
+cookie-factory = "0.2"
+nom = "4.0"
 rusticata-macros = "1.1"
 
 [dev-dependencies]

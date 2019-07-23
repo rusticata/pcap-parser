@@ -84,14 +84,13 @@ using a [`BufReader`](https://doc.rust-lang.org/std/io/struct.BufReader.html) fo
 ```rust
 use pcap_parser::*;
 use pcap_parser::traits::PcapReaderIterator;
-use nom::{ErrorKind, IResult};
+use nom::ErrorKind;
 use std::fs::File;
-use std::io::{BufReader, Read};
+use std::io::Read;
 
 let mut file = File::open(path).unwrap();
-let buffered = BufReader::new(file);
 let mut num_blocks = 0;
-let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+let mut reader = PcapNGReader::new(65536, file).expect("PcapNGReader");
 loop {
     match reader.next() {
         Ok((offset, _block)) => {

@@ -14,6 +14,7 @@ fn test_pcap_capture_from_file_and_iter_le() {
     let cap = PcapCapture::from_file(TEST_NTP).expect("could not parse file into PcapNGCapture");
     for block in cap.iter() {
         match block {
+            PcapBlock::LegacyHeader(_) => (),
             PcapBlock::Legacy(b) => {
                 assert_eq!(b.caplen(), 90);
             }
@@ -28,12 +29,13 @@ fn test_pcap_reader() {
     let file = File::open(path).unwrap();
     let buffered = BufReader::new(file);
     let mut num_blocks = 0;
-    let mut reader = LegacyPcapReader::new(buffered).expect("LegacyPcapReader");
+    let mut reader = LegacyPcapReader::new(65536, buffered).expect("LegacyPcapReader");
     loop {
         match reader.next() {
             Ok((offset, block)) => {
                 num_blocks += 1;
                 match block {
+                    PcapBlockOwned::LegacyHeader(_) => (),
                     PcapBlockOwned::Legacy(b) => {
                         assert_eq!(b.caplen(), 90);
                     }
@@ -45,5 +47,5 @@ fn test_pcap_reader() {
             Err(e) => panic!("error while reading: {:?}", e),
         }
     }
-    assert_eq!(num_blocks, 12);
+    assert_eq!(num_blocks, 13); /* 1 (header) + 12 (data blocks) */
 }

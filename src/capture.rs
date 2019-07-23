@@ -5,7 +5,8 @@ use crate::linktype::Linktype;
 use crate::pcap::parse_pcap_header;
 use crate::pcapng::parse_sectionheaderblock;
 use crate::traits::PcapReaderIterator;
-use std::io::BufRead;
+use circular::Buffer;
+use std::io::Read;
 
 /// Generic interface for PCAP or PCAPNG file access
 pub trait Capture {
@@ -18,23 +19,25 @@ pub trait Capture {
 
 /// Get a generic PcapReaderIterator, given a buffered input. The input is probed for pca-ng first,
 /// then pcap.
-pub fn create_reader<'b, B>(
-    mut buffered: B,
-) -> Result<Box<PcapReaderIterator<B> + 'b>, nom::ErrorKind<u32>>
+pub fn create_reader<'b, R>(
+    capacity: usize,
+    mut reader: R,
+) -> Result<Box<PcapReaderIterator<R> + 'b>, nom::ErrorKind<u32>>
 where
-    B: BufRead + 'b,
+    R: Read + 'b,
 {
-    if let Ok(buffer) = buffered.fill_buf() {
-        // first check for pcapng
-        if let Ok(_) = parse_sectionheaderblock(&buffer) {
-            PcapNGReader::new(buffered).map(|reader| Box::new(reader) as Box<PcapReaderIterator<B>>)
-        } else if let Ok(_) = parse_pcap_header(&buffer) {
-            LegacyPcapReader::new(buffered)
-                .map(|reader| Box::new(reader) as Box<PcapReaderIterator<B>>)
-        } else {
-            Err(nom::ErrorKind::Tag)
-        }
+    let mut buffer = Buffer::with_capacity(capacity);
+    let sz = reader
+        .read(buffer.space())
+        .or(Err(nom::ErrorKind::Custom(0)))?;
+    buffer.fill(sz);
+    // just check that first block is a valid one
+    if let Ok(_) = parse_sectionheaderblock(buffer.data()) {
+        PcapNGReader::from_buffer(buffer, reader).map(|r| Box::new(r) as Box<PcapReaderIterator<R>>)
+    } else if let Ok(_) = parse_pcap_header(buffer.data()) {
+        LegacyPcapReader::from_buffer(buffer, reader)
+            .map(|r| Box::new(r) as Box<PcapReaderIterator<R>>)
     } else {
-        Err(nom::ErrorKind::Custom(0))
+        Err(nom::ErrorKind::Tag)
     }
 }

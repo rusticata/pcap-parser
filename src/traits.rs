@@ -1,7 +1,7 @@
 use crate::blocks::PcapBlockOwned;
 use crate::utils::{Data, MICROS_PER_SEC};
 use crate::{align32, align_n2, read_u32_e};
-use std::io::BufRead;
+use std::io::Read;
 
 /// Container for network data in legacy Pcap files
 pub struct LegacyPcapBlock<'a> {
@@ -132,10 +132,13 @@ pub trait PcapNGBlock {
     }
 }
 
-/// Iterator over pcap files (streaming parser over BufRead)
-pub trait PcapReaderIterator<B>
+/// Iterator over pcap files
+///
+/// Iterator over pcap files. Each call to `next` will return the next block,
+/// and must be followed by call to `consume` to avoid reading the same data.
+pub trait PcapReaderIterator<R>
 where
-    B: BufRead,
+    R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>>;
     fn consume(&mut self, offset: usize);

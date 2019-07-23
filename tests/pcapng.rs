@@ -88,7 +88,7 @@ fn test_pcapng_reader() {
     let file = File::open(path).unwrap();
     let buffered = BufReader::new(file);
     let mut num_blocks = 0;
-    let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+    let mut reader = PcapNGReader::new(65536, buffered).expect("PcapNGReader");
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
     while let Ok((offset, block)) = reader.next() {
         match block {
@@ -96,7 +96,9 @@ fn test_pcapng_reader() {
                 assert_eq!(expected_origlen[num_blocks], epb.origlen);
             }
             PcapBlockOwned::NG(_) => (),
-            PcapBlockOwned::Legacy(_) => panic!("unexpected Legacy data"),
+            PcapBlockOwned::LegacyHeader(_) | PcapBlockOwned::Legacy(_) => {
+                panic!("unexpected Legacy data")
+            }
         }
         num_blocks += 1;
         reader.consume(offset);
@@ -110,7 +112,7 @@ fn test_pcapng_reader_be() {
     let file = File::open(path).unwrap();
     let buffered = BufReader::new(file);
     let mut num_blocks = 0;
-    let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+    let mut reader = PcapNGReader::new(65536, buffered).expect("PcapNGReader");
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
     loop {
         match reader.next() {
@@ -120,7 +122,9 @@ fn test_pcapng_reader_be() {
                         assert_eq!(expected_origlen[num_blocks], epb.origlen);
                     }
                     PcapBlockOwned::NG(_) => (),
-                    PcapBlockOwned::Legacy(_) => panic!("unexpected Legacy data"),
+                    PcapBlockOwned::LegacyHeader(_) | PcapBlockOwned::Legacy(_) => {
+                        panic!("unexpected Legacy data")
+                    }
                 }
                 num_blocks += 1;
                 reader.consume(offset);

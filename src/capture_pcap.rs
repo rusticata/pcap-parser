@@ -3,11 +3,22 @@ use crate::capture::Capture;
 use crate::linktype::Linktype;
 use crate::pcap::{parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, PcapHeader};
 use crate::traits::{LegacyPcapBlock, PcapReaderIterator};
+use circular::Buffer;
 use nom::{self, IResult, Offset};
 use std::fmt;
-use std::io::BufRead;
+use std::io::Read;
 
-/// Iterator over legacy pcap files (streaming parser over BufRead)
+/// Parsing iterator over legacy pcap data (streaming version)
+///
+/// This iterator a streaming parser based on a circular buffer, so any input providing the `Read`
+/// trait can be used.
+///
+/// The first call to `next` will return the file header. Some information of this header must
+/// be stored (for ex. the data link type) to be able to parse following block contents.
+/// Following calls to `next` will always return legacy data blocks.
+///
+/// The size of the circular buffer has to be big enough for at least one complete block. Using a
+/// larger value (at least 65k) is advised to avoid frequent reads and buffer shifts.
 ///
 /// ```rust
 /// # extern crate nom;
@@ -16,14 +27,13 @@ use std::io::BufRead;
 /// use pcap_parser::traits::PcapReaderIterator;
 /// use nom::{ErrorKind, IResult};
 /// use std::fs::File;
-/// use std::io::{BufReader, Read};
+/// use std::io::Read;
 ///
 /// # fn main() {
 /// # let path = "assets/ntp.pcap";
 /// let mut file = File::open(path).unwrap();
-/// let buffered = BufReader::new(file);
 /// let mut num_blocks = 0;
-/// let mut reader = LegacyPcapReader::new(buffered).expect("LegacyPcapReader");
+/// let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
 /// loop {
 ///     match reader.next() {
 ///         Ok((offset, _block)) => {
@@ -38,59 +48,102 @@ use std::io::BufRead;
 /// println!("num_blocks: {}", num_blocks);
 /// # }
 /// ```
-pub struct LegacyPcapReader<B>
+pub struct LegacyPcapReader<R>
 where
-    B: BufRead,
+    R: Read,
 {
     header: PcapHeader,
-    reader: B,
+    reader: R,
+    buffer: Buffer,
+    capacity: usize,
+    header_sent: bool,
 }
 
-impl<B> LegacyPcapReader<B>
+impl<R> LegacyPcapReader<R>
 where
-    B: BufRead,
+    R: Read,
 {
-    pub fn new(mut reader: B) -> Result<LegacyPcapReader<B>, nom::ErrorKind<u32>> {
-        let mut buffer = [0; 24];
-        reader
-            .read(&mut buffer)
+    pub fn new(capacity: usize, mut reader: R) -> Result<LegacyPcapReader<R>, nom::ErrorKind<u32>> {
+        let mut buffer = Buffer::with_capacity(capacity);
+        let sz = reader
+            .read(buffer.space())
             .or(Err(nom::ErrorKind::Custom(0)))?;
-        let (_rem, header) = parse_pcap_header(&buffer).map_err(|e| e.into_error_kind())?;
-        Ok(LegacyPcapReader { header, reader })
+        buffer.fill(sz);
+        let (_rem, header) = parse_pcap_header(buffer.data()).map_err(|e| e.into_error_kind())?;
+        // do not consume
+        Ok(LegacyPcapReader {
+            header,
+            reader,
+            buffer,
+            capacity,
+            header_sent: false,
+        })
+    }
+    pub fn from_buffer(
+        mut buffer: Buffer,
+        mut reader: R,
+    ) -> Result<LegacyPcapReader<R>, nom::ErrorKind<u32>> {
+        let capacity = buffer.capacity();
+        let sz = reader
+            .read(buffer.space())
+            .or(Err(nom::ErrorKind::Custom(0)))?;
+        buffer.fill(sz);
+        let (_rem, header) = parse_pcap_header(buffer.data()).map_err(|e| e.into_error_kind())?;
+        // do not consume
+        Ok(LegacyPcapReader {
+            header,
+            reader,
+            buffer,
+            capacity,
+            header_sent: false,
+        })
     }
 }
 
-impl<B> PcapReaderIterator<B> for LegacyPcapReader<B>
+impl<R> PcapReaderIterator<R> for LegacyPcapReader<R>
 where
-    B: BufRead,
+    R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
-        if let Ok(buffer) = self.reader.fill_buf() {
-            if buffer.is_empty() {
-                return Err(nom::ErrorKind::Eof);
-            }
-            let parse = if self.header.is_bigendian() {
-                parse_pcap_frame_be
-            } else {
-                parse_pcap_frame
-            };
-            match parse(&buffer) {
-                Ok((rem, b)) => {
-                    let offset = buffer.offset(rem);
-                    Ok((offset, PcapBlockOwned::from(b)))
-                }
-                Err(e) => Err(e.into_error_kind()),
-            }
+        if !self.header_sent {
+            self.header_sent = true;
+            return Ok((
+                self.header.size(),
+                PcapBlockOwned::from(self.header.clone()),
+            ));
+        }
+        if self.buffer.available_data() == 0 {
+            return Err(nom::ErrorKind::Eof);
+        }
+        let data = self.buffer.data();
+        let parse = if self.header.is_bigendian() {
+            parse_pcap_frame_be
         } else {
-            Err(nom::ErrorKind::Custom(0))
+            parse_pcap_frame
+        };
+        match parse(&data) {
+            Ok((rem, b)) => {
+                let offset = data.offset(rem);
+                Ok((offset, PcapBlockOwned::from(b)))
+            }
+            Err(e) => Err(e.into_error_kind()),
         }
     }
     fn consume(&mut self, offset: usize) {
-        self.reader.consume(offset);
+        self.buffer.consume_noshift(offset);
+        if self.buffer.position() >= self.capacity / 2 {
+            // refill
+            self.buffer.shift();
+            let sz = self
+                .reader
+                .read(self.buffer.space())
+                .expect("refill failed");
+            self.buffer.fill(sz);
+        }
     }
 }
 
-/// Iterator over legacy pcap files (requires slice to be loaded into memory)
+/// Parsing iterator over legacy pcap data (requires data to be loaded into memory)
 ///
 /// ```rust
 /// # extern crate nom;
@@ -170,6 +223,7 @@ impl<'a> fmt::Debug for PcapCapture<'a> {
     }
 }
 
+/// Iterator over `PcapCapture`
 pub struct LegacyPcapIterator<'a> {
     cap: &'a PcapCapture<'a>,
     idx: usize,

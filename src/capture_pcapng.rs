@@ -1,11 +1,30 @@
 use crate::blocks::{PcapBlock, PcapBlockOwned};
 use crate::pcapng::*;
 use crate::traits::PcapReaderIterator;
+use circular::Buffer;
 use nom::{IResult, Offset};
 use std::fmt;
-use std::io::BufRead;
+use std::io::Read;
 
-/// Iterator over legacy pcap-ng files (streaming parser over BufRead)
+/// Parsing iterator over pcap-ng data (streaming version)
+///
+/// This iterator a streaming parser based on a circular buffer, so any input providing the `Read`
+/// trait can be used.
+///
+/// The first call to `next` should return the a Section Header Block (SHB), marking the start of a
+/// new section.
+/// For each section, calls to `next` will return blocks, some of them containing data (SPB, EPB),
+/// and others containing information (IDB, NRB, etc.).
+///
+/// Some information must be stored (for ex. the data link type from the IDB) to be able to parse
+/// following block contents. Usually, a list of interfaces must be stored, with the data link type
+/// and capture length, for each section. These values are used when parsing Enhanced Packet Blocks
+/// (which gives an interface ID - the index, starting from 0) and Simple Packet Blocks (which
+/// assume an interface index of 0).
+///
+/// The size of the circular buffer has to be big enough for at least one complete block. Using a
+/// larger value (at least 65k) is advised to avoid frequent reads and buffer shifts.
+///
 ///
 /// ```rust
 /// # extern crate nom;
@@ -19,9 +38,8 @@ use std::io::BufRead;
 /// # fn main() {
 /// # let path = "assets/test001-le.pcapng";
 /// let mut file = File::open(path).unwrap();
-/// let buffered = BufReader::new(file);
 /// let mut num_blocks = 0;
-/// let mut reader = PcapNGReader::new(buffered).expect("PcapNGReader");
+/// let mut reader = PcapNGReader::new(65536, file).expect("PcapNGReader");
 /// loop {
 ///     match reader.next() {
 ///         Ok((offset, _block)) => {
@@ -36,64 +54,100 @@ use std::io::BufRead;
 /// println!("num_blocks: {}", num_blocks);
 /// # }
 /// ```
-pub struct PcapNGReader<B>
+pub struct PcapNGReader<R>
 where
-    B: BufRead,
+    R: Read,
 {
     info: CurrentSectionInfo,
-    reader: B,
+    reader: R,
+    buffer: Buffer,
+    capacity: usize,
 }
 
-impl<B> PcapNGReader<B>
+impl<R> PcapNGReader<R>
 where
-    B: BufRead,
+    R: Read,
 {
-    pub fn new(mut reader: B) -> Result<PcapNGReader<B>, nom::ErrorKind<u32>> {
-        if let Ok(buffer) = reader.fill_buf() {
-            // just check that first block is a valid one
-            let (_rem, _shb) =
-                parse_sectionheaderblock(&buffer).map_err(|e| e.into_error_kind())?;
-            let info = CurrentSectionInfo::default();
-            Ok(PcapNGReader { info, reader })
-        } else {
-            Err(nom::ErrorKind::Custom(0))
-        }
+    pub fn new(capacity: usize, mut reader: R) -> Result<PcapNGReader<R>, nom::ErrorKind<u32>> {
+        let mut buffer = Buffer::with_capacity(capacity);
+        let sz = reader
+            .read(buffer.space())
+            .or(Err(nom::ErrorKind::Custom(0)))?;
+        buffer.fill(sz);
+        // just check that first block is a valid one
+        let (_rem, _shb) =
+            parse_sectionheaderblock(buffer.data()).map_err(|e| e.into_error_kind())?;
+        let info = CurrentSectionInfo::default();
+        // do not consume
+        Ok(PcapNGReader {
+            info,
+            reader,
+            buffer,
+            capacity,
+        })
+    }
+    pub fn from_buffer(
+        mut buffer: Buffer,
+        mut reader: R,
+    ) -> Result<PcapNGReader<R>, nom::ErrorKind<u32>> {
+        let capacity = buffer.capacity();
+        let sz = reader
+            .read(buffer.space())
+            .or(Err(nom::ErrorKind::Custom(0)))?;
+        buffer.fill(sz);
+        // just check that first block is a valid one
+        let (_rem, _shb) =
+            parse_sectionheaderblock(buffer.data()).map_err(|e| e.into_error_kind())?;
+        let info = CurrentSectionInfo::default();
+        // do not consume
+        Ok(PcapNGReader {
+            info,
+            reader,
+            buffer,
+            capacity,
+        })
     }
 }
 
-impl<B> PcapReaderIterator<B> for PcapNGReader<B>
+impl<R> PcapReaderIterator<R> for PcapNGReader<R>
 where
-    B: BufRead,
+    R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
-        if let Ok(buffer) = self.reader.fill_buf() {
-            if buffer.is_empty() {
-                return Err(nom::ErrorKind::Eof);
-            }
-            let parse = if self.info.big_endian {
-                parse_block_be
-            } else {
-                parse_block
-            };
-            match parse(&buffer) {
-                Ok((rem, b)) => {
-                    let offset = buffer.offset(rem);
-                    match b {
-                        Block::SectionHeader(ref shb) => {
-                            self.info.big_endian = shb.is_bigendian();
-                        }
-                        _ => (),
-                    }
-                    Ok((offset, PcapBlockOwned::from(b)))
-                }
-                Err(e) => Err(e.into_error_kind()),
-            }
+        if self.buffer.available_data() == 0 {
+            return Err(nom::ErrorKind::Eof);
+        }
+        let data = self.buffer.data();
+        let parse = if self.info.big_endian {
+            parse_block_be
         } else {
-            Err(nom::ErrorKind::Custom(0))
+            parse_block
+        };
+        match parse(data) {
+            Ok((rem, b)) => {
+                let offset = data.offset(rem);
+                match b {
+                    Block::SectionHeader(ref shb) => {
+                        self.info.big_endian = shb.is_bigendian();
+                    }
+                    _ => (),
+                }
+                Ok((offset, PcapBlockOwned::from(b)))
+            }
+            Err(e) => Err(e.into_error_kind()),
         }
     }
     fn consume(&mut self, offset: usize) {
-        self.reader.consume(offset);
+        self.buffer.consume_noshift(offset);
+        if self.buffer.position() >= self.capacity / 2 {
+            // refill
+            self.buffer.shift();
+            let sz = self
+                .reader
+                .read(self.buffer.space())
+                .expect("refill failed");
+            self.buffer.fill(sz);
+        }
     }
 }
 
@@ -102,7 +156,7 @@ pub struct CurrentSectionInfo {
     big_endian: bool,
 }
 
-/// Iterator over pcap-ng files (requires slice to be loaded into memory)
+/// Parsing iterator over pcap-ng data (requires data to be loaded into memory)
 ///
 /// ```rust
 /// # extern crate nom;
@@ -178,7 +232,7 @@ impl<'a> fmt::Debug for PcapNGCapture<'a> {
     }
 }
 
-// Non-consuming iterator
+/// Iterator over `PcapNGCapture`
 pub struct PcapNGCaptureIterator<'a> {
     cap: &'a PcapNGCapture<'a>,
     idx: usize,
