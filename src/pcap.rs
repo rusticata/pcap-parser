@@ -24,7 +24,7 @@ use cookie_factory::GenError;
 use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, map_opt, IResult};
 
 /// PCAP global header
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct PcapHeader {
     /// File format and byte ordering. If equal to `0xa1b2c3d4` then the rest of
     /// the file uses native byte ordering. If `0xd4c3b2a1` (swapped), then all

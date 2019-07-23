@@ -177,7 +177,6 @@ pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32
     (ts_sec, ts_fractional, unit)
 }
 
-#[derive(Debug, PartialEq)]
 pub struct SectionHeaderBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -196,7 +195,6 @@ impl<'a> SectionHeaderBlock<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
 pub struct InterfaceDescriptionBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -249,7 +247,6 @@ impl<'a> PcapNGBlock for EnhancedPacketBlock<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
 pub struct SimplePacketBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -259,13 +256,11 @@ pub struct SimplePacketBlock<'a> {
     pub block_len2: u32,
 }
 
-#[derive(Debug)]
 pub struct NameRecord<'a> {
     pub record_type: u16,
     pub record_value: &'a [u8],
 }
 
-#[derive(Debug)]
 pub struct NameResolutionBlock<'a> {
     big_endian: bool,
     pub block_type: u32,
@@ -275,7 +270,6 @@ pub struct NameResolutionBlock<'a> {
     pub block_len2: u32,
 }
 
-#[derive(Debug, PartialEq)]
 pub struct InterfaceStatisticsBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -286,7 +280,6 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub block_len2: u32,
 }
 
-#[derive(Debug)]
 pub struct CustomBlock<'a> {
     big_endian: bool,
     pub block_type: u32,
@@ -304,7 +297,6 @@ impl<'a> CustomBlock<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
 pub struct UnknownBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -312,14 +304,14 @@ pub struct UnknownBlock<'a> {
     pub block_len2: u32,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct PcapNGOption<'a> {
     pub code: OptionCode,
     pub len: u16,
     pub value: &'a [u8],
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct PcapNGHeader {
     pub magic_number: u32,
     pub version_major: u16,
