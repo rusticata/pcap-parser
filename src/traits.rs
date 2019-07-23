@@ -61,13 +61,13 @@ impl<'a> LegacyPcapBlock<'a> {
     /// Raw packet header
     #[inline]
     pub fn raw_header(&self) -> &[u8] {
-        &self.data[..12]
+        &self.data[..16]
     }
     /// Network packet data.
     /// Can be shorter than `caplen` if packet does not contain enough data
     #[inline]
     pub fn data(&self) -> &[u8] {
-        &self.data[12..]
+        &self.data[16..]
     }
 }
 
