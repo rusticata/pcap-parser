@@ -3,7 +3,7 @@ extern crate pcap_parser;
 
 use nom::ErrorKind;
 use pcap_parser::pcapng::Block;
-use pcap_parser::traits::{PcapNGBlock, PcapReaderIterator};
+use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
 use std::fs::File;
 use std::io::BufReader;
@@ -20,7 +20,7 @@ fn test_pcapng_capture_from_file_and_iter_le() {
     for (block, expected_len) in cap.iter().zip(expected_origlen.iter()) {
         match block {
             PcapBlock::NG(Block::EnhancedPacket(epb)) => {
-                println!("block total length: {}", epb.block_length());
+                println!("block total length: {}", epb.block_len1);
                 println!("captured length: {}", epb.caplen);
                 assert_eq!(epb.caplen, *expected_len);
             }
@@ -36,7 +36,7 @@ fn test_pcapng_capture_from_file_and_iter_be() {
     for block in cap.iter() {
         match block {
             PcapBlock::NG(Block::EnhancedPacket(epb)) => {
-                println!("block total length: {}", epb.block_length());
+                println!("block total length: {}", epb.block_len1);
                 println!("captured length: {}", epb.caplen);
             }
             _ => (),

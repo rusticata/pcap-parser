@@ -17,11 +17,9 @@
 
 use crate::blocks::PcapBlock;
 use crate::linktype::Linktype;
-use crate::traits::PcapNGBlock;
-use crate::utils::Data;
 use crate::{align32, align_n2};
 use byteorder::{ByteOrder, LittleEndian};
-use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult, Offset};
+use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult};
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D0D0A;
@@ -208,8 +206,6 @@ pub struct InterfaceDescriptionBlock<'a> {
 }
 
 pub struct EnhancedPacketBlock<'a> {
-    raw_data: Data<'a>,
-    big_endian: bool,
     pub block_type: u32,
     pub block_len1: u32,
     pub if_id: u32,
@@ -222,29 +218,6 @@ pub struct EnhancedPacketBlock<'a> {
     pub data: &'a [u8],
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
-}
-
-impl<'a> PcapNGBlock for EnhancedPacketBlock<'a> {
-    #[inline]
-    fn raw_data(&self) -> &[u8] {
-        self.raw_data.as_slice()
-    }
-    #[inline]
-    fn big_endian(&self) -> bool {
-        self.big_endian
-    }
-    #[inline]
-    fn data_len(&self) -> usize {
-        self.origlen as usize
-    }
-    #[inline]
-    fn data(&self) -> &[u8] {
-        &self.raw_data[28..self.data_len()]
-    }
-    #[inline]
-    fn header_len(&self) -> usize {
-        28
-    }
 }
 
 pub struct SimplePacketBlock<'a> {
@@ -563,13 +536,6 @@ pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
     inner_parse_simplepacketblock(i, true)
 }
 
-#[inline]
-fn current_position<'a>(j: &'a [u8], i: &'a [u8]) -> IResult<&'a [u8], usize> {
-    debug_assert!(i.as_ptr() as u64 <= j.as_ptr() as u64);
-    let offset = i.offset(j);
-    Ok((j, offset))
-}
-
 fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
@@ -591,11 +557,8 @@ fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
                   )
             ) >>
         len2:      verify!(read_u32, |x:u32| x == len1) >>
-        pos:       call!(current_position, i) >>
         ({
             Block::EnhancedPacket(EnhancedPacketBlock{
-                raw_data: Data::Borrowed(&i[..pos]),
-                big_endian,
                 block_type: EPB_MAGIC,
                 block_len1: len1,
                 if_id: if_id,
