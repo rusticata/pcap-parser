@@ -6,6 +6,11 @@ matrix:
       env:
        - NAME="stable"
        - FEATURES=''
+    - rust: stable
+      env:
+       - NAME="stable,fmt"
+       - FEATURES=''
+       - RUSTFMT=yes
     - rust: nightly
       env:
        - NAME="nightly"
@@ -19,9 +24,9 @@ matrix:
        - NAME="nightly,data"
        - FEATURES='data'
 before_script:
-    - rustup component add rustfmt
+    - ([ "$RUSTFMT" != yes ] || rustup component add rustfmt)
 script:
-    - cargo fmt --all -- --check
+    - ([ "$RUSTFMT" != yes ] || cargo fmt --all -- --check)
     - |
         cargo build --verbose --features "$FEATURES" &&
         cargo test --verbose --features "$FEATURES" &&
