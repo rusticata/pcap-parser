@@ -69,6 +69,15 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 ### 0.6.0
 
 - Complete rewrite of the crate (breaks API)
+- Add streaming parser iterators
+- Replace Packet with Blocks
+  - Allows handling of non-data blocks
+  - Handles correctly timestamps and resolution
+  - Remove incorrect or deprecated code
+- Better parsing of all variants (BE/LE, block types, etc.)
+- Better (and panic-free) functions to extract block contents
+- Set edition to 2018
+- Better documentation
 
 ### 0.5.1
 
