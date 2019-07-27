@@ -14,6 +14,7 @@ edition = "2018"
 
 include = [
   "LICENSE-*",
+  "README.md",
   ".gitignore",
   ".travis.yml",
   "Cargo.toml",
