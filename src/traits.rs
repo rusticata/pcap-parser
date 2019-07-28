@@ -142,6 +142,10 @@ where
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>>;
     fn consume(&mut self, offset: usize);
+    fn consume_noshift(&mut self, offset: usize);
+    fn refill(&mut self) -> Result<(), &'static str>;
+    fn position(&self) -> usize;
+    fn grow(&mut self, new_size: usize) -> bool;
 }
 
 /* ******************* */

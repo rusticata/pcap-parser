@@ -64,7 +64,6 @@ where
     header: PcapHeader,
     reader: R,
     buffer: Buffer,
-    capacity: usize,
     header_sent: bool,
 }
 
@@ -84,7 +83,6 @@ where
             header,
             reader,
             buffer,
-            capacity,
             header_sent: false,
         })
     }
@@ -92,7 +90,6 @@ where
         mut buffer: Buffer,
         mut reader: R,
     ) -> Result<LegacyPcapReader<R>, nom::ErrorKind<u32>> {
-        let capacity = buffer.capacity();
         let sz = reader
             .read(buffer.space())
             .or(Err(nom::ErrorKind::Custom(0)))?;
@@ -103,7 +100,6 @@ where
             header,
             reader,
             buffer,
-            capacity,
             header_sent: false,
         })
     }
@@ -139,16 +135,25 @@ where
         }
     }
     fn consume(&mut self, offset: usize) {
+        self.buffer.consume(offset);
+    }
+    fn consume_noshift(&mut self, offset: usize) {
         self.buffer.consume_noshift(offset);
-        if self.buffer.position() >= self.capacity / 2 {
-            // refill
-            self.buffer.shift();
-            let sz = self
-                .reader
-                .read(self.buffer.space())
-                .expect("refill failed");
-            self.buffer.fill(sz);
-        }
+    }
+    fn refill(&mut self) -> Result<(), &'static str> {
+        self.buffer.shift();
+        let sz = self
+            .reader
+            .read(self.buffer.space())
+            .or(Err("refill failed"))?;
+        self.buffer.fill(sz);
+        Ok(())
+    }
+    fn position(&self) -> usize {
+        self.buffer.position()
+    }
+    fn grow(&mut self, new_size: usize) -> bool {
+        self.buffer.grow(new_size)
     }
 }
 
