@@ -66,6 +66,10 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 
 ## Changes
 
+### 0.6.1
+
+- Make LegacyPcapBlock a regular structure with parser, and add serialization
+
 ### 0.6.0
 
 - Complete rewrite of the crate (breaks API)
