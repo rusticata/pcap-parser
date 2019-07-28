@@ -16,7 +16,7 @@ fn test_pcap_capture_from_file_and_iter_le() {
         match block {
             PcapBlock::LegacyHeader(_) => (),
             PcapBlock::Legacy(b) => {
-                assert_eq!(b.caplen(), 90);
+                assert_eq!(b.caplen, 90);
             }
             PcapBlock::NG(_) => panic!("unexpected NG data"),
         }
@@ -37,7 +37,7 @@ fn test_pcap_reader() {
                 match block {
                     PcapBlockOwned::LegacyHeader(_) => (),
                     PcapBlockOwned::Legacy(b) => {
-                        assert_eq!(b.caplen(), 90);
+                        assert_eq!(b.caplen, 90);
                     }
                     PcapBlockOwned::NG(_) => panic!("unexpected NG data"),
                 }

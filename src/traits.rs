@@ -1,75 +1,6 @@
 use crate::blocks::PcapBlockOwned;
-use crate::utils::{Data, MICROS_PER_SEC};
 use crate::{align32, align_n2, read_u32_e};
 use std::io::Read;
-
-/// Container for network data in legacy Pcap files
-pub struct LegacyPcapBlock<'a> {
-    pub(crate) data: Data<'a>,
-    pub(crate) big_endian: bool,
-}
-
-impl<'a> LegacyPcapBlock<'a> {
-    pub fn new(data: &[u8], big_endian: bool) -> Option<LegacyPcapBlock> {
-        if data.len() < 16 {
-            return None;
-        }
-        // XXX read caplen and limit size of data ?
-        Some(LegacyPcapBlock {
-            data: Data::Borrowed(data),
-            big_endian,
-        })
-    }
-    /// The length of the packet as it appeared on the network when it was
-    /// captured.
-    /// If `cap_len` and `len` differ, the actually saved packet size was
-    /// limited by `snaplen`.
-    pub fn origlen(&self) -> u32 {
-        let start = 12;
-        let data = &self.data[start..start + 4];
-        read_u32_e!(data, self.big_endian)
-    }
-    /// The number of bytes of packet data actually captured and saved in the
-    /// file.
-    pub fn caplen(&self) -> u32 {
-        let start = 8;
-        let data = &self.data[start..start + 4];
-        read_u32_e!(data, self.big_endian)
-    }
-    /// The date and time when this packet was captured (seconds since epoch).
-    pub fn ts_sec(&self) -> u32 {
-        let start = 0;
-        let data = &self.data[start..start + 4];
-        read_u32_e!(data, self.big_endian)
-    }
-    /// The date and time when this packet was captured (microseconds part).
-    pub fn ts_usec(&self) -> u32 {
-        let start = 4;
-        let data = &self.data[start..start + 4];
-        read_u32_e!(data, self.big_endian)
-    }
-    /// The date and time when this packet was captured (full resolution).
-    /// Returns the seconds, fractional part value and unit (in number per second)
-    pub fn ts(&self) -> (u32, u32, u64) {
-        (self.ts_sec(), self.ts_usec(), MICROS_PER_SEC)
-    }
-    /// Raw packet data (including header)
-    #[inline]
-    pub fn raw_data(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-    /// Raw packet header
-    #[inline]
-    pub fn raw_header(&self) -> &[u8] {
-        &self.data[..16]
-    }
-    /// Network packet data.
-    /// Can be shorter than `caplen` if packet does not contain enough data
-    #[inline]
-    pub fn data(&self) -> &[u8] {
-        &self.data[16..]
-    }
-}
 
 /// Common methods for PcapNG blocks
 pub trait PcapNGBlock {
@@ -152,8 +83,9 @@ where
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
+    use crate::pcap::parse_pcap_frame;
     use crate::pcapng::{parse_block, Block};
+    use crate::utils::Data;
     // tls12-23.pcap frame 0
     pub const FRAME_PCAP: &'static [u8] = &hex!(
         "
@@ -222,10 +154,10 @@ F4 01 00 00"
     }
     #[test]
     fn test_pcap_packet_functions() {
-        let pkt = LegacyPcapBlock::new(FRAME_PCAP, false).expect("packet creation failed");
-        assert_eq!(pkt.origlen(), 74);
-        assert_eq!(pkt.ts_usec(), 562_913);
-        assert_eq!(pkt.ts_sec(), 1_515_933_236);
+        let (_, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet creation failed");
+        assert_eq!(pkt.origlen, 74);
+        assert_eq!(pkt.ts_usec, 562_913);
+        assert_eq!(pkt.ts_sec, 1_515_933_236);
     }
     #[test]
     fn test_pcapng_packet_functions() {

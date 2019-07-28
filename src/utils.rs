@@ -136,8 +136,6 @@ impl_index_mut!(MutableData, ops::RangeToInclusive<usize>, [u8]);
 
 /* ******************* */
 
-pub(crate) const MICROS_PER_SEC: u64 = 1_000_000;
-
 #[doc(hidden)]
 #[macro_export]
 macro_rules! read_u32_e {

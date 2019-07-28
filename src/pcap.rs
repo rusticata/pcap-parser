@@ -18,10 +18,8 @@
 //! This can be used in a streaming parser.
 
 use crate::linktype::Linktype;
-use crate::read_u32_e;
-use crate::traits::LegacyPcapBlock;
 use cookie_factory::GenError;
-use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, map_opt, IResult};
+use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, IResult};
 
 /// PCAP global header
 #[derive(Clone, Debug)]
@@ -65,10 +63,12 @@ impl PcapHeader {
         self.magic_number == 0xd4c3b2a1
     }
 
-    pub fn to_string(&self) -> Vec<u8> {
-        let mut mem: [u8; 24] = [0; 24];
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut v = Vec::with_capacity(24);
+        v.resize(24, 0);
+        let mut mem: &mut [u8] = v.as_mut();
 
-        let r = do_gen! {
+        let _ = do_gen! {
             (&mut mem,0),
             gen_le_u32!(self.magic_number) >>
             gen_le_u16!(self.version_major) >>
@@ -78,15 +78,72 @@ impl PcapHeader {
             gen_le_u32!(self.snaplen) >>
             gen_le_u32!(self.network.0)
         };
-        match r {
-            Ok((s, _)) => {
-                let mut v = Vec::new();
-                v.extend_from_slice(s);
-                v
-            }
-            Err(e) => panic!("error {:?}", e),
-        }
+        v
     }
+}
+
+/// Container for network data in legacy Pcap files
+pub struct LegacyPcapBlock<'a> {
+    pub ts_sec: u32,
+    pub ts_usec: u32,
+    pub caplen: u32,
+    pub origlen: u32,
+    pub data: &'a [u8],
+}
+
+impl<'a> LegacyPcapBlock<'a> {
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut v = Vec::with_capacity(16);
+        v.resize(16, 0);
+        let mut mem: &mut [u8] = v.as_mut();
+
+        let _ = do_gen! {
+            (&mut mem,0),
+            gen_le_u32!(self.ts_sec) >>
+            gen_le_u32!(self.ts_usec) >>
+            gen_le_u32!(self.caplen) >>
+            gen_le_u32!(self.origlen)
+        };
+        v.extend_from_slice(self.data);
+        v
+    }
+}
+
+/// Read a PCAP record header and data
+///
+/// Each PCAP record starts with a small header, and is followed by packet data.
+/// The packet data format depends on the LinkType.
+#[inline]
+pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
+    inner_parse_pcap_frame(i, false)
+}
+
+/// Read a PCAP record header and data (big-endian)
+///
+/// Each PCAP record starts with a small header, and is followed by packet data.
+/// The packet data format depends on the LinkType.
+#[inline]
+pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
+    inner_parse_pcap_frame(i, true)
+}
+
+fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPcapBlock> {
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    do_parse!(
+        i,
+        ts_sec: read_u32
+            >> ts_usec: read_u32
+            >> caplen: read_u32
+            >> origlen: read_u32
+            >> data: take!(caplen)
+            >> (LegacyPcapBlock {
+                ts_sec,
+                ts_usec,
+                caplen,
+                origlen,
+                data: data
+            })
+    )
 }
 
 /// Read the PCAP global header
@@ -137,42 +194,54 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader> {
     }
 }
 
-/// Read a PCAP record header and data
-///
-/// Each PCAP record starts with a small header, and is followed by packet data.
-/// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
-    inner_parse_pcap_frame(i, false)
-}
-
-/// Read a PCAP record header and data (big-endian)
-///
-/// Each PCAP record starts with a small header, and is followed by packet data.
-/// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
-    inner_parse_pcap_frame(i, true)
-}
-
-fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPcapBlock> {
-    let (_, hdr) = take!(i, 16)?;
-    let caplen = read_u32_e!(&hdr[8..12], big_endian); // length is already tested
-    map_opt!(
-        i,
-        take!(16 + caplen), // XXX overflow is possible
-        |d| LegacyPcapBlock::new(d, big_endian)
-    )
-}
-
 #[cfg(test)]
 pub mod tests {
-    use crate::pcap::parse_pcap_frame;
+    use crate::pcap::{parse_pcap_frame, parse_pcap_header};
     use crate::traits::tests::FRAME_PCAP;
+    // ntp.pcap header
+    pub const PCAP_HDR: &'static [u8] = &hex!(
+        "
+D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
+00 00 04 00 01 00 00 00"
+    );
+    #[test]
+    fn test_parse_pcap_header() {
+        let (rem, hdr) = parse_pcap_header(PCAP_HDR).expect("header parsing failed");
+        assert!(rem.is_empty());
+        assert_eq!(hdr.magic_number, 0xa1b2c3d4);
+        assert_eq!(hdr.version_major, 2);
+        assert_eq!(hdr.version_minor, 4);
+        assert_eq!(hdr.snaplen, 262144);
+    }
+    #[test]
+    fn test_serialize_pcap_header() {
+        let (rem, hdr) = parse_pcap_header(PCAP_HDR).expect("header parsing failed");
+        assert!(rem.is_empty());
+        assert_eq!(hdr.magic_number, 0xa1b2c3d4);
+        assert_eq!(hdr.version_major, 2);
+        assert_eq!(hdr.version_minor, 4);
+        assert_eq!(hdr.snaplen, 262144);
+        let v = hdr.to_vec();
+        assert_eq!(v.len(), PCAP_HDR.len());
+        assert_eq!(v, PCAP_HDR);
+    }
     #[test]
     fn test_parse_pcap_frame() {
         let (rem, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet parsing failed");
         assert!(rem.is_empty());
-        assert_eq!(pkt.origlen(), 74);
-        assert_eq!(pkt.ts_usec(), 562_913);
-        assert_eq!(pkt.ts_sec(), 1_515_933_236);
+        assert_eq!(pkt.origlen, 74);
+        assert_eq!(pkt.ts_usec, 562_913);
+        assert_eq!(pkt.ts_sec, 1_515_933_236);
+    }
+    #[test]
+    fn test_serialize_pcap_frame() {
+        let (rem, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet parsing failed");
+        assert!(rem.is_empty());
+        assert_eq!(pkt.origlen, 74);
+        assert_eq!(pkt.ts_usec, 562_913);
+        assert_eq!(pkt.ts_sec, 1_515_933_236);
+        let v = pkt.to_vec();
+        assert_eq!(v.len(), FRAME_PCAP.len());
+        assert_eq!(v, FRAME_PCAP);
     }
 }

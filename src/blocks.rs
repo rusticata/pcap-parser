@@ -1,6 +1,5 @@
-use crate::pcap::PcapHeader;
+use crate::pcap::{LegacyPcapBlock, PcapHeader};
 use crate::pcapng::Block;
-use crate::traits::*;
 use std::convert::From;
 
 /// A block from a Pcap or PcapNG file

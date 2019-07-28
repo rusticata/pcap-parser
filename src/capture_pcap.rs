@@ -1,8 +1,10 @@
 use crate::blocks::{PcapBlock, PcapBlockOwned};
 use crate::capture::Capture;
 use crate::linktype::Linktype;
-use crate::pcap::{parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, PcapHeader};
-use crate::traits::{LegacyPcapBlock, PcapReaderIterator};
+use crate::pcap::{
+    parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, LegacyPcapBlock, PcapHeader,
+};
+use crate::traits::PcapReaderIterator;
 use circular::Buffer;
 use nom::{self, IResult, Offset};
 use std::fmt;
