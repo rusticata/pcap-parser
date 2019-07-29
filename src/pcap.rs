@@ -104,6 +104,7 @@ impl<'a> LegacyPcapBlock<'a> {
             gen_le_u32!(self.caplen) >>
             gen_le_u32!(self.origlen)
         };
+        // pcap records have no alignment constraints
         v.extend_from_slice(self.data);
         v
     }
@@ -129,21 +130,21 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
 
 fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPcapBlock> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse!(
+    do_parse! {
         i,
-        ts_sec: read_u32
-            >> ts_usec: read_u32
-            >> caplen: read_u32
-            >> origlen: read_u32
-            >> data: take!(caplen)
-            >> (LegacyPcapBlock {
+        ts_sec: read_u32 >>
+        ts_usec: read_u32 >>
+        caplen: read_u32 >>
+        origlen: read_u32 >>
+        data: take!(caplen) >>
+        (LegacyPcapBlock {
                 ts_sec,
                 ts_usec,
                 caplen,
                 origlen,
                 data: data
             })
-    )
+    }
 }
 
 /// Read the PCAP global header
