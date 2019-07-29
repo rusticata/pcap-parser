@@ -151,6 +151,8 @@ pub fn get_packetdata<'a>(
         Linktype::ETHERNET => get_packetdata_ethernet(i, caplen),
         Linktype::RAW => get_packetdata_raw(i, caplen),
         Linktype::LINUX_SLL => get_packetdata_linux_sll(i, caplen),
+        Linktype::IPV4 => get_packetdata_ipv4(i, caplen),
+        Linktype::IPV6 => get_packetdata_ipv6(i, caplen),
         Linktype::NFLOG => get_packetdata_nflog(i, caplen),
         _ => Some(PacketData::Unsupported(i)),
     }

@@ -22,7 +22,7 @@ impl display Linktype {
     // Raw IPv4; the packet begins with an IPv4 header.
     IPV4 = 228,
     // Raw IPv6; the packet begins with an IPv6 header.
-    IPv6 = 229,
+    IPV6 = 229,
 
     // Linux netlink NETLINK NFLOG socket log messages.
     // Use the [`pcap_nflog`]()../pcap_nflog/index.html module to access content.
