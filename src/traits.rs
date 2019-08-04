@@ -76,7 +76,7 @@ where
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError>;
     fn consume(&mut self, offset: usize);
     fn consume_noshift(&mut self, offset: usize);
-    fn refill(&mut self) -> Result<(), &'static str>;
+    fn refill(&mut self) -> Result<(), PcapError>;
     fn position(&self) -> usize;
     fn grow(&mut self, new_size: usize) -> bool;
 }

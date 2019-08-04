@@ -147,12 +147,12 @@ where
     fn consume_noshift(&mut self, offset: usize) {
         self.buffer.consume_noshift(offset);
     }
-    fn refill(&mut self) -> Result<(), &'static str> {
+    fn refill(&mut self) -> Result<(), PcapError> {
         self.buffer.shift();
         let sz = self
             .reader
             .read(self.buffer.space())
-            .or(Err("refill failed"))?;
+            .or(Err(PcapError::ReadError))?;
         self.buffer.fill(sz);
         Ok(())
     }
