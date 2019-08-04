@@ -6,7 +6,7 @@
 //! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
 
 use crate::data::{PacketData, ETHERTYPE_IPV4, ETHERTYPE_IPV6};
-use nom::{be_u16, le_u16, le_u8};
+use nom::number::streaming::{be_u16, le_u16, le_u8};
 
 // Defined in linux/netfilter/nfnetlink_log.h
 #[derive(Copy, Clone)]

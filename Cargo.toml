@@ -38,8 +38,8 @@ all-features = true
 byteorder = "1"
 circular = "0.3"
 cookie-factory = "0.2"
-nom = "4.0"
-rusticata-macros = "1.1"
+nom = "5.0"
+rusticata-macros = "2.0"
 
 [dev-dependencies]
 hex-literal = "0.2"

@@ -17,9 +17,11 @@
 //! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
 //! This can be used in a streaming parser.
 
+use crate::error::PcapError;
 use crate::linktype::Linktype;
 use cookie_factory::GenError;
-use nom::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32, IResult};
+use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
+use nom::IResult;
 
 /// PCAP global header
 #[derive(Clone, Debug)]
@@ -115,7 +117,7 @@ impl<'a> LegacyPcapBlock<'a> {
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
 #[inline]
-pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
+pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
     inner_parse_pcap_frame(i, false)
 }
 
@@ -124,11 +126,14 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
 #[inline]
-pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock> {
+pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
     inner_parse_pcap_frame(i, true)
 }
 
-fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPcapBlock> {
+fn inner_parse_pcap_frame(
+    i: &[u8],
+    big_endian: bool,
+) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
@@ -150,7 +155,7 @@ fn inner_parse_pcap_frame(i: &[u8], big_endian: bool) -> IResult<&[u8], LegacyPc
 /// Read the PCAP global header
 ///
 /// The global header contains the PCAP description and options
-pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader> {
+pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
     switch! {
         i,
         le_u32,

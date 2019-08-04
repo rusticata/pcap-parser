@@ -1,4 +1,5 @@
 use crate::blocks::PcapBlockOwned;
+use crate::error::PcapError;
 use crate::{align32, align_n2, read_u32_e};
 use std::io::Read;
 
@@ -71,7 +72,7 @@ pub trait PcapReaderIterator<R>
 where
     R: Read,
 {
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>>;
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError>;
     fn consume(&mut self, offset: usize);
     fn consume_noshift(&mut self, offset: usize);
     fn refill(&mut self) -> Result<(), &'static str>;

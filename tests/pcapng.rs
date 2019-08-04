@@ -1,7 +1,6 @@
 extern crate nom;
 extern crate pcap_parser;
 
-use nom::ErrorKind;
 use pcap_parser::pcapng::Block;
 use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
@@ -129,7 +128,7 @@ fn test_pcapng_reader_be() {
                 num_blocks += 1;
                 reader.consume(offset);
             }
-            Err(ErrorKind::Eof) => break,
+            Err(PcapError::Eof) => break,
             Err(e) => panic!("error while reading: {:?}", e),
         }
     }

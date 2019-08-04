@@ -16,10 +16,16 @@
 //! This can be used in a streaming parser.
 
 use crate::blocks::PcapBlock;
+use crate::error::PcapError;
 use crate::linktype::Linktype;
-use crate::{align32, align_n2};
+use crate::{align32, align_n2, val};
 use byteorder::{ByteOrder, LittleEndian};
-use nom::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32, rest, Err, ErrorKind, IResult};
+use nom::bytes::complete::take;
+use nom::combinator::{complete, map_parser, rest};
+use nom::error::*;
+use nom::multi::many0;
+use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
+use nom::{Err, IResult};
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D0D0A;
@@ -297,7 +303,9 @@ pub struct PcapNGHeader {
     pub network: u32,
 }
 
-pub fn parse_option(i: &[u8]) -> IResult<&[u8], PcapNGOption> {
+pub fn parse_option<'i, E: ParseError<&'i [u8]>>(
+    i: &'i [u8],
+) -> IResult<&'i [u8], PcapNGOption, E> {
     do_parse! {
         i,
         code:  le_u16 >>
@@ -313,7 +321,9 @@ pub fn parse_option(i: &[u8]) -> IResult<&[u8], PcapNGOption> {
     }
 }
 
-pub fn parse_option_be(i: &[u8]) -> IResult<&[u8], PcapNGOption> {
+pub fn parse_option_be<'i, E: ParseError<&'i [u8]>>(
+    i: &'i [u8],
+) -> IResult<&'i [u8], PcapNGOption, E> {
     do_parse! {
         i,
         code:  be_u16 >>
@@ -329,86 +339,95 @@ pub fn parse_option_be(i: &[u8]) -> IResult<&[u8], PcapNGOption> {
     }
 }
 
-pub fn parse_sectionheaderblock_le(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock> {
-    do_parse! {
-        i,
-        magic:   verify!(le_u32, |x:u32| x == SHB_MAGIC) >>
-              len1:    le_u32 >>
-              bom:     verify!(le_u32, |x:u32| x == BOM_MAGIC) >>
-              major:   le_u16 >>
-              minor:   le_u16 >>
-              slen:    le_i64 >>
-              // options
-              options: cond!(
-                    len1 > 28,
-                    flat_map!(
-                        take!(len1 - 28),
-                        many0!(complete!(parse_option))
-                        )
-                  ) >>
-              len2:    verify!(le_u32, |x:u32| x == len1) >>
-              (
-                  SectionHeaderBlock{
-                      block_type: magic,
-                      block_len1: len1,
-                      bom: bom,
-                      major_version: major,
-                      minor_version: minor,
-                      section_len: slen,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
-                  }
-              )
+fn opt_parse_options<'i>(
+    i: &'i [u8],
+    len: usize,
+    opt_offset: usize,
+) -> IResult<&'i [u8], Vec<PcapNGOption<'i>>, PcapError> {
+    if len > opt_offset {
+        map_parser(take(len - opt_offset), many0(complete(parse_option)))(i)
+    } else {
+        Ok((i, Vec::new()))
     }
 }
 
-pub fn parse_sectionheaderblock_be(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock> {
-    do_parse! {
-        i,
-        magic:   verify!(be_u32, |x:u32| x == SHB_MAGIC) >>
-              len1:    be_u32 >>
-              bom:     le_u32 >>
-              major:   be_u16 >>
-              minor:   be_u16 >>
-              slen:    be_i64 >>
-              // options
-              options: cond!(
-                    len1 > 28,
-                    flat_map!(
-                        take!(len1 - 28),
-                        many0!(complete!(parse_option_be))
-                        )
-                  ) >>
-              len2:    verify!(be_u32, |x:u32| x == len1) >>
-              (
-                  SectionHeaderBlock{
-                      block_type: magic,
-                      block_len1: len1,
-                      bom: bom,
-                      major_version: major,
-                      minor_version: minor,
-                      section_len: slen,
-                      options: options.unwrap_or(Vec::new()),
-                      block_len2: len2
-                  }
-              )
+fn opt_parse_options_be<'i>(
+    i: &'i [u8],
+    len: usize,
+    opt_offset: usize,
+) -> IResult<&'i [u8], Vec<PcapNGOption<'i>>, PcapError> {
+    if len > opt_offset {
+        map_parser(take(len - opt_offset), many0(complete(parse_option_be)))(i)
+    } else {
+        Ok((i, Vec::new()))
     }
 }
 
-pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock> {
-    peek!(i, tuple!(take!(8), le_u32)).and_then(|(rem, (_, bom))| {
-        if bom == BOM_MAGIC {
-            parse_sectionheaderblock_le(rem)
-        } else if bom == u32::from_be(BOM_MAGIC) {
-            parse_sectionheaderblock_be(rem)
-        } else {
-            Err(Err::Error(error_position!(i, ErrorKind::Tag)))
-        }
-    })
+pub fn parse_sectionheaderblock_le(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
+    do_parse! {
+        i,
+        block_type:    verify!(le_u32, |x:&u32| *x == SHB_MAGIC) >>
+        block_len1:    le_u32 >>
+        bom:           verify!(le_u32, |x:&u32| *x == BOM_MAGIC) >>
+        major_version: le_u16 >>
+        minor_version: le_u16 >>
+        section_len:   le_i64 >>
+        options:       call!(opt_parse_options, block_len1 as usize, 28) >>
+        block_len2:    verify!(le_u32, |x:&u32| *x == block_len1) >>
+        (
+            SectionHeaderBlock{
+                block_type,
+                block_len1,
+                bom,
+                major_version,
+                minor_version,
+                section_len,
+                options,
+                block_len2,
+            }
+        )
+    }
+}
+
+pub fn parse_sectionheaderblock_be(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
+    do_parse! {
+        i,
+        block_type:    verify!(be_u32, |x:&u32| *x == SHB_MAGIC) >>
+        block_len1:    be_u32 >>
+        bom:           le_u32 >>
+        major_version: be_u16 >>
+        minor_version: be_u16 >>
+        section_len:   be_i64 >>
+        options:       call!(opt_parse_options_be, block_len1 as usize, 28) >>
+        block_len2:    verify!(be_u32, |x:&u32| *x == block_len1) >>
+        (
+            SectionHeaderBlock{
+                block_type,
+                block_len1,
+                bom,
+                major_version,
+                minor_version,
+                section_len,
+                options,
+                block_len2,
+            }
+        )
+    }
+}
+
+pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
+    let (_, (_, bom)) = peek!(i, tuple!(take!(8), le_u32))?;
+    if bom == BOM_MAGIC {
+        parse_sectionheaderblock_le(i)
+    } else if bom == u32::from_be(BOM_MAGIC) {
+        parse_sectionheaderblock_be(i)
+    } else {
+        Err(Err::Error(PcapError::HeaderNotRecognized))
+    }
 }
 
 #[inline]
-pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     parse_sectionheaderblock(i).map(|(r, b)| (r, Block::SectionHeader(b)))
 }
 
@@ -436,78 +455,75 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
 fn inner_parse_interfacedescription(
     i: &[u8],
     big_endian: bool,
-) -> IResult<&[u8], InterfaceDescriptionBlock> {
+) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
     let read_u16 = if big_endian { be_u16 } else { le_u16 };
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    let read_option = if big_endian {
-        parse_option_be
+    let read_options = if big_endian {
+        opt_parse_options_be
     } else {
-        parse_option
+        opt_parse_options
     };
-    do_parse! {i,
-              magic:      verify!(read_u32, |x:u32| x == IDB_MAGIC) >>
-              len1:       read_u32 >>
-              linktype:   read_u16 >>
-              reserved:   read_u16 >>
-              snaplen:    read_u32 >>
-              // options
-              options: cond!(
-                    len1 > 20,
-                    flat_map!(
-                        take!(len1 - 20),
-                        many0!(complete!(read_option))
-                        )
-                  ) >>
-              len2:    verify!(read_u32, |x:u32| x == len1) >>
-              ({
-                  let options = options.unwrap_or(Vec::new());
-                  let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
-                  InterfaceDescriptionBlock{
-                      block_type: magic,
-                      block_len1: len1,
-                      linktype: Linktype(linktype as i32),
-                      reserved,
-                      snaplen,
-                      options,
-                      block_len2: len2,
-                      if_tsresol,
-                      if_tsoffset,
-                  }
-              })
+    do_parse! {
+        i,
+        magic:      verify!(read_u32, |x:&u32| *x == IDB_MAGIC) >>
+        block_len1: read_u32 >>
+        linktype:   read_u16 >>
+        reserved:   read_u16 >>
+        snaplen:    read_u32 >>
+        options:    call!(read_options, block_len1 as usize, 20) >>
+        block_len2: verify!(read_u32, |x:&u32| *x == block_len1) >>
+        ({
+            let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
+            InterfaceDescriptionBlock{
+                block_type: magic,
+                block_len1,
+                linktype: Linktype(linktype as i32),
+                reserved,
+                snaplen,
+                options,
+                block_len2,
+                if_tsresol,
+                if_tsoffset,
+            }
+        })
     }
 }
 
 #[inline]
-pub fn parse_interfacedescription(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
+pub fn parse_interfacedescription(
+    i: &[u8],
+) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
     inner_parse_interfacedescription(i, false)
 }
 
 #[inline]
-pub fn parse_interfacedescription_be(i: &[u8]) -> IResult<&[u8], InterfaceDescriptionBlock> {
+pub fn parse_interfacedescription_be(
+    i: &[u8],
+) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
     inner_parse_interfacedescription(i, true)
 }
 #[inline]
-pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     parse_interfacedescription(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
 
 #[inline]
-pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     parse_interfacedescription_be(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
 
-fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
-        magic:     verify!(read_u32, |x:u32| x == SPB_MAGIC) >>
-        len1:      verify!(read_u32, |val:u32| val >= 32) >>
+        magic:     verify!(read_u32, |x:&u32| *x == SPB_MAGIC) >>
+        len1:      verify!(read_u32, |val:&u32| *val >= 32) >>
         origlen:   le_u32 >>
         // XXX if snaplen is < origlen, we MUST use snaplen
         // al_len:    value!(align32!(origlen)) >>
         // data:      take!(al_len) >>
         data:      take!(len1 - 16) >>
-        len2:      verify!(read_u32, |x:u32| x == len1) >>
+        len2:      verify!(read_u32, |x:&u32| *x == len1) >>
         (
             Block::SimplePacket(SimplePacketBlock{
                 block_type: magic,
@@ -524,7 +540,7 @@ fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], B
 ///
 /// *Note: this function does not remove padding*
 #[inline]
-pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_simplepacketblock(i, false)
 }
 
@@ -532,59 +548,58 @@ pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block> {
 ///
 /// *Note: this function does not remove padding*
 #[inline]
-pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_simplepacketblock(i, true)
 }
 
-fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    let read_options = if big_endian {
+        opt_parse_options_be
+    } else {
+        opt_parse_options
+    };
     do_parse! {
         i,
-                   verify!(read_u32, |x:u32| x == EPB_MAGIC) >>
-        len1:      verify!(read_u32, |val:u32| val >= 32) >>
-        if_id:     read_u32 >>
-        ts_high:   read_u32 >>
-        ts_low:    read_u32 >>
-        caplen:    verify!(read_u32, |x| x < ::std::u32::MAX - 4) >>
-        origlen:   read_u32 >>
-        al_len:    value!(align32!(caplen)) >>
-        data:      take!(al_len) >>
-        options:   cond!(
-              len1 > 32 + al_len,
-              flat_map!(
-                  take!(len1 - (32 + al_len)),
-                  many0!(complete!(parse_option_be))
-                  )
-            ) >>
-        len2:      verify!(read_u32, |x:u32| x == len1) >>
+                    verify!(read_u32, |x:&u32| *x == EPB_MAGIC) >>
+        block_len1: verify!(read_u32, |val:&u32| *val >= 32) >>
+        if_id:      read_u32 >>
+        ts_high:    read_u32 >>
+        ts_low:     read_u32 >>
+        caplen:     verify!(read_u32, |x| *x < ::std::u32::MAX - 4) >>
+        origlen:    read_u32 >>
+        al_len:     val!(align32!(caplen) as usize) >>
+        data:       take!(al_len) >>
+        options:    call!(read_options, block_len1 as usize, 32 + al_len) >>
+        block_len2: verify!(read_u32, |x:&u32| *x == block_len1) >>
         ({
             Block::EnhancedPacket(EnhancedPacketBlock{
                 block_type: EPB_MAGIC,
-                block_len1: len1,
-                if_id: if_id,
-                ts_high: ts_high,
-                ts_low: ts_low,
-                caplen: caplen,
-                origlen: origlen,
-                data: data,
-                options: options.unwrap_or(Vec::new()),
-                block_len2: len2
+                block_len1,
+                if_id,
+                ts_high,
+                ts_low,
+                caplen,
+                origlen,
+                data,
+                options,
+                block_len2,
             })
         })
     }
 }
 
 #[inline]
-pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_enhancedpacketblock(i, false)
 }
 
 #[inline]
-pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_enhancedpacketblock(i, true)
 }
 
-fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord> {
+fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord, PcapError> {
     let read_u16 = if big_endian { be_u16 } else { le_u16 };
     do_parse! {
         i,
@@ -600,26 +615,29 @@ fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord> {
     }
 }
 
-fn parse_name_record_list(i: &[u8], big_endian: bool) -> IResult<&[u8], Vec<NameRecord>> {
+fn parse_name_record_list(
+    i: &[u8],
+    big_endian: bool,
+) -> IResult<&[u8], Vec<NameRecord>, PcapError> {
     many_till!(
         i,
         call!(parse_name_record, big_endian),
-        verify!(le_u32, |x: u32| x == 0)
+        verify!(le_u32, |x: &u32| *x == 0)
     )
     .map(|(rem, (v, _))| (rem, v))
 }
 
-fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
-                    verify!(read_u32, |x:u32| x == NRB_MAGIC) >>
-        len1:       verify!(read_u32, |val:u32| val >= 16) >>
+                    verify!(read_u32, |x:&u32| *x == NRB_MAGIC) >>
+        len1:       verify!(read_u32, |val:&u32| *val >= 16) >>
         nr_and_opt: flat_map!(
             take!(len1 - 12),
             tuple!(call!(parse_name_record_list, big_endian), rest)
             ) >>
-        len2:       verify!(read_u32, |x:u32| x == len1) >>
+        len2:       verify!(read_u32, |x:&u32| *x == len1) >>
         ({
             Block::NameResolution(NameResolutionBlock{
                 big_endian,
@@ -634,87 +652,73 @@ fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
 }
 
 #[inline]
-pub fn parse_nameresolutionblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_nameresolutionblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_nameresolutionblock(i, false)
 }
 
 #[inline]
-pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_nameresolutionblock(i, true)
 }
 
-pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     do_parse! {
         i,
-        magic:      verify!(le_u32, |x:u32| x == ISB_MAGIC) >>
-        len1:       le_u32 >>
+        magic:      verify!(le_u32, |x:&u32| *x == ISB_MAGIC) >>
+        block_len1: le_u32 >>
         if_id:      le_u32 >>
         ts_high:    le_u32 >>
         ts_low:     le_u32 >>
-        // options
-        options: cond!(
-            len1 > 24,
-            flat_map!(
-                take!(len1 - 24),
-                many0!(complete!(parse_option))
-                )
-            ) >>
-        len2:    verify!(le_u32, |x:u32| x == len1) >>
+        options:    call!(opt_parse_options, block_len1 as usize, 24) >>
+        block_len2: verify!(le_u32, |x:&u32| *x == block_len1) >>
         (
             Block::InterfaceStatistics(InterfaceStatisticsBlock{
                 block_type: magic,
-                block_len1: len1,
+                block_len1,
                 if_id,
                 ts_high,
                 ts_low,
-                options: options.unwrap_or(Vec::new()),
-                block_len2: len2
+                options,
+                block_len2,
             })
         )
     }
 }
 
-pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     do_parse! {
         i,
-        magic:      verify!(be_u32, |x:u32| x == ISB_MAGIC) >>
-        len1:       be_u32 >>
+        magic:      verify!(be_u32, |x:&u32| *x == ISB_MAGIC) >>
+        block_len1: be_u32 >>
         if_id:      be_u32 >>
         ts_high:    be_u32 >>
         ts_low:     be_u32 >>
-        // options
-        options: cond!(
-            len1 > 24,
-            flat_map!(
-                take!(len1 - 24),
-                many0!(complete!(parse_option_be))
-                )
-            ) >>
-        len2:    verify!(be_u32, |x:u32| x == len1) >>
+        options:    call!(opt_parse_options_be, block_len1 as usize, 24) >>
+        block_len2: verify!(be_u32, |x:&u32| *x == block_len1) >>
         (
             Block::InterfaceStatistics(InterfaceStatisticsBlock{
                 block_type: magic,
-                block_len1: len1,
+                block_len1,
                 if_id,
                 ts_high,
                 ts_low,
-                options: options.unwrap_or(Vec::new()),
-                block_len2: len2
+                options,
+                block_len2,
             })
         )
     }
 }
 
-fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
         blocktype: read_u32 >>
-        len1:      verify!(read_u32, |val: u32| val >= 16) >>
+        len1:      verify!(read_u32, |val: &u32| *val >= 16) >>
         pen:       read_u32 >>
         data:      take!(len1 - 16) >>
         // options cannot be parsed, we don't know the length of data
-        len2:      verify!(read_u32, |x: u32| x == len1) >>
+        len2:      verify!(read_u32, |x: &u32| *x == len1) >>
         (
             Block::Custom(CustomBlock {
                 big_endian,
@@ -729,24 +733,24 @@ fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> 
 }
 
 #[inline]
-pub fn parse_customblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_customblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_customblock(i, false)
 }
 
 #[inline]
-pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_customblock(i, true)
 }
 
-fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block> {
+fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
     // debug!("Unknown block of ID {:x}", peek!(i, le_u32).unwrap().1);
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
         blocktype: read_u32 >>
-        len1:      verify!(read_u32, |val: u32| val >= 12) >>
+        len1:      verify!(read_u32, |val: &u32| *val >= 12) >>
         data:      take!(len1 - 12) >>
-        len2:      verify!(read_u32, |x: u32| x == len1) >>
+        len2:      verify!(read_u32, |x: &u32| *x == len1) >>
         (
             Block::Unknown(UnknownBlock {
                 block_type: blocktype,
@@ -759,12 +763,12 @@ fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block>
 }
 
 #[inline]
-pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_unknownblock(i, false)
 }
 
 #[inline]
-pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_unknownblock(i, true)
 }
 
@@ -772,8 +776,8 @@ pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block> {
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block> {
-    match peek!(i, le_u32) {
+pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    match peek!(i, call!(le_u32)) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => parse_sectionheader(rem),
             IDB_MAGIC => parse_interfacedescriptionblock(rem),
@@ -792,8 +796,8 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block> {
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
-    match peek!(i, be_u32) {
+pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    match peek!(i, call!(be_u32)) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => parse_sectionheader(rem),
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
@@ -809,7 +813,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block> {
 }
 
 /// Parse any block from a section
-pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     let (rem, block) = parse_block(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
@@ -818,7 +822,7 @@ pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block> {
 }
 
 /// Parse any block from a section (big-endian version)
-pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
+pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     let (rem, block) = parse_block_be(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
@@ -827,7 +831,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block> {
 }
 
 /// Parse one section
-pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
+pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.is_bigendian();
     let (rem, mut b) = if big_endian {
@@ -844,6 +848,6 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section> {
 
 /// Parse multiple sections
 #[inline]
-pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>> {
+pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>, PcapError> {
     many1!(i, complete!(parse_section))
 }

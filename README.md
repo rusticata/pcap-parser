@@ -28,7 +28,6 @@ The following code shows how to parse a file in the pcap-ng format, using a
 ```rust
 use pcap_parser::*;
 use pcap_parser::traits::PcapReaderIterator;
-use nom::ErrorKind;
 use std::fs::File;
 use std::io::Read;
 
@@ -42,7 +41,7 @@ loop {
             num_blocks += 1;
             reader.consume(offset);
         },
-        Err(ErrorKind::Eof) => break,
+        Err(PcapError::Eof) => break,
         Err(e) => panic!("error while reading: {:?}", e),
     }
 }
@@ -65,6 +64,11 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 <!-- cargo-sync-readme end -->
 
 ## Changes
+
+### 0.7.0
+
+- Upgrade to nom 5
+  - Breaking API changes, mainly for error types
 
 ### 0.6.1
 

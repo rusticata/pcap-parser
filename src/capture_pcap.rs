@@ -1,5 +1,6 @@
 use crate::blocks::{PcapBlock, PcapBlockOwned};
 use crate::capture::Capture;
+use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::pcap::{
     parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, LegacyPcapBlock, PcapHeader,
@@ -27,7 +28,6 @@ use std::io::Read;
 /// # extern crate pcap_parser;
 /// use pcap_parser::*;
 /// use pcap_parser::traits::PcapReaderIterator;
-/// use nom::ErrorKind;
 /// use std::fs::File;
 /// use std::io::Read;
 ///
@@ -52,7 +52,7 @@ use std::io::Read;
 ///             }
 ///             reader.consume(offset);
 ///         },
-///         Err(ErrorKind::Eof) => break,
+///         Err(PcapError::Eof) => break,
 ///         Err(e) => panic!("error while reading: {:?}", e),
 ///     }
 /// }
@@ -73,13 +73,15 @@ impl<R> LegacyPcapReader<R>
 where
     R: Read,
 {
-    pub fn new(capacity: usize, mut reader: R) -> Result<LegacyPcapReader<R>, nom::ErrorKind<u32>> {
+    pub fn new(capacity: usize, mut reader: R) -> Result<LegacyPcapReader<R>, PcapError> {
         let mut buffer = Buffer::with_capacity(capacity);
-        let sz = reader
-            .read(buffer.space())
-            .or(Err(nom::ErrorKind::Custom(0)))?;
+        let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
         buffer.fill(sz);
-        let (_rem, header) = parse_pcap_header(buffer.data()).map_err(|e| e.into_error_kind())?;
+        let (_rem, header) = match parse_pcap_header(buffer.data()) {
+            Ok((r, h)) => Ok((r, h)),
+            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
+            Err(_) => Err(PcapError::Incomplete),
+        }?;
         // do not consume
         Ok(LegacyPcapReader {
             header,
@@ -91,12 +93,14 @@ where
     pub fn from_buffer(
         mut buffer: Buffer,
         mut reader: R,
-    ) -> Result<LegacyPcapReader<R>, nom::ErrorKind<u32>> {
-        let sz = reader
-            .read(buffer.space())
-            .or(Err(nom::ErrorKind::Custom(0)))?;
+    ) -> Result<LegacyPcapReader<R>, PcapError> {
+        let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
         buffer.fill(sz);
-        let (_rem, header) = parse_pcap_header(buffer.data()).map_err(|e| e.into_error_kind())?;
+        let (_rem, header) = match parse_pcap_header(buffer.data()) {
+            Ok((r, h)) => Ok((r, h)),
+            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
+            Err(_) => Err(PcapError::Incomplete),
+        }?;
         // do not consume
         Ok(LegacyPcapReader {
             header,
@@ -111,7 +115,7 @@ impl<R> PcapReaderIterator<R> for LegacyPcapReader<R>
 where
     R: Read,
 {
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), nom::ErrorKind<u32>> {
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError> {
         if !self.header_sent {
             self.header_sent = true;
             return Ok((
@@ -120,7 +124,7 @@ where
             ));
         }
         if self.buffer.available_data() == 0 {
-            return Err(nom::ErrorKind::Eof);
+            return Err(PcapError::Eof);
         }
         let data = self.buffer.data();
         let parse = if self.header.is_bigendian() {
@@ -133,7 +137,8 @@ where
                 let offset = data.offset(rem);
                 Ok((offset, PcapBlockOwned::from(b)))
             }
-            Err(e) => Err(e.into_error_kind()),
+            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
+            Err(_) => Err(PcapError::Incomplete),
         }
     }
     fn consume(&mut self, offset: usize) {
@@ -194,7 +199,7 @@ pub struct LegacyPcapSlice<'a> {
 }
 
 impl<'a> LegacyPcapSlice<'a> {
-    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, nom::Err<&[u8]>> {
+    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, nom::Err<PcapError>> {
         let (rem, header) = parse_pcap_header(i)?;
         Ok(LegacyPcapSlice { header, rem })
     }
@@ -203,9 +208,9 @@ impl<'a> LegacyPcapSlice<'a> {
 /// Iterator for LegacyPcapSlice. Returns a result so parsing errors are not
 /// silently ignored
 impl<'a> Iterator for LegacyPcapSlice<'a> {
-    type Item = Result<PcapBlockOwned<'a>, nom::Err<&'a [u8]>>;
+    type Item = Result<PcapBlockOwned<'a>, nom::Err<PcapError>>;
 
-    fn next(&mut self) -> Option<Result<PcapBlockOwned<'a>, nom::Err<&'a [u8]>>> {
+    fn next(&mut self) -> Option<Result<PcapBlockOwned<'a>, nom::Err<PcapError>>> {
         if self.rem.is_empty() {
             return None;
         }
@@ -225,10 +230,11 @@ pub struct PcapCapture<'a> {
 }
 
 impl<'a> PcapCapture<'a> {
-    pub fn from_file(i: &[u8]) -> Result<PcapCapture, IResult<&[u8], PcapCapture>> {
+    pub fn from_file(i: &[u8]) -> Result<PcapCapture, PcapError> {
         match parse_pcap(i) {
             Ok((_, pcap)) => Ok(pcap),
-            e => Err(e),
+            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
+            Err(_) => Err(PcapError::Incomplete),
         }
     }
 }
@@ -273,7 +279,7 @@ impl<'a> Capture for PcapCapture<'a> {
 /// Parse the entire file
 ///
 /// Note: this requires the file to be fully loaded to memory.
-pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture> {
+pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture, PcapError> {
     do_parse! {
         i,
         hdr:    parse_pcap_header >>

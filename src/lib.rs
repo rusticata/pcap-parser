@@ -20,7 +20,6 @@
 //! # extern crate pcap_parser;
 //! use pcap_parser::*;
 //! use pcap_parser::traits::PcapReaderIterator;
-//! use nom::ErrorKind;
 //! use std::fs::File;
 //! use std::io::Read;
 //!
@@ -36,7 +35,7 @@
 //!             num_blocks += 1;
 //!             reader.consume(offset);
 //!         },
-//!         Err(ErrorKind::Eof) => break,
+//!         Err(PcapError::Eof) => break,
 //!         Err(e) => panic!("error while reading: {:?}", e),
 //!     }
 //! }
@@ -72,8 +71,10 @@ mod utils;
 pub use utils::{Data, MutableData};
 
 mod blocks;
+mod error;
 mod linktype;
 pub use blocks::*;
+pub use error::*;
 pub use linktype::*;
 
 pub mod pcap;

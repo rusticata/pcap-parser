@@ -1,6 +1,7 @@
 use crate::blocks::PcapBlock;
 use crate::capture_pcap::LegacyPcapReader;
 use crate::capture_pcapng::PcapNGReader;
+use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::pcap::parse_pcap_header;
 use crate::pcapng::parse_sectionheaderblock;
@@ -24,7 +25,6 @@ pub trait Capture {
 /// # extern crate nom;
 /// # extern crate pcap_parser;
 /// # use pcap_parser::*;
-/// # use nom::ErrorKind;
 /// # use std::fs::File;
 /// # use std::io::Read;
 /// #
@@ -37,14 +37,12 @@ pub trait Capture {
 pub fn create_reader<'b, R>(
     capacity: usize,
     mut reader: R,
-) -> Result<Box<PcapReaderIterator<R> + 'b>, nom::ErrorKind<u32>>
+) -> Result<Box<PcapReaderIterator<R> + 'b>, PcapError>
 where
     R: Read + 'b,
 {
     let mut buffer = Buffer::with_capacity(capacity);
-    let sz = reader
-        .read(buffer.space())
-        .or(Err(nom::ErrorKind::Custom(0)))?;
+    let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
     buffer.fill(sz);
     // just check that first block is a valid one
     if let Ok(_) = parse_sectionheaderblock(buffer.data()) {
@@ -53,6 +51,6 @@ where
         LegacyPcapReader::from_buffer(buffer, reader)
             .map(|r| Box::new(r) as Box<PcapReaderIterator<R>>)
     } else {
-        Err(nom::ErrorKind::Tag)
+        Err(PcapError::HeaderNotRecognized)
     }
 }

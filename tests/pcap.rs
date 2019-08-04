@@ -1,7 +1,6 @@
 extern crate nom;
 extern crate pcap_parser;
 
-use nom::ErrorKind;
 use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
 use std::fs::File;
@@ -43,7 +42,7 @@ fn test_pcap_reader() {
                 }
                 reader.consume(offset);
             }
-            Err(ErrorKind::Eof) => break,
+            Err(PcapError::Eof) => break,
             Err(e) => panic!("error while reading: {:?}", e),
         }
     }

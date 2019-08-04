@@ -198,3 +198,12 @@ macro_rules! align32 {
         align_n2!($x, 4)
     };
 }
+
+/// Return the given expression
+#[doc(hidden)]
+#[macro_export]
+macro_rules! val {
+    ($i:expr, $x:expr) => {{
+        Ok(($i, $x))
+    }};
+}
