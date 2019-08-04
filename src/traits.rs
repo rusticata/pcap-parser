@@ -67,17 +67,41 @@ pub trait PcapNGBlock {
 
 /// Iterator over pcap files
 ///
-/// Iterator over pcap files. Each call to `next` will return the next block,
+/// Each call to `next` will return the next block,
 /// and must be followed by call to `consume` to avoid reading the same data.
+/// `consume` takes care of refilling the buffer.
+///
+/// It is possible to read multiple blocks before consuming data.
+/// Call `consume_noshift` instead of `consume`. To refill the buffer, first ensures that you do
+/// not keep any reference over internal data (blocks or slices), and call `refill`.
+///
+/// To determine when a refill is needed, either test `next()` for an incomplete read. You can also
+/// use `position` to implement a heuristic refill (for ex, when `positon > capacity / 2`.
+///
+/// **The blocks already read, and underlying data, must be discarded before calling
+/// `consume` or `refill`.** It is the caller's responsibility to call functions in the correct
+/// order.
 pub trait PcapReaderIterator<R>
 where
     R: Read,
 {
+    /// Get the next pcap block, if possible. Returns the number of bytes read and the block.
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError>;
+    /// Consume data, and refill buffer if needed.
+    ///
+    /// **The blocks already read, and underlying data, must be discarded before calling
+    /// this function.**
     fn consume(&mut self, offset: usize);
+    /// Consume date, but do not change the buffer. Blocks already read are still valid.
     fn consume_noshift(&mut self, offset: usize);
+    /// Refill the internal buffer, shifting it if necessary.
+    ///
+    /// **The blocks already read, and underlying data, must be discarded before calling
+    /// this function.**
     fn refill(&mut self) -> Result<(), PcapError>;
+    /// Get the position in the internal buffer. Can be used to determine if `refill` is required.
     fn position(&self) -> usize;
+    /// Grow size of the internal buffer.
     fn grow(&mut self, new_size: usize) -> bool;
 }
 

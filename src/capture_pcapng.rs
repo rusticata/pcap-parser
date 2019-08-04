@@ -26,6 +26,8 @@ use std::io::Read;
 /// The size of the circular buffer has to be big enough for at least one complete block. Using a
 /// larger value (at least 65k) is advised to avoid frequent reads and buffer shifts.
 ///
+/// **There are precautions to take when reading multiple blocks before consuming data. See
+/// [PcapReaderIterator](traits/trait.PcapReaderIterator.html) for details.**
 ///
 /// ```rust
 /// # extern crate nom;
