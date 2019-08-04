@@ -1,6 +1,6 @@
 [package]
 name = "pcap-parser"
-version = "0.6.1"
+version = "0.7.0"
 description = "Parser for the PCAP/PCAPNG format"
 license = "MIT/Apache-2.0"
 keywords = ["pcap","pcapng","parser","nom"]
