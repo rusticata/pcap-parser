@@ -1,6 +1,7 @@
 use crate::blocks::PcapBlockOwned;
 use crate::error::PcapError;
-use crate::{align32, align_n2, read_u32_e};
+use crate::read_u32_e;
+use rusticata_macros::align32;
 use std::io::Read;
 
 /// Common methods for PcapNG blocks

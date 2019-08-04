@@ -39,7 +39,7 @@ byteorder = "1"
 circular = "0.3"
 cookie-factory = "0.2"
 nom = "5.0"
-rusticata-macros = "2.0"
+rusticata-macros = "2.0.3"
 
 [dev-dependencies]
 hex-literal = "0.2"

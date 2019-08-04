@@ -18,7 +18,6 @@
 use crate::blocks::PcapBlock;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
-use crate::{align32, align_n2, val};
 use byteorder::{ByteOrder, LittleEndian};
 use nom::bytes::complete::take;
 use nom::combinator::{complete, map_parser, rest};
@@ -26,6 +25,7 @@ use nom::error::*;
 use nom::multi::many0;
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
 use nom::{Err, IResult};
+use rusticata_macros::{align32, q};
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D0D0A;
@@ -568,7 +568,7 @@ fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
         ts_low:     read_u32 >>
         caplen:     verify!(read_u32, |x| *x < ::std::u32::MAX - 4) >>
         origlen:    read_u32 >>
-        al_len:     val!(align32!(caplen) as usize) >>
+        al_len:     q!(align32!(caplen) as usize) >>
         data:       take!(al_len) >>
         options:    call!(read_options, block_len1 as usize, 32 + al_len) >>
         block_len2: verify!(read_u32, |x:&u32| *x == block_len1) >>

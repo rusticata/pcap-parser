@@ -179,31 +179,3 @@ macro_rules! write_u32_e {
         }
     };
 }
-
-/// Align slice to the next multiple of n bytes
-/// Valid only if n is a power of 2
-#[doc(hidden)]
-#[macro_export]
-macro_rules! align_n2 {
-    ($x:expr, $n:expr) => {
-        ($x + ($n - 1)) & !($n - 1)
-    };
-}
-
-/// Align slice to the next multiple of 4 bytes
-#[doc(hidden)]
-#[macro_export]
-macro_rules! align32 {
-    ($x:expr) => {
-        align_n2!($x, 4)
-    };
-}
-
-/// Return the given expression
-#[doc(hidden)]
-#[macro_export]
-macro_rules! val {
-    ($i:expr, $x:expr) => {{
-        Ok(($i, $x))
-    }};
-}
