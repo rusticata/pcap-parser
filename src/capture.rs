@@ -15,7 +15,7 @@ pub trait Capture {
 
     fn get_snaplen(&self) -> u32;
 
-    fn iter<'a>(&'a self) -> Box<Iterator<Item = PcapBlock> + 'a>;
+    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = PcapBlock> + 'a>;
 }
 
 /// Get a generic `PcapReaderIterator`, given a `Read` input. The input is probed for pcap-ng first,
@@ -37,7 +37,7 @@ pub trait Capture {
 pub fn create_reader<'b, R>(
     capacity: usize,
     mut reader: R,
-) -> Result<Box<PcapReaderIterator<R> + 'b>, PcapError>
+) -> Result<Box<dyn PcapReaderIterator<R> + 'b>, PcapError>
 where
     R: Read + 'b,
 {
@@ -46,10 +46,11 @@ where
     buffer.fill(sz);
     // just check that first block is a valid one
     if let Ok(_) = parse_sectionheaderblock(buffer.data()) {
-        PcapNGReader::from_buffer(buffer, reader).map(|r| Box::new(r) as Box<PcapReaderIterator<R>>)
+        PcapNGReader::from_buffer(buffer, reader)
+            .map(|r| Box::new(r) as Box<dyn PcapReaderIterator<R>>)
     } else if let Ok(_) = parse_pcap_header(buffer.data()) {
         LegacyPcapReader::from_buffer(buffer, reader)
-            .map(|r| Box::new(r) as Box<PcapReaderIterator<R>>)
+            .map(|r| Box::new(r) as Box<dyn PcapReaderIterator<R>>)
     } else {
         Err(PcapError::HeaderNotRecognized)
     }

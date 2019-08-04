@@ -271,7 +271,7 @@ impl<'a> Capture for PcapCapture<'a> {
         self.header.snaplen
     }
 
-    fn iter<'b>(&'b self) -> Box<Iterator<Item = PcapBlock> + 'b> {
+    fn iter<'b>(&'b self) -> Box<dyn Iterator<Item = PcapBlock> + 'b> {
         Box::new(LegacyPcapIterator { cap: self, idx: 0 })
     }
 }
