@@ -35,7 +35,6 @@ use std::io::Read;
 /// use pcap_parser::*;
 /// use pcap_parser::traits::PcapReaderIterator;
 /// use nom::IResult;
-/// use nom::error::ErrorKind;
 /// use std::fs::File;
 /// use std::io::{BufReader, Read};
 ///
@@ -81,7 +80,7 @@ use std::io::Read;
 ///             reader.consume(offset);
 ///         },
 ///         Err(PcapError::Eof) => break,
-///         Err(PcapError::NomError(ErrorKind::Complete)) => {
+///         Err(PcapError::Incomplete) => {
 ///             eprintln!("Could not read complete data block.");
 ///             eprintln!("Hint: the reader buffer size may be too small, or the input file nay be truncated.");
 ///             break;
