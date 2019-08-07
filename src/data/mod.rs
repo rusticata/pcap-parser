@@ -1,7 +1,9 @@
 //! Helper functions to access block contents (depending in linktype)
 
+mod pcap_nflog;
+
+pub use crate::data::pcap_nflog::*;
 use crate::linktype::Linktype;
-pub use crate::pcap_nflog::*;
 use crate::read_u32_e;
 use nom::number::streaming::{be_u16, be_u64};
 

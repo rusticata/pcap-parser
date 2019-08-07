@@ -94,9 +94,6 @@ pub use capture_pcapng::*;
 #[cfg(feature = "data")]
 pub mod data;
 
-#[cfg(feature = "data")]
-mod pcap_nflog;
-
 #[cfg(test)]
 #[macro_use]
 extern crate hex_literal;
