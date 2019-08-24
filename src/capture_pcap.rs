@@ -56,6 +56,9 @@ use std::io::Read;
 ///             reader.consume(offset);
 ///         },
 ///         Err(PcapError::Eof) => break,
+///         Err(PcapError::Incomplete) => {
+///             reader.refill().unwrap();
+///         },
 ///         Err(e) => panic!("error while reading: {:?}", e),
 ///     }
 /// }
@@ -126,7 +129,7 @@ where
                 PcapBlockOwned::from(self.header.clone()),
             ));
         }
-        if self.buffer.available_data() == 0 {
+        if self.buffer.position() == 0 && self.buffer.available_data() == 0 {
             return Err(PcapError::Eof);
         }
         let data = self.buffer.data();

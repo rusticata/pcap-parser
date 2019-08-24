@@ -36,6 +36,9 @@
 //!             reader.consume(offset);
 //!         },
 //!         Err(PcapError::Eof) => break,
+//!         Err(PcapError::Incomplete) => {
+//!             reader.refill().unwrap();
+//!         },
 //!         Err(e) => panic!("error while reading: {:?}", e),
 //!     }
 //! }

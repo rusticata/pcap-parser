@@ -146,7 +146,7 @@ where
     R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError> {
-        if self.buffer.available_data() == 0 {
+        if self.buffer.position() == 0 && self.buffer.available_data() == 0 {
             return Err(PcapError::Eof);
         }
         let data = self.buffer.data();
