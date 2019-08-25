@@ -68,6 +68,11 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 
 ## Changes
 
+### 0.7.1
+
+- Fix wrong EOF detection
+- Fix handling of incomplete reads (in example)
+
 ### 0.7.0
 
 - Upgrade to nom 5
