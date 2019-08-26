@@ -27,5 +27,8 @@ impl display Linktype {
     // Linux netlink NETLINK NFLOG socket log messages.
     // Use the [`pcap_nflog`]()../pcap_nflog/index.html module to access content.
     NFLOG = 239,
+
+    //  Upper-layer protocol saves from Wireshark
+    WIRESHARK_UPPER_PDU = 252,
 }
 }

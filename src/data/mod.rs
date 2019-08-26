@@ -1,7 +1,9 @@
 //! Helper functions to access block contents (depending in linktype)
 
+mod exported_pdu;
 mod pcap_nflog;
 
+pub use crate::data::exported_pdu::*;
 pub use crate::data::pcap_nflog::*;
 use crate::linktype::Linktype;
 use crate::read_u32_e;
@@ -157,6 +159,7 @@ pub fn get_packetdata<'a>(
         Linktype::IPV4 => get_packetdata_ipv4(i, caplen),
         Linktype::IPV6 => get_packetdata_ipv6(i, caplen),
         Linktype::NFLOG => get_packetdata_nflog(i, caplen),
+        Linktype::WIRESHARK_UPPER_PDU => get_packetdata_wireshark_upper_pdu(i, caplen),
         _ => Some(PacketData::Unsupported(i)),
     }
 }
