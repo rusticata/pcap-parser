@@ -11,6 +11,7 @@ pub const ETHERTYPE_IPV4: u16 = 0x0800;
 pub const ETHERTYPE_IPV6: u16 = 0x86dd;
 
 /// Contents of a pcap/pcap-ng block. This can be network data, USB, etc.
+#[derive(Clone, Debug)]
 pub enum PacketData<'a> {
     L2(&'a [u8]),
     L3(u16, &'a [u8]),
