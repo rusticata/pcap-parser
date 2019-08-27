@@ -243,7 +243,6 @@ pub struct NameRecord<'a> {
 }
 
 pub struct NameResolutionBlock<'a> {
-    big_endian: bool,
     pub block_type: u32,
     pub block_len1: u32,
     pub nr: Vec<NameRecord<'a>>,
@@ -262,7 +261,6 @@ pub struct InterfaceStatisticsBlock<'a> {
 }
 
 pub struct CustomBlock<'a> {
-    big_endian: bool,
     pub block_type: u32,
     pub block_len1: u32,
     // Private Enterprise Number (PEN)
@@ -642,7 +640,6 @@ fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8],
         len2:       verify!(read_u32, |x:&u32| *x == len1) >>
         ({
             Block::NameResolution(NameResolutionBlock{
-                big_endian,
                 block_type: EPB_MAGIC,
                 block_len1: len1,
                 nr: nr_and_opt.0,
@@ -723,7 +720,6 @@ fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, 
         len2:      verify!(read_u32, |x: &u32| *x == len1) >>
         (
             Block::Custom(CustomBlock {
-                big_endian,
                 block_type: blocktype,
                 block_len1: len1,
                 pen,
