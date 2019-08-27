@@ -205,6 +205,163 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
     }
 }
 
+impl<'a> ToVec for SimplePacketBlock<'a> {
+    fn fix(&mut self) {
+        self.block_type = SPB_MAGIC;
+        // fix length
+        self.block_len1 = (16 + align32!(self.data.len())) as u32;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Vec<u8> {
+        let mut v = Vec::with_capacity(64);
+        let al_len = align32!(self.data.len());
+        let diff = al_len - self.data.len();
+        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
+        let res = gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                le_u32(self.origlen),
+                slice(self.data),
+                slice(padding),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .unwrap();
+        res.0.to_vec()
+    }
+}
+
+fn namerecord_le<'a, 'b: 'a, W: Write + 'a>(i: &'b NameRecord) -> impl SerializeFn<W> + 'a {
+    tuple((
+        le_u16(i.record_type),
+        le_u16(i.record_value.len() as u16),
+        slice(i.record_value),
+    ))
+}
+
+fn namerecords_length(nr: &[NameRecord]) -> usize {
+    nr.iter().map(|n| align32!(2 + n.record_value.len())).sum()
+}
+
+impl<'a> ToVec for NameResolutionBlock<'a> {
+    fn fix(&mut self) {
+        self.block_type = NRB_MAGIC;
+        // fix length
+        let length = (12 + namerecords_length(&self.nr) + self.opt.len()) as u32;
+        self.block_len1 = align32!(length);;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Vec<u8> {
+        let mut v = Vec::with_capacity(64);
+        let opt_len = align32!(self.opt.len());
+        let diff = opt_len - self.opt.len();
+        let opt_padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
+        let res = gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                many_ref(&self.nr, namerecord_le),
+                slice(self.opt),
+                slice(opt_padding),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .unwrap();
+        res.0.to_vec()
+    }
+}
+
+impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
+    fn fix(&mut self) {
+        self.block_type = ISB_MAGIC;
+        // fix length
+        self.block_len1 = (24 + align32!(options_length(&self.options))) as u32;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Vec<u8> {
+        let mut v = Vec::with_capacity(64);
+        let res = gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                le_u32(self.if_id),
+                le_u32(self.ts_high),
+                le_u32(self.ts_low),
+                many_ref(&self.options, pcapngoption_le),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .unwrap();
+        res.0.to_vec()
+    }
+}
+
+impl<'a> ToVec for CustomBlock<'a> {
+    fn fix(&mut self) {
+        if self.block_type != DCB_MAGIC && self.block_type != CB_MAGIC {
+            self.block_type = CB_MAGIC;
+        }
+        // fix length
+        self.block_len1 = (20 + align32!(self.data.len())) as u32;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Vec<u8> {
+        let mut v = Vec::with_capacity(64);
+        let al_len = align32!(self.data.len());
+        let diff = al_len - self.data.len();
+        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
+        let res = gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                le_u32(self.pen),
+                slice(self.data),
+                slice(padding),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .unwrap();
+        res.0.to_vec()
+    }
+}
+
+impl<'a> ToVec for UnknownBlock<'a> {
+    fn fix(&mut self) {
+        // do not touch type, it is unknown
+        // fix length
+        self.block_len1 = (12 + align32!(self.data.len())) as u32;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Vec<u8> {
+        let mut v = Vec::new();
+        let al_len = align32!(self.data.len());
+        let diff = al_len - self.data.len();
+        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
+        let res = gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                slice(self.data),
+                slice(padding),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .unwrap();
+        res.0.to_vec()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::pcap::tests::PCAP_HDR;
