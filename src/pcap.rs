@@ -19,7 +19,6 @@
 
 use crate::error::PcapError;
 use crate::linktype::Linktype;
-use cookie_factory::GenError;
 use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
 use nom::IResult;
 
@@ -64,24 +63,6 @@ impl PcapHeader {
     pub fn is_bigendian(&self) -> bool {
         self.magic_number == 0xd4c3b2a1
     }
-
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut v = Vec::with_capacity(24);
-        v.resize(24, 0);
-        let mut mem: &mut [u8] = v.as_mut();
-
-        let _ = do_gen! {
-            (&mut mem,0),
-            gen_le_u32!(self.magic_number) >>
-            gen_le_u16!(self.version_major) >>
-            gen_le_u16!(self.version_minor) >>
-            gen_le_i32!(self.thiszone) >>
-            gen_le_u32!(self.sigfigs) >>
-            gen_le_u32!(self.snaplen) >>
-            gen_le_u32!(self.network.0)
-        };
-        v
-    }
 }
 
 /// Container for network data in legacy Pcap files
@@ -91,25 +72,6 @@ pub struct LegacyPcapBlock<'a> {
     pub caplen: u32,
     pub origlen: u32,
     pub data: &'a [u8],
-}
-
-impl<'a> LegacyPcapBlock<'a> {
-    pub fn to_vec(&self) -> Vec<u8> {
-        let mut v = Vec::with_capacity(16);
-        v.resize(16, 0);
-        let mut mem: &mut [u8] = v.as_mut();
-
-        let _ = do_gen! {
-            (&mut mem,0),
-            gen_le_u32!(self.ts_sec) >>
-            gen_le_u32!(self.ts_usec) >>
-            gen_le_u32!(self.caplen) >>
-            gen_le_u32!(self.origlen)
-        };
-        // pcap records have no alignment constraints
-        v.extend_from_slice(self.data);
-        v
-    }
 }
 
 /// Read a PCAP record header and data
@@ -220,34 +182,11 @@ D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
         assert_eq!(hdr.snaplen, 262144);
     }
     #[test]
-    fn test_serialize_pcap_header() {
-        let (rem, hdr) = parse_pcap_header(PCAP_HDR).expect("header parsing failed");
-        assert!(rem.is_empty());
-        assert_eq!(hdr.magic_number, 0xa1b2c3d4);
-        assert_eq!(hdr.version_major, 2);
-        assert_eq!(hdr.version_minor, 4);
-        assert_eq!(hdr.snaplen, 262144);
-        let v = hdr.to_vec();
-        assert_eq!(v.len(), PCAP_HDR.len());
-        assert_eq!(v, PCAP_HDR);
-    }
-    #[test]
     fn test_parse_pcap_frame() {
         let (rem, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet parsing failed");
         assert!(rem.is_empty());
         assert_eq!(pkt.origlen, 74);
         assert_eq!(pkt.ts_usec, 562_913);
         assert_eq!(pkt.ts_sec, 1_515_933_236);
-    }
-    #[test]
-    fn test_serialize_pcap_frame() {
-        let (rem, pkt) = parse_pcap_frame(FRAME_PCAP).expect("packet parsing failed");
-        assert!(rem.is_empty());
-        assert_eq!(pkt.origlen, 74);
-        assert_eq!(pkt.ts_usec, 562_913);
-        assert_eq!(pkt.ts_sec, 1_515_933_236);
-        let v = pkt.to_vec();
-        assert_eq!(v.len(), FRAME_PCAP.len());
-        assert_eq!(v, FRAME_PCAP);
     }
 }

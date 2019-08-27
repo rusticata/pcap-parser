@@ -181,6 +181,7 @@ pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32
     (ts_sec, ts_fractional, unit)
 }
 
+#[derive(Debug)]
 pub struct SectionHeaderBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -199,6 +200,7 @@ impl<'a> SectionHeaderBlock<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct InterfaceDescriptionBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,

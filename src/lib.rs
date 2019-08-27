@@ -64,7 +64,7 @@ extern crate byteorder;
 #[macro_use]
 extern crate nom;
 
-#[macro_use]
+#[cfg(feature = "serialize")]
 extern crate cookie_factory;
 
 #[macro_use]
@@ -93,6 +93,9 @@ mod capture_pcapng;
 pub use capture::*;
 pub use capture_pcap::*;
 pub use capture_pcapng::*;
+
+#[cfg(feature = "serialize")]
+mod serialize;
 
 #[cfg(feature = "data")]
 pub mod data;

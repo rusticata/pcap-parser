@@ -30,15 +30,17 @@ default = []
 
 # include parsers for data (depending on linktype)
 data = []
+# add support for writing blocks
+serialize = ["cookie-factory"]
 
 [package.metadata.docs.rs]
-features = [ "data" ]
+features = [ "data", "serialize" ]
 all-features = true
 
 [dependencies]
 byteorder = "1"
 circular = "0.3"
-cookie-factory = "0.2"
+cookie-factory = { version="0.3.0-beta", optional=true }
 nom = "5.0"
 rusticata-macros = "2.0.3"
 

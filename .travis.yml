@@ -23,6 +23,14 @@ matrix:
       env:
        - NAME="nightly,data"
        - FEATURES='data'
+    - rust: stable
+      env:
+       - NAME="stable,data,serialize"
+       - FEATURES='data'
+    - rust: nightly
+      env:
+       - NAME="nightly,data,serialize"
+       - FEATURES='data'
 before_script:
     - ([ "$RUSTFMT" != yes ] || rustup component add rustfmt)
 script:
