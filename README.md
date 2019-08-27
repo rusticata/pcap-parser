@@ -70,7 +70,7 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 
 ### 0.8.0
 
-- Add basic support for serialization
+- Add basic support for serialization (little-endian only)
 - Add basic support for Wireshark exported PDUs
 - Add traits Clone and Debug to PacketData
 - Move data parsing functions to a subdirectory

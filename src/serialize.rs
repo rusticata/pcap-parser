@@ -3,9 +3,9 @@ use crate::pcapng::*;
 use cookie_factory::*;
 use std::io::Write;
 
-/// Common trait for all serializattion functions
+/// Common trait for all serialization functions
 pub trait ToVec {
-    /// Serialize to bytes representation.
+    /// Serialize to bytes representation (little-endian).
     /// Check values and fix all fields before serializing.
     fn to_vec(&mut self) -> Vec<u8> {
         self.fix();
@@ -15,7 +15,7 @@ pub trait ToVec {
     /// Check and correct all fields: use magic, fix lengths fields and aother values if possible.
     fn fix(&mut self) {}
 
-    /// Serialize to bytes representation. Do not check values
+    /// Serialize to bytes representation (little-endian). Do not check values
     fn to_vec_raw(&self) -> Vec<u8>;
 }
 
