@@ -96,6 +96,8 @@ pub use capture_pcapng::*;
 
 #[cfg(feature = "serialize")]
 mod serialize;
+#[cfg(feature = "serialize")]
+pub use serialize::ToVec;
 
 #[cfg(feature = "data")]
 pub mod data;

@@ -3,8 +3,24 @@ use crate::pcapng::*;
 use cookie_factory::*;
 use std::io::Write;
 
-impl PcapHeader {
-    pub fn to_vec(&self) -> Vec<u8> {
+/// Common trait for all serializattion functions
+pub trait ToVec {
+    /// Serialize to bytes representation.
+    /// Check values and fix all fields before serializing.
+    fn to_vec(&mut self) -> Vec<u8> {
+        self.fix();
+        self.to_vec_raw()
+    }
+
+    /// Check and correct all fields: use magic, fix lengths fields and aother values if possible.
+    fn fix(&mut self) {}
+
+    /// Serialize to bytes representation. Do not check values
+    fn to_vec_raw(&self) -> Vec<u8>;
+}
+
+impl ToVec for PcapHeader {
+    fn to_vec_raw(&self) -> Vec<u8> {
         let mut v = Vec::with_capacity(24);
 
         let res = gen(
@@ -24,8 +40,8 @@ impl PcapHeader {
     }
 }
 
-impl<'a> LegacyPcapBlock<'a> {
-    pub fn to_vec(&self) -> Vec<u8> {
+impl<'a> ToVec for LegacyPcapBlock<'a> {
+    fn to_vec_raw(&self) -> Vec<u8> {
         let mut v = Vec::with_capacity(self.data.len() + 16);
 
         let res = gen(
@@ -44,8 +60,8 @@ impl<'a> LegacyPcapBlock<'a> {
     }
 }
 
-impl<'a> PcapNGOption<'a> {
-    pub fn to_vec(&self) -> Vec<u8> {
+impl<'a> ToVec for PcapNGOption<'a> {
+    fn to_vec_raw(&self) -> Vec<u8> {
         let mut v = Vec::new();
         let res = gen(pcapngoption_le(self), &mut v).unwrap();
         res.0.to_vec()
@@ -60,15 +76,9 @@ fn options_length(options: &[PcapNGOption]) -> usize {
     options.iter().map(|o| align32!(4 + o.value.len())).sum()
 }
 
-impl<'a> SectionHeaderBlock<'a> {
-    /// Serialize to bytes representation. Check values and fix all fields
-    pub fn to_vec(&mut self) -> Vec<u8> {
-        self.fix();
-        self.to_vec_raw()
-    }
-
+impl<'a> ToVec for SectionHeaderBlock<'a> {
     /// Check and correct all fields: use magic, version and fix lengths fields
-    pub fn fix(&mut self) {
+    fn fix(&mut self) {
         self.block_type = SHB_MAGIC;
         // XXX bom as BE could be valid
         self.bom = BOM_MAGIC;
@@ -80,7 +90,7 @@ impl<'a> SectionHeaderBlock<'a> {
         self.block_len2 = length;
     }
 
-    pub fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Vec<u8> {
         let mut v = Vec::with_capacity(64);
         let res = gen(
             tuple((
@@ -100,15 +110,9 @@ impl<'a> SectionHeaderBlock<'a> {
     }
 }
 
-impl<'a> InterfaceDescriptionBlock<'a> {
-    /// Serialize to bytes representation. Check values and fix all fields
-    pub fn to_vec(&mut self) -> Vec<u8> {
-        self.fix();
-        self.to_vec_raw()
-    }
-
+impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
     /// Check and correct all fields: use magic, set time resolution and fix lengths fields
-    pub fn fix(&mut self) {
+    fn fix(&mut self) {
         self.block_type = IDB_MAGIC;
         self.reserved = 0;
         // check time resolutopn
@@ -145,7 +149,7 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     }
 
     /// Serialize to bytes representation. Do not check values
-    pub fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Vec<u8> {
         let mut v = Vec::with_capacity(64);
         let res = gen(
             tuple((
@@ -164,15 +168,9 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     }
 }
 
-impl<'a> EnhancedPacketBlock<'a> {
-    /// Serialize to bytes representation. Check values and fix all fields
-    pub fn to_vec(&mut self) -> Vec<u8> {
-        self.fix();
-        self.to_vec_raw()
-    }
-
+impl<'a> ToVec for EnhancedPacketBlock<'a> {
     /// Check and correct all fields: use magic, version and fix lengths fields
-    pub fn fix(&mut self) {
+    fn fix(&mut self) {
         self.block_type = EPB_MAGIC;
         self.if_id = 0;
         // fix length
@@ -181,7 +179,7 @@ impl<'a> EnhancedPacketBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    pub fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Vec<u8> {
         let mut v = Vec::with_capacity(64);
         let al_len = align32!(self.data.len());
         let diff = al_len - self.data.len();
@@ -212,6 +210,7 @@ mod tests {
     use crate::pcap::tests::PCAP_HDR;
     use crate::pcap::{parse_pcap_frame, parse_pcap_header};
     use crate::pcapng::*;
+    use crate::serialize::ToVec;
     use crate::traits::tests::{FRAME_PCAP, FRAME_PCAPNG_EPB, FRAME_PCAPNG_EPB_WITH_OPTIONS};
     use crate::Linktype;
 
@@ -223,7 +222,7 @@ mod tests {
         assert_eq!(hdr.version_major, 2);
         assert_eq!(hdr.version_minor, 4);
         assert_eq!(hdr.snaplen, 262144);
-        let v = hdr.to_vec();
+        let v = hdr.to_vec_raw();
         assert_eq!(v.len(), PCAP_HDR.len());
         assert_eq!(v, PCAP_HDR);
     }
@@ -234,7 +233,7 @@ mod tests {
         assert_eq!(pkt.origlen, 74);
         assert_eq!(pkt.ts_usec, 562_913);
         assert_eq!(pkt.ts_sec, 1_515_933_236);
-        let v = pkt.to_vec();
+        let v = pkt.to_vec_raw();
         println!("self.data.len: {}", pkt.data.len());
         assert_eq!(v.len(), FRAME_PCAP.len());
         assert_eq!(v, FRAME_PCAP);
