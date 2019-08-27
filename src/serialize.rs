@@ -7,7 +7,7 @@ use std::io::Write;
 pub trait ToVec {
     /// Serialize to bytes representation (little-endian).
     /// Check values and fix all fields before serializing.
-    fn to_vec(&mut self) -> Vec<u8> {
+    fn to_vec(&mut self) -> Result<Vec<u8>, GenError> {
         self.fix();
         self.to_vec_raw()
     }
@@ -16,14 +16,14 @@ pub trait ToVec {
     fn fix(&mut self) {}
 
     /// Serialize to bytes representation (little-endian). Do not check values
-    fn to_vec_raw(&self) -> Vec<u8>;
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError>;
 }
 
 impl ToVec for PcapHeader {
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(24);
 
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.magic_number),
                 le_u16(self.version_major),
@@ -35,16 +35,15 @@ impl ToVec for PcapHeader {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
 impl<'a> ToVec for LegacyPcapBlock<'a> {
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(self.data.len() + 16);
 
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.ts_sec),
                 le_u32(self.ts_usec),
@@ -54,17 +53,15 @@ impl<'a> ToVec for LegacyPcapBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
         // pcap records have no alignment constraints
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
 impl<'a> ToVec for PcapNGOption<'a> {
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::new();
-        let res = gen(pcapngoption_le(self), &mut v).unwrap();
-        res.0.to_vec()
+        gen(pcapngoption_le(self), &mut v).map(|res| res.0.to_vec())
     }
 }
 
@@ -90,9 +87,9 @@ impl<'a> ToVec for SectionHeaderBlock<'a> {
         self.block_len2 = length;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -105,8 +102,7 @@ impl<'a> ToVec for SectionHeaderBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -149,9 +145,9 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
     }
 
     /// Serialize to bytes representation. Do not check values
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -163,8 +159,7 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -179,12 +174,12 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
         let al_len = align32!(self.data.len());
         let diff = al_len - self.data.len();
         let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -200,8 +195,7 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -213,12 +207,12 @@ impl<'a> ToVec for SimplePacketBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
         let al_len = align32!(self.data.len());
         let diff = al_len - self.data.len();
         let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -229,8 +223,7 @@ impl<'a> ToVec for SimplePacketBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -255,12 +248,12 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
         let opt_len = align32!(self.opt.len());
         let diff = opt_len - self.opt.len();
         let opt_padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -271,8 +264,7 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -284,9 +276,9 @@ impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -298,8 +290,7 @@ impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -313,12 +304,12 @@ impl<'a> ToVec for CustomBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
         let al_len = align32!(self.data.len());
         let diff = al_len - self.data.len();
         let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -329,8 +320,7 @@ impl<'a> ToVec for CustomBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -342,12 +332,12 @@ impl<'a> ToVec for UnknownBlock<'a> {
         self.block_len2 = self.block_len1;
     }
 
-    fn to_vec_raw(&self) -> Vec<u8> {
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::new();
         let al_len = align32!(self.data.len());
         let diff = al_len - self.data.len();
         let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
-        let res = gen(
+        gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
@@ -357,8 +347,7 @@ impl<'a> ToVec for UnknownBlock<'a> {
             )),
             &mut v,
         )
-        .unwrap();
-        res.0.to_vec()
+        .map(|res| res.0.to_vec())
     }
 }
 
@@ -379,7 +368,7 @@ mod tests {
         assert_eq!(hdr.version_major, 2);
         assert_eq!(hdr.version_minor, 4);
         assert_eq!(hdr.snaplen, 262144);
-        let v = hdr.to_vec_raw();
+        let v = hdr.to_vec_raw().expect("serialize");
         assert_eq!(v.len(), PCAP_HDR.len());
         assert_eq!(v, PCAP_HDR);
     }
@@ -390,7 +379,7 @@ mod tests {
         assert_eq!(pkt.origlen, 74);
         assert_eq!(pkt.ts_usec, 562_913);
         assert_eq!(pkt.ts_sec, 1_515_933_236);
-        let v = pkt.to_vec_raw();
+        let v = pkt.to_vec_raw().expect("serialize");
         println!("self.data.len: {}", pkt.data.len());
         assert_eq!(v.len(), FRAME_PCAP.len());
         assert_eq!(v, FRAME_PCAP);
@@ -407,7 +396,7 @@ mod tests {
             options: Vec::new(),
             block_len2: 28,
         };
-        let v = shb.to_vec_raw();
+        let v = shb.to_vec_raw().expect("serialize");
         // println!("shb.to_vec_raw: {:?}", v);
         let res = parse_sectionheaderblock_le(&v);
         assert!(res.is_ok());
@@ -428,7 +417,7 @@ mod tests {
             }],
             block_len2: 28 + 8,
         };
-        let v = shb.to_vec_raw();
+        let v = shb.to_vec_raw().expect("serialize");
         // println!("shb.to_vec_raw: {:?}", v);
         let res = parse_sectionheaderblock_le(&v);
         // println!("res: {:?}", res);
@@ -447,7 +436,7 @@ mod tests {
             if_tsresol: 6,
             if_tsoffset: 0,
         };
-        let v = idb.to_vec();
+        let v = idb.to_vec().expect("serialize");
         // println!("idb.to_vec: {:?}", v);
         let res = parse_interfacedescriptionblock(&v);
         assert!(res.is_ok());
@@ -457,7 +446,7 @@ mod tests {
         let (rem, pkt) = parse_block(FRAME_PCAPNG_EPB).expect("packet creation failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(mut epb) = pkt {
-            let v = epb.to_vec();
+            let v = epb.to_vec().expect("serialize");
             // NOTE: v and FRAME_PCAPNG_EPB are different (interface id changes)
             // println!("epb.to_vec: {:?}", v);
             let res = parse_enhancedpacketblock(&v);
@@ -470,7 +459,7 @@ mod tests {
             parse_block(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet creation failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(mut epb) = pkt {
-            let v = epb.to_vec();
+            let v = epb.to_vec().expect("serialize");
             // println!("epb.to_vec: {:?}", v);
             let res = parse_enhancedpacketblock(&v);
             assert!(res.is_ok());
