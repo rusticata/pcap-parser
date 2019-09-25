@@ -1,6 +1,6 @@
 [package]
 name = "pcap-parser"
-version = "0.8.0"
+version = "0.8.1"
 description = "Parser for the PCAP/PCAPNG format"
 license = "MIT/Apache-2.0"
 keywords = ["pcap","pcapng","parser","nom"]
@@ -40,7 +40,7 @@ all-features = true
 [dependencies]
 byteorder = "1"
 circular = "0.3"
-cookie-factory = { version="0.3.0-beta", optional=true }
+cookie-factory = { version="0.3.0", optional=true }
 nom = "5.0"
 rusticata-macros = "2.0.3"
 

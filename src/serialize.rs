@@ -1,6 +1,10 @@
 use crate::pcap::*;
 use crate::pcapng::*;
-use cookie_factory::*;
+use cookie_factory::bytes::{le_i32, le_i64, le_u16, le_u32};
+use cookie_factory::combinator::slice;
+use cookie_factory::multi::many_ref;
+use cookie_factory::sequence::tuple;
+use cookie_factory::{gen, GenError, SerializeFn};
 use std::io::Write;
 
 /// Common trait for all serialization functions
