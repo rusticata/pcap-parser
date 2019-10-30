@@ -68,10 +68,13 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 
 ## Changes
 
+### 0.8.2
+
+- Remove byteorder crate, use functions from std
+
 ### 0.8.1
 
 - Upgrade to cookie-factory 0.3.0
-- Remove byteorder crate, use functions from std
 
 ### 0.8.0
 
