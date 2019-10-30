@@ -1,7 +1,7 @@
 use crate::data::PacketData;
-use byteorder::{BigEndian, ByteOrder};
 use nom::number::streaming::be_u16;
 use nom::IResult;
+use std::convert::TryFrom;
 
 /* values from epan/exported_pdu.h */
 
@@ -54,7 +54,10 @@ pub fn get_packetdata_wireshark_upper_pdu<'a>(
                 let ip_proto = v
                     .iter()
                     .find(|tlv| tlv.t == EXP_PDU_TAG_DISSECTOR_TABLE_NAME_NUM_VAL && tlv.l >= 4)
-                    .map(|tlv| BigEndian::read_u32(tlv.v))?;
+                    .map(|tlv| {
+                        let int_bytes = <[u8; 4]>::try_from(tlv.v).expect("Convert bytes to u32");
+                        u32::from_be_bytes(int_bytes)
+                    })?;
                 match proto_name {
                     b"ip.proto" => Some(PacketData::L4(ip_proto as u8, rem)),
                     _ => {

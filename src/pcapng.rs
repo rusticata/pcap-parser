@@ -18,7 +18,6 @@
 use crate::blocks::PcapBlock;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
-use byteorder::{ByteOrder, LittleEndian};
 use nom::bytes::complete::take;
 use nom::combinator::{complete, map_parser, rest};
 use nom::error::*;
@@ -26,6 +25,7 @@ use nom::multi::many0;
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
 use nom::{Err, IResult};
 use rusticata_macros::{align32, q};
+use std::convert::TryFrom;
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D0D0A;
@@ -443,7 +443,8 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
             }
             OptionCode::IfTsoffset => {
                 if opt.value.len() >= 8 {
-                    if_tsoffset = LittleEndian::read_u64(opt.value);
+                    let int_bytes = <[u8; 8]>::try_from(opt.value).expect("Convert bytes to u64");
+                    if_tsoffset = u64::from_le_bytes(int_bytes);
                 }
             }
             _ => (),

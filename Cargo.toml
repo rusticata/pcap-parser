@@ -38,7 +38,6 @@ features = [ "data", "serialize" ]
 all-features = true
 
 [dependencies]
-byteorder = "1"
 circular = "0.3"
 cookie-factory = { version="0.3.0", optional=true }
 nom = "5.0"

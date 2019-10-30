@@ -59,8 +59,6 @@
 //! To create a pcap reader for input in either PCAP or PCAPNG format, use the
 //! [create_reader](fn.create_reader.html) function.
 
-extern crate byteorder;
-
 #[macro_use]
 extern crate nom;
 
