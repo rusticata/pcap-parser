@@ -73,6 +73,7 @@ where
     reader: R,
     buffer: Buffer,
     header_sent: bool,
+    reader_exhausted: bool,
 }
 
 impl<R> LegacyPcapReader<R>
@@ -94,6 +95,7 @@ where
             reader,
             buffer,
             header_sent: false,
+            reader_exhausted: false,
         })
     }
     pub fn from_buffer(
@@ -113,6 +115,7 @@ where
             reader,
             buffer,
             header_sent: false,
+            reader_exhausted: false,
         })
     }
 }
@@ -129,7 +132,8 @@ where
                 PcapBlockOwned::from(self.header.clone()),
             ));
         }
-        if self.buffer.position() == 0 && self.buffer.available_data() == 0 {
+        if self.buffer.position() == 0 && self.buffer.available_data() == 0 || self.reader_exhausted
+        {
             return Err(PcapError::Eof);
         }
         let data = self.buffer.data();
@@ -159,6 +163,7 @@ where
             .reader
             .read(self.buffer.space())
             .or(Err(PcapError::ReadError))?;
+        self.reader_exhausted = sz == 0;
         self.buffer.fill(sz);
         Ok(())
     }

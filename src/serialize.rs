@@ -248,7 +248,7 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
         self.block_type = NRB_MAGIC;
         // fix length
         let length = (12 + namerecords_length(&self.nr) + self.opt.len()) as u32;
-        self.block_len1 = align32!(length);;
+        self.block_len1 = align32!(length);
         self.block_len2 = self.block_len1;
     }
 
