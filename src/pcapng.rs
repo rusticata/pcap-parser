@@ -605,7 +605,7 @@ fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord, P
     do_parse! {
         i,
         record_type: read_u16 >>
-        record_len: read_u16 >>
+        record_len: verify!(read_u16, |x| *x < ::std::u16::MAX - 4) >>
         record_value: take!(align32!(record_len)) >>
         (
             NameRecord{
