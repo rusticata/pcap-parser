@@ -98,6 +98,7 @@ where
     info: CurrentSectionInfo,
     reader: R,
     buffer: Buffer,
+    reader_exhausted: bool,
 }
 
 impl<R> PcapNGReader<R>
@@ -120,6 +121,7 @@ where
             info,
             reader,
             buffer,
+            reader_exhausted: false,
         })
     }
     pub fn from_buffer(mut buffer: Buffer, mut reader: R) -> Result<PcapNGReader<R>, PcapError> {
@@ -137,6 +139,7 @@ where
             info,
             reader,
             buffer,
+            reader_exhausted: false,
         })
     }
 }
@@ -146,7 +149,8 @@ where
     R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError> {
-        if self.buffer.position() == 0 && self.buffer.available_data() == 0 {
+        if self.buffer.position() == 0 && self.buffer.available_data() == 0 || self.reader_exhausted
+        {
             return Err(PcapError::Eof);
         }
         let data = self.buffer.data();
@@ -182,6 +186,7 @@ where
             .reader
             .read(self.buffer.space())
             .or(Err(PcapError::ReadError))?;
+        self.reader_exhausted = sz == 0;
         self.buffer.fill(sz);
         Ok(())
     }
