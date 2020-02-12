@@ -16,7 +16,7 @@ pub trait ToVec {
         self.to_vec_raw()
     }
 
-    /// Check and correct all fields: use magic, fix lengths fields and aother values if possible.
+    /// Check and correct all fields: use magic, fix lengths fields and other values if possible.
     fn fix(&mut self) {}
 
     /// Serialize to bytes representation (little-endian). Do not check values
@@ -248,7 +248,7 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
         self.block_type = NRB_MAGIC;
         // fix length
         let length = (12 + namerecords_length(&self.nr) + self.opt.len()) as u32;
-        self.block_len1 = align32!(length);;
+        self.block_len1 = align32!(length);
         self.block_len2 = self.block_len1;
     }
 
