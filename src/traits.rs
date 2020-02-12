@@ -7,10 +7,8 @@ use std::io::Read;
 /// Common methods for PcapNG blocks
 pub trait PcapNGBlock {
     /// Returns true if block is encoded as big-endian
-    #[inline]
     fn big_endian(&self) -> bool;
     /// Raw block data (including header)
-    #[inline]
     fn raw_data(&self) -> &[u8];
     /// The type of this block
     #[inline]
@@ -30,13 +28,10 @@ pub trait PcapNGBlock {
         read_u32_e!(&data[data_len - 4..], self.big_endian())
     }
     /// The length of inner data, if any
-    #[inline]
     fn data_len(&self) -> usize;
     /// The inner data, if any
-    #[inline]
     fn data(&self) -> &[u8];
     /// The Header length (without options)
-    #[inline]
     fn header_len(&self) -> usize;
     /// Raw packet header (without options)
     #[inline]
