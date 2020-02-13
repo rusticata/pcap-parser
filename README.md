@@ -68,9 +68,14 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 
 ## Changes
 
+### 0.8.3
+
+- Avoid integer overflow in `parse_name_record` edge case
+
 ### 0.8.2
 
 - Remove byteorder crate, use functions from std
+- Return Eof if refill failed (avoid infinite loop)
 
 ### 0.8.1
 
