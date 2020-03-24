@@ -68,6 +68,11 @@ To create a pcap reader for input in either PCAP or PCAPNG format, use the
 
 ## Changes
 
+### 0.8.4
+
+- Add method to access data of the PcapReaderIterator buffer
+- Fix all clippy warnings
+
 ### 0.8.3
 
 - Avoid integer overflow in `parse_name_record` edge case
