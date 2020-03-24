@@ -98,6 +98,8 @@ where
     fn position(&self) -> usize;
     /// Grow size of the internal buffer.
     fn grow(&mut self, new_size: usize) -> bool;
+    /// Returns a slice with all the available data
+    fn data(&self) -> &[u8];
 }
 
 /* ******************* */

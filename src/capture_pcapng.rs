@@ -196,6 +196,9 @@ where
     fn grow(&mut self, new_size: usize) -> bool {
         self.buffer.grow(new_size)
     }
+    fn data(&self) -> &[u8] {
+        self.buffer.data()
+    }
 }
 
 #[derive(Default)]

@@ -173,6 +173,9 @@ where
     fn grow(&mut self, new_size: usize) -> bool {
         self.buffer.grow(new_size)
     }
+    fn data(&self) -> &[u8] {
+        self.buffer.data()
+    }
 }
 
 /// Parsing iterator over legacy pcap data (requires data to be loaded into memory)
