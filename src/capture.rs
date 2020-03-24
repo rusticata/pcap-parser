@@ -45,10 +45,10 @@ where
     let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
     buffer.fill(sz);
     // just check that first block is a valid one
-    if let Ok(_) = parse_sectionheaderblock(buffer.data()) {
+    if parse_sectionheaderblock(buffer.data()).is_ok() {
         PcapNGReader::from_buffer(buffer, reader)
             .map(|r| Box::new(r) as Box<dyn PcapReaderIterator<R>>)
-    } else if let Ok(_) = parse_pcap_header(buffer.data()) {
+    } else if parse_pcap_header(buffer.data()).is_ok() {
         LegacyPcapReader::from_buffer(buffer, reader)
             .map(|r| Box::new(r) as Box<dyn PcapReaderIterator<R>>)
     } else {

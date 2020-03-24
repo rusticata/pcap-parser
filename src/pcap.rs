@@ -46,7 +46,7 @@ pub struct PcapHeader {
 impl PcapHeader {
     pub fn new() -> PcapHeader {
         PcapHeader {
-            magic_number: 0xa1b2c3d4, // native order
+            magic_number: 0xa1b2_c3d4, // native order
             version_major: 2,
             version_minor: 4,
             thiszone: 0,
@@ -61,7 +61,13 @@ impl PcapHeader {
     }
 
     pub fn is_bigendian(&self) -> bool {
-        self.magic_number == 0xd4c3b2a1
+        self.magic_number == 0xd4c3_b2a1
+    }
+}
+
+impl Default for PcapHeader {
+    fn default() -> Self {
+        PcapHeader::new()
     }
 }
 
@@ -121,7 +127,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
     switch! {
         i,
         le_u32,
-        0xa1b2c3d4 => do_parse!(
+        0xa1b2_c3d4 => do_parse!(
             major:   le_u16 >>
             minor:   le_u16 >>
             zone:    le_i32 >>
@@ -130,7 +136,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
             network: le_i32 >>
             (
                 PcapHeader {
-                    magic_number: 0xa1b2c3d4,
+                    magic_number: 0xa1b2_c3d4,
                     version_major: major,
                     version_minor: minor,
                     thiszone: zone,
@@ -140,7 +146,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
                 }
             )
         ) |
-        0xd4c3b2a1 => do_parse!(
+        0xd4c3_b2a1 => do_parse!(
             major:   be_u16 >>
             minor:   be_u16 >>
             zone:    be_i32 >>
@@ -149,7 +155,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
             network: be_i32 >>
             (
                 PcapHeader {
-                    magic_number: 0xd4c3b2a1,
+                    magic_number: 0xd4c3_b2a1,
                     version_major: major,
                     version_minor: minor,
                     thiszone: zone,
@@ -167,7 +173,7 @@ pub mod tests {
     use crate::pcap::{parse_pcap_frame, parse_pcap_header};
     use crate::traits::tests::FRAME_PCAP;
     // ntp.pcap header
-    pub const PCAP_HDR: &'static [u8] = &hex!(
+    pub const PCAP_HDR: &[u8] = &hex!(
         "
 D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
 00 00 04 00 01 00 00 00"
@@ -176,10 +182,10 @@ D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
     fn test_parse_pcap_header() {
         let (rem, hdr) = parse_pcap_header(PCAP_HDR).expect("header parsing failed");
         assert!(rem.is_empty());
-        assert_eq!(hdr.magic_number, 0xa1b2c3d4);
+        assert_eq!(hdr.magic_number, 0xa1b2_c3d4);
         assert_eq!(hdr.version_major, 2);
         assert_eq!(hdr.version_minor, 4);
-        assert_eq!(hdr.snaplen, 262144);
+        assert_eq!(hdr.snaplen, 262_144);
     }
     #[test]
     fn test_parse_pcap_frame() {

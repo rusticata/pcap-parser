@@ -162,11 +162,8 @@ where
         match parse(data) {
             Ok((rem, b)) => {
                 let offset = data.offset(rem);
-                match b {
-                    Block::SectionHeader(ref shb) => {
-                        self.info.big_endian = shb.is_bigendian();
-                    }
-                    _ => (),
+                if let Block::SectionHeader(ref shb) = b {
+                    self.info.big_endian = shb.is_bigendian();
                 }
                 Ok((offset, PcapBlockOwned::from(b)))
             }
@@ -259,11 +256,8 @@ impl<'a> Iterator for PcapNGSlice<'a> {
         };
         let r = parse(self.rem).map(|(rem, b)| {
             self.rem = rem;
-            match b {
-                Block::SectionHeader(ref shb) => {
-                    self.info.big_endian = shb.is_bigendian();
-                }
-                _ => (),
+            if let Block::SectionHeader(ref shb) = b {
+                self.info.big_endian = shb.is_bigendian();
             }
             PcapBlockOwned::from(b)
         });

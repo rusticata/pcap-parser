@@ -17,13 +17,10 @@ fn test_pcapng_capture_from_file_and_iter_le() {
         PcapNGCapture::from_file(TEST001_LE).expect("could not parse file into PcapNGCapture");
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
     for (block, expected_len) in cap.iter().zip(expected_origlen.iter()) {
-        match block {
-            PcapBlock::NG(Block::EnhancedPacket(epb)) => {
-                println!("block total length: {}", epb.block_len1);
-                println!("captured length: {}", epb.caplen);
-                assert_eq!(epb.caplen, *expected_len);
-            }
-            _ => (),
+        if let PcapBlock::NG(Block::EnhancedPacket(epb)) = block {
+            println!("block total length: {}", epb.block_len1);
+            println!("captured length: {}", epb.caplen);
+            assert_eq!(epb.caplen, *expected_len);
         }
     }
 }
@@ -33,12 +30,9 @@ fn test_pcapng_capture_from_file_and_iter_be() {
     let cap =
         PcapNGCapture::from_file(TEST001_BE).expect("could not parse file into PcapNGCapture");
     for block in cap.iter() {
-        match block {
-            PcapBlock::NG(Block::EnhancedPacket(epb)) => {
-                println!("block total length: {}", epb.block_len1);
-                println!("captured length: {}", epb.caplen);
-            }
-            _ => (),
+        if let PcapBlock::NG(Block::EnhancedPacket(epb)) = block {
+            println!("block total length: {}", epb.block_len1);
+            println!("captured length: {}", epb.caplen);
         }
     }
 }
@@ -72,11 +66,8 @@ fn test_pcapng_simple_packets() {
     assert_eq!(section.iter_interfaces().count(), 1);
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
     for (block, expected_len) in section.iter().zip(expected_origlen.iter()) {
-        match block {
-            PcapBlock::NG(Block::SimplePacket(spb)) => {
-                assert_eq!(spb.origlen, *expected_len);
-            }
-            _ => (),
+        if let PcapBlock::NG(Block::SimplePacket(spb)) = block {
+            assert_eq!(spb.origlen, *expected_len);
         }
     }
 }

@@ -368,10 +368,10 @@ mod tests {
     fn test_serialize_pcap_header() {
         let (rem, hdr) = parse_pcap_header(PCAP_HDR).expect("header parsing failed");
         assert!(rem.is_empty());
-        assert_eq!(hdr.magic_number, 0xa1b2c3d4);
+        assert_eq!(hdr.magic_number, 0xa1b2_c3d4);
         assert_eq!(hdr.version_major, 2);
         assert_eq!(hdr.version_minor, 4);
-        assert_eq!(hdr.snaplen, 262144);
+        assert_eq!(hdr.snaplen, 262_144);
         let v = hdr.to_vec_raw().expect("serialize");
         assert_eq!(v.len(), PCAP_HDR.len());
         assert_eq!(v, PCAP_HDR);
