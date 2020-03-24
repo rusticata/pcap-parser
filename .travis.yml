@@ -8,6 +8,11 @@ matrix:
        - FEATURES=''
     - rust: stable
       env:
+       - NAME="stable,clippy"
+       - FEATURES=''
+       - CLIPPY=yes
+    - rust: stable
+      env:
        - NAME="stable,fmt"
        - FEATURES=''
        - RUSTFMT=yes
@@ -32,10 +37,14 @@ matrix:
        - NAME="nightly,data,serialize"
        - FEATURES='data'
 before_script:
-    - ([ "$RUSTFMT" != yes ] || rustup component add rustfmt)
+  - rustup default "${RUST_VERSION}"
+  - rustc --version
+  - ([ "$CLIPPY" != yes ] || rustup component add clippy)
+  - ([ "$RUSTFMT" != yes ] || rustup component add rustfmt)
 script:
-    - ([ "$RUSTFMT" != yes ] || cargo fmt --all -- --check)
-    - |
-        cargo build --verbose --features "$FEATURES" &&
-        cargo test --verbose --features "$FEATURES" &&
-        ([ "$BENCH" != 1 ] || cargo bench --verbose --features "$FEATURES")
+  - ([ "$CLIPPY" != yes ] || cargo clippy --features "$FEATURES" --all-targets -- -D clippy::all)
+  - ([ "$RUSTFMT" != yes ] || cargo fmt --all -- --check)
+  - |
+      cargo build --verbose --features "$FEATURES" &&
+      cargo test --verbose --features "$FEATURES" &&
+      ([ "$BENCH" != 1 ] || cargo bench --verbose --features "$FEATURES")
