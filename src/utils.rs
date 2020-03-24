@@ -18,15 +18,22 @@ impl<'a> Data<'a> {
     #[inline]
     pub fn as_slice(&self) -> &[u8] {
         match self {
-            &Data::Owned(ref o) => o.deref(),
-            &Data::Borrowed(ref b) => b,
+            Data::Owned(ref o) => o.deref(),
+            Data::Borrowed(ref b) => b,
         }
     }
     #[inline]
     pub fn len(&self) -> usize {
         match self {
-            &Data::Owned(ref o) => o.len(),
-            &Data::Borrowed(ref b) => b.len(),
+            Data::Owned(ref o) => o.len(),
+            Data::Borrowed(ref b) => b.len(),
+        }
+    }
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Data::Owned(ref o) => o.is_empty(),
+            Data::Borrowed(ref b) => b.is_empty(),
         }
     }
 }
@@ -35,26 +42,33 @@ impl<'a> MutableData<'a> {
     #[inline]
     pub fn as_slice(&self) -> &[u8] {
         match self {
-            &MutableData::Owned(ref o) => o.deref(),
-            &MutableData::Borrowed(ref b) => b,
+            MutableData::Owned(ref o) => o.deref(),
+            MutableData::Borrowed(ref b) => b,
         }
     }
     #[inline]
     pub fn as_mut_slice(&mut self) -> &mut [u8] {
         match self {
-            &mut MutableData::Owned(ref mut o) => o.deref_mut(),
-            &mut MutableData::Borrowed(ref mut b) => b,
+            MutableData::Owned(ref mut o) => o.deref_mut(),
+            MutableData::Borrowed(ref mut b) => b,
         }
     }
     #[inline]
     pub fn len(&self) -> usize {
         match self {
-            &MutableData::Owned(ref o) => o.len(),
-            &MutableData::Borrowed(ref b) => b.len(),
+            MutableData::Owned(ref o) => o.len(),
+            MutableData::Borrowed(ref b) => b.len(),
+        }
+    }
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        match self {
+            MutableData::Owned(ref o) => o.is_empty(),
+            MutableData::Borrowed(ref b) => b.is_empty(),
         }
     }
     /// Get an immutable version of the data
-    pub fn to_immutable(self) -> Data<'a> {
+    pub fn into_immutable(self) -> Data<'a> {
         match self {
             MutableData::Owned(data) => Data::Owned(data),
             MutableData::Borrowed(data) => Data::Borrowed(data),

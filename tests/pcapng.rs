@@ -7,9 +7,9 @@ use pcap_parser::*;
 use std::fs::File;
 use std::io::BufReader;
 
-static TEST001_BE: &'static [u8] = include_bytes!("../assets/test001-be.pcapng");
-static TEST001_LE: &'static [u8] = include_bytes!("../assets/test001-le.pcapng");
-static TEST010_LE: &'static [u8] = include_bytes!("../assets/test010-le.pcapng");
+static TEST001_BE: &[u8] = include_bytes!("../assets/test001-be.pcapng");
+static TEST001_LE: &[u8] = include_bytes!("../assets/test001-le.pcapng");
+static TEST010_LE: &[u8] = include_bytes!("../assets/test010-le.pcapng");
 
 #[test]
 fn test_pcapng_capture_from_file_and_iter_le() {

@@ -134,7 +134,7 @@ named! {
 /// Parse nflog data, and extract only packet payload
 ///
 /// See http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html
-pub fn get_packetdata_nflog<'a>(i: &'a [u8], _caplen: usize) -> Option<PacketData<'a>> {
+pub fn get_packetdata_nflog(i: &[u8], _caplen: usize) -> Option<PacketData> {
     match parse_nflog(i) {
         Ok((_, res)) => {
             let ethertype = match res.header.af {

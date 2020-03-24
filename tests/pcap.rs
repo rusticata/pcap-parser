@@ -6,7 +6,7 @@ use pcap_parser::*;
 use std::fs::File;
 use std::io::BufReader;
 
-static TEST_NTP: &'static [u8] = include_bytes!("../assets/ntp.pcap");
+static TEST_NTP: &[u8] = include_bytes!("../assets/ntp.pcap");
 
 #[test]
 fn test_pcap_capture_from_file_and_iter_le() {

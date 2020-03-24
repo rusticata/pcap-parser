@@ -100,7 +100,7 @@ pub struct Section<'a> {
 
 impl<'a> Section<'a> {
     /// Returns the section header
-    pub fn header<'section>(&'section self) -> Option<&'section SectionHeaderBlock<'section>> {
+    pub fn header(&self) -> Option<&SectionHeaderBlock> {
         if let Some(Block::SectionHeader(ref b)) = self.blocks.get(0) {
             Some(b)
         } else {

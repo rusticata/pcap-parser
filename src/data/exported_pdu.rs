@@ -36,10 +36,7 @@ pub fn parse_many_exported_tlv(i: &[u8]) -> IResult<&[u8], Vec<ExportedTlv>> {
 /// Get packet data for WIRESHARK_UPPER_PDU (252)
 ///
 /// Upper-layer protocol saves from Wireshark
-pub fn get_packetdata_wireshark_upper_pdu<'a>(
-    i: &'a [u8],
-    caplen: usize,
-) -> Option<PacketData<'a>> {
+pub fn get_packetdata_wireshark_upper_pdu(i: &[u8], caplen: usize) -> Option<PacketData> {
     if i.len() < caplen || caplen == 0 {
         None
     } else {
@@ -62,7 +59,7 @@ pub fn get_packetdata_wireshark_upper_pdu<'a>(
                     b"ip.proto" => Some(PacketData::L4(ip_proto as u8, rem)),
                     _ => {
                         // XXX unknown protocol name
-                        return None;
+                        None
                     }
                 }
             }
@@ -75,7 +72,7 @@ pub fn get_packetdata_wireshark_upper_pdu<'a>(
 pub mod tests {
     use super::get_packetdata_wireshark_upper_pdu;
     use crate::data::PacketData;
-    pub const UPPER_PDU: &'static [u8] = &hex!(
+    pub const UPPER_PDU: &[u8] = &hex!(
         "
 00 0e 00 08 69 70 2e 70 72 6f 74 6f 00 20 00 04
 00 00 00 11 00 00 00 00 00 58 20 20 20 ff ff 20

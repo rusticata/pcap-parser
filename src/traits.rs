@@ -110,7 +110,7 @@ pub mod tests {
     use crate::pcapng::{parse_block, Block};
     use crate::utils::Data;
     // tls12-23.pcap frame 0
-    pub const FRAME_PCAP: &'static [u8] = &hex!(
+    pub const FRAME_PCAP: &[u8] = &hex!(
         "
 34 4E 5B 5A E1 96 08 00 4A 00 00 00 4A 00 00 00
 72 4D 4A D1 13 0D 4E 9C AE DE CB 73 08 00 45 00
@@ -120,7 +120,7 @@ pub mod tests {
 6B 7B 00 00 00 00 01 03 03 07"
     );
     // OpenVPN_UDP_tls-auth.pcapng EPB (first data block, file block 3)
-    pub const FRAME_PCAPNG_EPB: &'static [u8] = &hex!(
+    pub const FRAME_PCAPNG_EPB: &[u8] = &hex!(
         "
 06 00 00 00 74 00 00 00 01 00 00 00 E9 D3 04 00
 48 EE 39 44 54 00 00 00 54 00 00 00 08 00 27 4A
@@ -132,7 +132,7 @@ BE 45 08 00 27 BB 22 84 08 00 45 00 00 46 00 00
 74 00 00 00"
     );
     // test009.pcapng EPB (first data block)
-    pub const FRAME_PCAPNG_EPB_WITH_OPTIONS: &'static [u8] = &hex!(
+    pub const FRAME_PCAPNG_EPB_WITH_OPTIONS: &[u8] = &hex!(
         "
 06 00 00 00 F4 01 00 00 00 00 00 00 97 C3 04 00
 AA 47 CA 64 3A 01 00 00 3A 01 00 00 FF FF FF FF
