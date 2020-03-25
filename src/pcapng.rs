@@ -237,8 +237,19 @@ pub struct SimplePacketBlock<'a> {
     pub block_len2: u32,
 }
 
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct NameRecordType(pub u16);
+
+newtype_enum! {
+    impl NameRecordType {
+        End = 0,
+        Ipv4 = 1,
+        Ipv6 = 2
+    }
+}
+
 pub struct NameRecord<'a> {
-    pub record_type: u16,
+    pub record_type: NameRecordType,
     pub record_value: &'a [u8],
 }
 
@@ -609,7 +620,7 @@ fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord, P
         record_value: take!(align32!(record_len)) >>
         (
             NameRecord{
-                record_type,
+                record_type: NameRecordType(record_type),
                 record_value,
             }
         )

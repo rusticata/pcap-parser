@@ -233,7 +233,7 @@ impl<'a> ToVec for SimplePacketBlock<'a> {
 
 fn namerecord_le<'a, 'b: 'a, W: Write + 'a>(i: &'b NameRecord) -> impl SerializeFn<W> + 'a {
     tuple((
-        le_u16(i.record_type),
+        le_u16(i.record_type.0),
         le_u16(i.record_value.len() as u16),
         slice(i.record_value),
     ))
