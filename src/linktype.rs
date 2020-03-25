@@ -4,7 +4,7 @@
 /// of the packet.
 ///
 /// See [http://www.tcpdump.org/linktypes.html](http://www.tcpdump.org/linktypes.html)
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Linktype(pub i32);
 
 newtype_enum! {
