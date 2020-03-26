@@ -40,6 +40,9 @@ pub const ISB_MAGIC: u32 = 0x0000_0005;
 /// Enhanced Packet Block magic
 pub const EPB_MAGIC: u32 = 0x0000_0006;
 
+/// Decryption Secrets Block magic
+pub const DSB_MAGIC: u32 = 0x0000_000A;
+
 /// Custom Block magic
 pub const CB_MAGIC: u32 = 0x0000_0BAD;
 
@@ -76,6 +79,7 @@ pub enum Block<'a> {
     SimplePacket(SimplePacketBlock<'a>),
     NameResolution(NameResolutionBlock<'a>),
     InterfaceStatistics(InterfaceStatisticsBlock<'a>),
+    DecryptionSecrets(DecryptionSecretsBlock<'a>),
     Custom(CustomBlock<'a>),
     Unknown(UnknownBlock<'a>),
 }
@@ -98,6 +102,7 @@ impl<'a> Block<'a> {
             Block::SimplePacket(_) => SPB_MAGIC,
             Block::NameResolution(_) => NRB_MAGIC,
             Block::InterfaceStatistics(_) => ISB_MAGIC,
+            Block::DecryptionSecrets(_) => DSB_MAGIC,
             Block::Custom(cb) => cb.block_type,
             Block::Unknown(ub) => ub.block_type,
         }
@@ -281,6 +286,26 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub if_id: u32,
     pub ts_high: u32,
     pub ts_low: u32,
+    pub options: Vec<PcapNGOption<'a>>,
+    pub block_len2: u32,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+pub struct SecretsType(pub u32);
+
+newtype_enum! {
+    impl debug SecretsType {
+        TlsKeyLog = 0x544_c534b, // TLSK
+        WireguardKeyLog = 0x5747_4b4c,
+    }
+}
+
+pub struct DecryptionSecretsBlock<'a> {
+    pub block_type: u32,
+    pub block_len1: u32,
+    pub secrets_type: SecretsType,
+    pub secrets_len: u32,
+    pub data: &'a [u8],
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
 }
@@ -528,6 +553,7 @@ pub fn parse_interfacedescription_be(
 ) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
     inner_parse_interfacedescription(i, true)
 }
+
 #[inline]
 pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     parse_interfacedescription(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
@@ -734,6 +760,50 @@ pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block, Pcap
     }
 }
 
+fn inner_parse_decryptionsecretsblock(
+    i: &[u8],
+    big_endian: bool,
+) -> IResult<&[u8], Block, PcapError> {
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    let read_options = if big_endian {
+        opt_parse_options_be
+    } else {
+        opt_parse_options
+    };
+    do_parse! {
+        i,
+        block_type:   read_u32 >>
+        block_len1:   verify!(read_u32, |val: &u32| *val >= 16) >>
+        secrets_type: read_u32 >>
+        secrets_len:  verify!(read_u32, |x| *x < ::std::u32::MAX - 4) >>
+        al_len:       q!(align32!(secrets_len) as usize) >>
+        data:         take!(al_len) >>
+        options:      call!(read_options, block_len1 as usize, 24 + al_len) >>
+        block_len2:   verify!(read_u32, |x: &u32| *x == block_len1) >>
+        (
+            Block::DecryptionSecrets(DecryptionSecretsBlock {
+                block_type,
+                block_len1,
+                secrets_type: SecretsType(secrets_type),
+                secrets_len,
+                data,
+                options,
+                block_len2,
+            })
+        )
+    }
+}
+
+#[inline]
+pub fn parse_decryptionsecretsblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    inner_parse_decryptionsecretsblock(i, false)
+}
+
+#[inline]
+pub fn parse_decryptionsecretsblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    inner_parse_decryptionsecretsblock(i, true)
+}
+
 fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
@@ -809,6 +879,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             EPB_MAGIC => parse_enhancedpacketblock(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
+            DSB_MAGIC => parse_decryptionsecretsblock(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
             _ => parse_unknownblock(rem),
         },
@@ -829,6 +900,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
             NRB_MAGIC => parse_nameresolutionblock_be(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
+            DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => parse_unknownblock_be(rem),
         },

@@ -1,6 +1,7 @@
 extern crate nom;
 extern crate pcap_parser;
 
+use hex_literal::hex;
 use pcap_parser::pcapng::Block;
 use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
@@ -127,4 +128,33 @@ fn test_pcapng_reader_be() {
         }
     }
     assert_eq!(num_blocks, 6);
+}
+
+#[test]
+fn test_pcapng_decryptionsecretsblock() {
+    // block 3 from file dtls12-aes128ccm8-dsb.pcapng (wireshark repo)
+    let data = hex!(
+        "
+0a 00 00 00 c4 00 00 00 4b 53 4c 54 b0 00 00 00
+43 4c 49 45 4e 54 5f 52 41 4e 44 4f 4d 20 35 38
+38 65 35 66 39 64 63 37 37 38 63 65 66 32 32 34
+30 35 66 34 32 66 39 62 65 61 32 35 39 32 38 62
+64 30 33 31 32 63 65 31 34 64 36 34 32 64 30 33
+34 64 32 34 66 34 66 61 62 36 37 32 66 63 20 37
+30 35 37 66 33 64 37 30 36 63 66 30 36 38 30 61
+34 30 65 34 66 32 65 30 37 34 37 63 65 37 38 63
+65 39 38 64 61 32 36 32 32 65 62 39 61 39 35 34
+33 66 37 66 31 35 34 36 33 37 34 34 31 35 37 32
+35 36 61 37 39 36 64 62 35 30 62 62 65 36 35 63
+64 62 64 63 32 39 32 61 30 39 33 33 35 62 34 0a
+c4 00 00 00"
+    );
+    let (rem, block) = parse_block(&data).expect("could not parse DSB");
+    assert!(rem.is_empty());
+    if let Block::DecryptionSecrets(dsb) = block {
+        assert_eq!(dsb.secrets_type, SecretsType::TlsKeyLog);
+        assert!(std::str::from_utf8(dsb.data).is_ok());
+    } else {
+        unreachable!();
+    }
 }
