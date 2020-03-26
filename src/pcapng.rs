@@ -88,6 +88,20 @@ impl<'a> Block<'a> {
             _ => false,
         }
     }
+
+    /// Return the normalized magic number of the block
+    pub fn magic(&self) -> u32 {
+        match self {
+            Block::SectionHeader(_) => SHB_MAGIC,
+            Block::InterfaceDescription(_) => IDB_MAGIC,
+            Block::EnhancedPacket(_) => EPB_MAGIC,
+            Block::SimplePacket(_) => SPB_MAGIC,
+            Block::NameResolution(_) => NRB_MAGIC,
+            Block::InterfaceStatistics(_) => ISB_MAGIC,
+            Block::Custom(cb) => cb.block_type,
+            Block::Unknown(ub) => ub.block_type,
+        }
+    }
 }
 
 /// A Section (including all blocks) from a PcapNG file
