@@ -40,6 +40,9 @@ pub const ISB_MAGIC: u32 = 0x0000_0005;
 /// Enhanced Packet Block magic
 pub const EPB_MAGIC: u32 = 0x0000_0006;
 
+/// Systemd Journal Export Block magic
+pub const SJE_MAGIC: u32 = 0x0000_0009;
+
 /// Decryption Secrets Block magic
 pub const DSB_MAGIC: u32 = 0x0000_000A;
 
@@ -79,6 +82,7 @@ pub enum Block<'a> {
     SimplePacket(SimplePacketBlock<'a>),
     NameResolution(NameResolutionBlock<'a>),
     InterfaceStatistics(InterfaceStatisticsBlock<'a>),
+    SystemdJournalExport(SystemdJournalExportBlock<'a>),
     DecryptionSecrets(DecryptionSecretsBlock<'a>),
     Custom(CustomBlock<'a>),
     Unknown(UnknownBlock<'a>),
@@ -102,6 +106,7 @@ impl<'a> Block<'a> {
             Block::SimplePacket(_) => SPB_MAGIC,
             Block::NameResolution(_) => NRB_MAGIC,
             Block::InterfaceStatistics(_) => ISB_MAGIC,
+            Block::SystemdJournalExport(_) => SJE_MAGIC,
             Block::DecryptionSecrets(_) => DSB_MAGIC,
             Block::Custom(cb) => cb.block_type,
             Block::Unknown(ub) => ub.block_type,
@@ -287,6 +292,13 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub ts_high: u32,
     pub ts_low: u32,
     pub options: Vec<PcapNGOption<'a>>,
+    pub block_len2: u32,
+}
+
+pub struct SystemdJournalExportBlock<'a> {
+    pub block_type: u32,
+    pub block_len1: u32,
+    pub data: &'a [u8],
     pub block_len2: u32,
 }
 
@@ -760,6 +772,39 @@ pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block, Pcap
     }
 }
 
+fn inner_parse_systemdjournalexportblock(
+    i: &[u8],
+    big_endian: bool,
+) -> IResult<&[u8], Block, PcapError> {
+    let read_u32 = if big_endian { be_u32 } else { le_u32 };
+    do_parse! {
+        i,
+        block_type:   read_u32 >>
+        block_len1:   verify!(read_u32, |val: &u32| *val >= 12) >>
+        data:         take!(block_len1 - 12) >>
+        // no options in this block
+        block_len2:   verify!(read_u32, |x: &u32| *x == block_len1) >>
+        (
+            Block::SystemdJournalExport(SystemdJournalExportBlock {
+                block_type,
+                block_len1,
+                data,
+                block_len2,
+            })
+        )
+    }
+}
+
+#[inline]
+pub fn parse_systemdjournalexportblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    inner_parse_systemdjournalexportblock(i, false)
+}
+
+#[inline]
+pub fn parse_systemdjournalexportblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    inner_parse_systemdjournalexportblock(i, true)
+}
+
 fn inner_parse_decryptionsecretsblock(
     i: &[u8],
     big_endian: bool,
@@ -879,6 +924,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             EPB_MAGIC => parse_enhancedpacketblock(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
+            SJE_MAGIC => parse_systemdjournalexportblock(rem),
             DSB_MAGIC => parse_decryptionsecretsblock(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
             _ => parse_unknownblock(rem),
@@ -900,6 +946,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             EPB_MAGIC => parse_enhancedpacketblock_be(rem),
             NRB_MAGIC => parse_nameresolutionblock_be(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
+            SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
             DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => parse_unknownblock_be(rem),
