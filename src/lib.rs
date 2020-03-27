@@ -3,7 +3,7 @@
 //! This crate contains several parsers for PCAP and PCAPNG files.
 //!
 //! Compared to other similar projects, it is designed to offer a complete support of the many
-//! possible formats (legacy pcap, pcapng, little or big-endian, etc.) and features (pcanpng files
+//! possible formats (legacy pcap, pcapng, little or big-endian, etc.) and features (pcapng files
 //! with multiple sections, interfaces, and endianness) while using only safe code and without
 //! copying data (zero-copy).
 //!
