@@ -107,7 +107,7 @@ where
 #[cfg(test)]
 pub mod tests {
     use crate::pcap::parse_pcap_frame;
-    use crate::pcapng::{parse_block, Block};
+    use crate::pcapng::{parse_block, Block, SecretsType};
     use crate::utils::Data;
     // tls12-23.pcap frame 0
     pub const FRAME_PCAP: &[u8] = &hex!(
@@ -167,6 +167,23 @@ AD 0B 0F 00 73 6F 6D 65 20 66 61 6B 65 20 62 79
 61 6E 64 20 74 68 69 73 20 6F 6E 65 00 00 00 00
 F4 01 00 00"
     );
+    // block 3 from file dtls12-aes128ccm8-dsb.pcapng (wireshark repo)
+    pub const FRAME_PCAPNG_DSB: &[u8] = &hex!(
+        "
+0a 00 00 00 c4 00 00 00 4b 53 4c 54 b0 00 00 00
+43 4c 49 45 4e 54 5f 52 41 4e 44 4f 4d 20 35 38
+38 65 35 66 39 64 63 37 37 38 63 65 66 32 32 34
+30 35 66 34 32 66 39 62 65 61 32 35 39 32 38 62
+64 30 33 31 32 63 65 31 34 64 36 34 32 64 30 33
+34 64 32 34 66 34 66 61 62 36 37 32 66 63 20 37
+30 35 37 66 33 64 37 30 36 63 66 30 36 38 30 61
+34 30 65 34 66 32 65 30 37 34 37 63 65 37 38 63
+65 39 38 64 61 32 36 32 32 65 62 39 61 39 35 34
+33 66 37 66 31 35 34 36 33 37 34 34 31 35 37 32
+35 36 61 37 39 36 64 62 35 30 62 62 65 36 35 63
+64 62 64 63 32 39 32 61 30 39 33 33 35 62 34 0a
+c4 00 00 00"
+    );
 
     #[test]
     fn test_data() {
@@ -217,6 +234,18 @@ F4 01 00 00"
         // println!("raw_options:\n{}", pkt.raw_options().to_hex(16));
         } else {
             panic!("wrong packet type");
+        }
+    }
+
+    #[test]
+    fn test_pcapng_decryptionsecretsblock() {
+        let (rem, block) = parse_block(FRAME_PCAPNG_DSB).expect("could not parse DSB");
+        assert!(rem.is_empty());
+        if let Block::DecryptionSecrets(dsb) = block {
+            assert_eq!(dsb.secrets_type, SecretsType::TlsKeyLog);
+            assert!(std::str::from_utf8(dsb.data).is_ok());
+        } else {
+            unreachable!();
         }
     }
 }

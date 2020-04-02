@@ -298,6 +298,67 @@ impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
     }
 }
 
+impl<'a> ToVec for SystemdJournalExportBlock<'a> {
+    fn fix(&mut self) {
+        if self.block_type != SJE_MAGIC {
+            self.block_type = SJE_MAGIC;
+        }
+        // fix length
+        self.block_len1 = (12 + align32!(self.data.len())) as u32;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
+        let mut v = Vec::with_capacity(64);
+        let al_len = align32!(self.data.len());
+        let diff = al_len - self.data.len();
+        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
+        gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                slice(self.data),
+                slice(padding),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .map(|res| res.0.to_vec())
+    }
+}
+
+impl<'a> ToVec for DecryptionSecretsBlock<'a> {
+    fn fix(&mut self) {
+        if self.block_type != DSB_MAGIC {
+            self.block_type = DSB_MAGIC;
+        }
+        // fix length
+        self.block_len1 = (24 + align32!(self.data.len())) as u32;
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
+        let mut v = Vec::with_capacity(64);
+        let al_len = align32!(self.data.len());
+        let diff = al_len - self.data.len();
+        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
+        gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                le_u32(self.secrets_type.0),
+                le_u32(self.secrets_len),
+                slice(self.data),
+                slice(padding),
+                many_ref(&self.options, pcapngoption_le),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .map(|res| res.0.to_vec())
+    }
+}
+
 impl<'a> ToVec for CustomBlock<'a> {
     fn fix(&mut self) {
         if self.block_type != DCB_MAGIC && self.block_type != CB_MAGIC {
@@ -355,13 +416,47 @@ impl<'a> ToVec for UnknownBlock<'a> {
     }
 }
 
+impl<'a> ToVec for Block<'a> {
+    fn fix(&mut self) {
+        match self {
+            Block::SectionHeader(b) => b.fix(),
+            Block::InterfaceDescription(b) => b.fix(),
+            Block::EnhancedPacket(b) => b.fix(),
+            Block::SimplePacket(b) => b.fix(),
+            Block::NameResolution(b) => b.fix(),
+            Block::InterfaceStatistics(b) => b.fix(),
+            Block::SystemdJournalExport(b) => b.fix(),
+            Block::DecryptionSecrets(b) => b.fix(),
+            Block::Custom(b) => b.fix(),
+            Block::Unknown(b) => b.fix(),
+        }
+    }
+
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
+        match self {
+            Block::SectionHeader(b) => b.to_vec_raw(),
+            Block::InterfaceDescription(b) => b.to_vec_raw(),
+            Block::EnhancedPacket(b) => b.to_vec_raw(),
+            Block::SimplePacket(b) => b.to_vec_raw(),
+            Block::NameResolution(b) => b.to_vec_raw(),
+            Block::InterfaceStatistics(b) => b.to_vec_raw(),
+            Block::SystemdJournalExport(b) => b.to_vec_raw(),
+            Block::DecryptionSecrets(b) => b.to_vec_raw(),
+            Block::Custom(b) => b.to_vec_raw(),
+            Block::Unknown(b) => b.to_vec_raw(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::pcap::tests::PCAP_HDR;
     use crate::pcap::{parse_pcap_frame, parse_pcap_header};
     use crate::pcapng::*;
     use crate::serialize::ToVec;
-    use crate::traits::tests::{FRAME_PCAP, FRAME_PCAPNG_EPB, FRAME_PCAPNG_EPB_WITH_OPTIONS};
+    use crate::traits::tests::{
+        FRAME_PCAP, FRAME_PCAPNG_DSB, FRAME_PCAPNG_EPB, FRAME_PCAPNG_EPB_WITH_OPTIONS,
+    };
     use crate::Linktype;
 
     #[test]
@@ -466,6 +561,18 @@ mod tests {
             let v = epb.to_vec().expect("serialize");
             // println!("epb.to_vec: {:?}", v);
             let res = parse_enhancedpacketblock(&v);
+            assert!(res.is_ok());
+        }
+    }
+    #[test]
+    fn test_serialize_dsb() {
+        let (rem, pkt) = parse_block(FRAME_PCAPNG_DSB).expect("packet creation failed");
+        assert!(rem.is_empty());
+        assert!(pkt.magic() == DSB_MAGIC);
+        if let Block::DecryptionSecrets(mut dsb) = pkt {
+            let v = dsb.to_vec().expect("serialize");
+            // println!("dsb.to_vec: {:?}", v);
+            let res = parse_decryptionsecretsblock(&v);
             assert!(res.is_ok());
         }
     }
