@@ -779,7 +779,7 @@ fn inner_parse_systemdjournalexportblock(
     let read_u32 = if big_endian { be_u32 } else { le_u32 };
     do_parse! {
         i,
-        block_type:   read_u32 >>
+        block_type:   verify!(read_u32, |x:&u32| *x == SJE_MAGIC) >>
         block_len1:   verify!(read_u32, |val: &u32| *val >= 12) >>
         data:         take!(block_len1 - 12) >>
         // no options in this block
@@ -817,7 +817,7 @@ fn inner_parse_decryptionsecretsblock(
     };
     do_parse! {
         i,
-        block_type:   read_u32 >>
+        block_type:   verify!(read_u32, |x:&u32| *x == DSB_MAGIC) >>
         block_len1:   verify!(read_u32, |val: &u32| *val >= 16) >>
         secrets_type: read_u32 >>
         secrets_len:  verify!(read_u32, |x| *x < ::std::u32::MAX - 4) >>
