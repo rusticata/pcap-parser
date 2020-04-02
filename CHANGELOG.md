@@ -6,6 +6,13 @@
 
 ### Changed/Fixed
 
+## 0.9.1
+
+### Added
+
+- Check magic constants when reading DSB and SJE blocks
+- Add `ToVec` implementation for SJE, DCB and Block
+
 ## 0.9.0
 
 ### Added
