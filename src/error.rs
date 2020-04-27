@@ -1,4 +1,6 @@
 use nom::error::{ErrorKind, ParseError};
+use std::error::Error;
+use std::fmt;
 
 #[derive(Debug)]
 pub enum PcapError {
@@ -19,3 +21,17 @@ impl<I> ParseError<I> for PcapError {
         PcapError::NomError(kind)
     }
 }
+
+impl fmt::Display for PcapError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PcapError::Eof => write!(f, "End of file"),
+            PcapError::ReadError => write!(f, "Read error"),
+            PcapError::Incomplete => write!(f, "Incomplete read"),
+            PcapError::HeaderNotRecognized => write!(f, "Header not recognized as PCAP or PCAPNG"),
+            PcapError::NomError(e) => write!(f, "Internal parser error {:?}", e),
+        }
+    }
+}
+
+impl Error for PcapError {}
