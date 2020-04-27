@@ -23,8 +23,11 @@ use nom::combinator::{complete, map_parser, rest};
 use nom::error::*;
 use nom::multi::many0;
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
-use nom::{Err, IResult};
-use rusticata_macros::{align32, q};
+use nom::{
+    call, complete, do_parse, error_position, flat_map, many0, many1, many_till, peek, take, tuple,
+    verify, Err, IResult,
+};
+use rusticata_macros::{align32, newtype_enum, q};
 use std::convert::TryFrom;
 
 /// Section Header Block magic

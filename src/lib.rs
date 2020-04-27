@@ -107,15 +107,6 @@
 //! Note: support is still experimental, though working. API may change in the
 //! future.
 
-#[macro_use]
-extern crate nom;
-
-#[cfg(feature = "serialize")]
-extern crate cookie_factory;
-
-#[macro_use]
-extern crate rusticata_macros;
-
 mod utils;
 pub use utils::{Data, MutableData};
 

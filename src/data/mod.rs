@@ -8,6 +8,7 @@ pub use crate::data::pcap_nflog::*;
 use crate::linktype::Linktype;
 use crate::read_u32_e;
 use nom::number::streaming::{be_u16, be_u64};
+use nom::{do_parse, named};
 
 pub const ETHERTYPE_IPV4: u16 = 0x0800;
 pub const ETHERTYPE_IPV6: u16 = 0x86dd;

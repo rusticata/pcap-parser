@@ -5,6 +5,7 @@ use cookie_factory::combinator::slice;
 use cookie_factory::multi::many_ref;
 use cookie_factory::sequence::tuple;
 use cookie_factory::{gen, GenError, SerializeFn};
+use rusticata_macros::align32;
 use std::io::Write;
 
 /// Common trait for all serialization functions

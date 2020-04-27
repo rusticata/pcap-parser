@@ -3,7 +3,7 @@ use crate::error::PcapError;
 use crate::pcapng::*;
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
-use nom::{IResult, Offset};
+use nom::{complete, do_parse, many1, IResult, Offset};
 use std::fmt;
 use std::io::Read;
 

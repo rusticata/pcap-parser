@@ -20,7 +20,7 @@
 use crate::error::PcapError;
 use crate::linktype::Linktype;
 use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
-use nom::IResult;
+use nom::{do_parse, switch, take, IResult};
 
 /// PCAP global header
 #[derive(Clone, Debug)]

@@ -1,3 +1,5 @@
+use rusticata_macros::newtype_enum;
+
 /// Data link type
 ///
 /// The link-layer header type specifies the type of headers at the beginning
