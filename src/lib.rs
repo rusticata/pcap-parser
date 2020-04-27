@@ -107,6 +107,11 @@
 //! Note: support is still experimental, though working. API may change in the
 //! future.
 
+#![deny(/*missing_docs,*/
+        unstable_features,
+        unused_import_braces, unused_qualifications)]
+#![forbid(unsafe_code)]
+
 mod utils;
 pub use utils::{Data, MutableData};
 
