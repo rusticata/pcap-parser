@@ -72,6 +72,7 @@ pub fn get_packetdata_wireshark_upper_pdu(i: &[u8], caplen: usize) -> Option<Pac
 pub mod tests {
     use super::get_packetdata_wireshark_upper_pdu;
     use crate::data::PacketData;
+    use hex_literal::hex;
     pub const UPPER_PDU: &[u8] = &hex!(
         "
 00 0e 00 08 69 70 2e 70 72 6f 74 6f 00 20 00 04

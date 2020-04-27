@@ -172,6 +172,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
 pub mod tests {
     use crate::pcap::{parse_pcap_frame, parse_pcap_header};
     use crate::traits::tests::FRAME_PCAP;
+    use hex_literal::hex;
     // ntp.pcap header
     pub const PCAP_HDR: &[u8] = &hex!(
         "

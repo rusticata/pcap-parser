@@ -30,15 +30,12 @@ use std::io::Read;
 /// [PcapReaderIterator](traits/trait.PcapReaderIterator.html) for details.**
 ///
 /// ```rust
-/// # extern crate nom;
-/// # extern crate pcap_parser;
 /// use pcap_parser::*;
 /// use pcap_parser::traits::PcapReaderIterator;
 /// use nom::IResult;
 /// use std::fs::File;
 /// use std::io::{BufReader, Read};
 ///
-/// # fn main() {
 /// # let path = "assets/test001-le.pcapng";
 /// let mut file = File::open(path).unwrap();
 /// let mut num_blocks = 0;
@@ -89,7 +86,6 @@ use std::io::Read;
 ///     }
 /// }
 /// println!("num_blocks: {}", num_blocks);
-/// # }
 /// ```
 pub struct PcapNGReader<R>
 where
@@ -206,14 +202,11 @@ pub struct CurrentSectionInfo {
 /// Parsing iterator over pcap-ng data (requires data to be loaded into memory)
 ///
 /// ```rust
-/// # extern crate nom;
-/// # extern crate pcap_parser;
 /// use pcap_parser::*;
 /// use nom::IResult;
 /// use std::fs::File;
 /// use std::io::Read;
 ///
-/// # fn main() {
 /// # let path = "assets/test001-le.pcapng";
 /// let mut file = File::open(path).unwrap();
 /// let mut buffer = Vec::new();
@@ -223,7 +216,6 @@ pub struct CurrentSectionInfo {
 /// for _block in capture {
 ///     num_blocks += 1;
 /// }
-/// # }
 pub struct PcapNGSlice<'a> {
     info: CurrentSectionInfo,
     // remaining (unparsed) data

@@ -109,6 +109,7 @@ pub mod tests {
     use crate::pcap::parse_pcap_frame;
     use crate::pcapng::{parse_block, Block, SecretsType};
     use crate::utils::Data;
+    use hex_literal::hex;
     // tls12-23.pcap frame 0
     pub const FRAME_PCAP: &[u8] = &hex!(
         "

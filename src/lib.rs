@@ -52,14 +52,11 @@
 //! `PcapNGReader` streaming parser.
 //!
 //! ```rust
-//! # extern crate nom;
-//! # extern crate pcap_parser;
 //! use pcap_parser::*;
 //! use pcap_parser::traits::PcapReaderIterator;
 //! use std::fs::File;
 //! use std::io::Read;
 //!
-//! # fn main() {
 //! # let path = "assets/test001-le.pcapng";
 //! let mut file = File::open(path).unwrap();
 //! let mut num_blocks = 0;
@@ -79,7 +76,6 @@
 //!     }
 //! }
 //! println!("num_blocks: {}", num_blocks);
-//! # }
 //! ```
 //! See `PcapNGReader` for a complete example, including handling of
 //! linktype and accessing packet data.
@@ -143,7 +139,3 @@ pub use serialize::ToVec;
 
 #[cfg(feature = "data")]
 pub mod data;
-
-#[cfg(test)]
-#[macro_use]
-extern crate hex_literal;
