@@ -6,6 +6,14 @@
 
 ### Changed/Fixed
 
+## 0.9.2
+
+### Added
+
+- Add Error trait to PcapError
+- Edition 2018: remove all "extern crate" statements
+- QA: warn if using unstable features, forbid unsafe code
+
 ## 0.9.1
 
 ### Added
