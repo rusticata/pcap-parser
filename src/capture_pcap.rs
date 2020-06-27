@@ -70,8 +70,10 @@ where
     buffer: Buffer,
     header_sent: bool,
     reader_exhausted: bool,
-    parse: fn(&[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError>,
+    parse: LegacyParseFn,
 }
+
+type LegacyParseFn = fn(&[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError>;
 
 impl<R> LegacyPcapReader<R>
 where
@@ -296,13 +298,10 @@ impl<'a> Capture for PcapCapture<'a> {
 pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture, PcapError> {
     do_parse! {
         i,
-        hdr:    parse_pcap_header >>
+        header: parse_pcap_header >>
         blocks: many0!(complete!(parse_pcap_frame)) >>
         (
-            PcapCapture{
-                header: hdr,
-                blocks: blocks
-            }
+            PcapCapture{ header, blocks }
         )
     }
 }

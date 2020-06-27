@@ -115,7 +115,7 @@ fn inner_parse_pcap_frame(
                 ts_usec,
                 caplen,
                 origlen,
-                data: data
+                data
             })
     }
 }
@@ -140,8 +140,8 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
                     version_major: major,
                     version_minor: minor,
                     thiszone: zone,
-                    sigfigs: sigfigs,
-                    snaplen: snaplen,
+                    sigfigs,
+                    snaplen,
                     network: Linktype(network)
                 }
             )
@@ -159,8 +159,8 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
                     version_major: major,
                     version_minor: minor,
                     thiszone: zone,
-                    sigfigs: sigfigs,
-                    snaplen: snaplen,
+                    sigfigs,
+                    snaplen,
                     network: Linktype(network)
                 }
             )

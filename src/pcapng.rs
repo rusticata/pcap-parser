@@ -595,8 +595,8 @@ fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], B
             Block::SimplePacket(SimplePacketBlock{
                 block_type: magic,
                 block_len1: len1,
-                origlen: origlen,
-                data: data,
+                origlen,
+                data,
                 block_len2: len2
             })
         )
@@ -897,7 +897,7 @@ fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block,
             Block::Unknown(UnknownBlock {
                 block_type: blocktype,
                 block_len1: len1,
-                data: data,
+                data,
                 block_len2: len2
             })
         )
