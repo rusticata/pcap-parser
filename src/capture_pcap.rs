@@ -70,6 +70,7 @@ where
     buffer: Buffer,
     header_sent: bool,
     reader_exhausted: bool,
+    parse: fn(&[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError>,
 }
 
 impl<R> LegacyPcapReader<R>
@@ -85,6 +86,11 @@ where
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
             Err(_) => Err(PcapError::Incomplete),
         }?;
+        let parse = if header.is_bigendian() {
+            parse_pcap_frame_be
+        } else {
+            parse_pcap_frame
+        };
         // do not consume
         Ok(LegacyPcapReader {
             header,
@@ -92,6 +98,7 @@ where
             buffer,
             header_sent: false,
             reader_exhausted: false,
+            parse,
         })
     }
     pub fn from_buffer(
@@ -105,6 +112,11 @@ where
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
             Err(_) => Err(PcapError::Incomplete),
         }?;
+        let parse = if header.is_bigendian() {
+            parse_pcap_frame_be
+        } else {
+            parse_pcap_frame
+        };
         // do not consume
         Ok(LegacyPcapReader {
             header,
@@ -112,6 +124,7 @@ where
             buffer,
             header_sent: false,
             reader_exhausted: false,
+            parse,
         })
     }
 }
@@ -133,12 +146,7 @@ where
             return Err(PcapError::Eof);
         }
         let data = self.buffer.data();
-        let parse = if self.header.is_bigendian() {
-            parse_pcap_frame_be
-        } else {
-            parse_pcap_frame
-        };
-        match parse(&data) {
+        match (self.parse)(&data) {
             Ok((rem, b)) => {
                 let offset = data.offset(rem);
                 Ok((offset, PcapBlockOwned::from(b)))
