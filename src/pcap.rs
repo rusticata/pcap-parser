@@ -25,8 +25,8 @@ use nom::{do_parse, switch, take, IResult};
 /// PCAP global header
 #[derive(Clone, Debug)]
 pub struct PcapHeader {
-    /// File format and byte ordering. If equal to `0xa1b2c3d4` then the rest of
-    /// the file uses native byte ordering. If `0xd4c3b2a1` (swapped), then all
+    /// File format and byte ordering. If equal to `0xa1b2c3d4` or `0xa1b23c4d` then the rest of
+    /// the file uses native byte ordering. If `0xd4c3b2a1` or `0x4d3cb2a1` (swapped), then all
     /// following fields will have to be swapped too.
     pub magic_number: u32,
     /// Version major number (currently 2)
@@ -61,7 +61,11 @@ impl PcapHeader {
     }
 
     pub fn is_bigendian(&self) -> bool {
-        self.magic_number == 0xd4c3_b2a1
+        (self.magic_number & 0xFFFF) == 0xb2a1 // works for both nanosecond and microsecond resolution timestamps
+    }
+
+    pub fn is_nanosecond_precision(&self) -> bool {
+        self.magic_number == 0xa1b2_3c4d || self.magic_number == 0x4d3c_b2a1
     }
 }
 
@@ -146,6 +150,25 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
                 }
             )
         ) |
+        0xa1b2_3c4d => do_parse!(
+            major:   le_u16 >>
+            minor:   le_u16 >>
+            zone:    le_i32 >>
+            sigfigs: le_u32 >>
+            snaplen: le_u32 >>
+            network: le_i32 >>
+            (
+                PcapHeader {
+                    magic_number: 0xa1b2_3c4d,
+                    version_major: major,
+                    version_minor: minor,
+                    thiszone: zone,
+                    sigfigs,
+                    snaplen,
+                    network: Linktype(network)
+                }
+            )
+        ) |
         0xd4c3_b2a1 => do_parse!(
             major:   be_u16 >>
             minor:   be_u16 >>
@@ -156,6 +179,25 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
             (
                 PcapHeader {
                     magic_number: 0xd4c3_b2a1,
+                    version_major: major,
+                    version_minor: minor,
+                    thiszone: zone,
+                    sigfigs,
+                    snaplen,
+                    network: Linktype(network)
+                }
+            )
+        ) |
+        0x4d3c_b2a1 => do_parse!(
+            major:   be_u16 >>
+            minor:   be_u16 >>
+            zone:    be_i32 >>
+            sigfigs: be_u32 >>
+            snaplen: be_u32 >>
+            network: be_i32 >>
+            (
+                PcapHeader {
+                    magic_number: 0xd43c_b2a1,
                     version_major: major,
                     version_minor: minor,
                     thiszone: zone,
@@ -179,6 +221,13 @@ pub mod tests {
 D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
 00 00 04 00 01 00 00 00"
     );
+    
+    // pcap header with nanosecond-precision timestamping
+    pub const PCAP_HDR_NSEC: &[u8] = &hex!(
+        "
+4D 3C B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
+00 00 04 00 01 00 00 00"
+    );
     #[test]
     fn test_parse_pcap_header() {
         let (rem, hdr) = parse_pcap_header(PCAP_HDR).expect("header parsing failed");
@@ -187,6 +236,17 @@ D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
         assert_eq!(hdr.version_major, 2);
         assert_eq!(hdr.version_minor, 4);
         assert_eq!(hdr.snaplen, 262_144);
+        assert!(hdr.is_nanosecond_precision() == false);
+    }
+    #[test]
+    fn test_parse_nanosecond_precision_pcap_header() {
+        let (rem, hdr) = parse_pcap_header(PCAP_HDR_NSEC).expect("header parsing failed");
+        assert!(rem.is_empty());
+        assert_eq!(hdr.magic_number, 0xa1b2_3c4d);
+        assert_eq!(hdr.version_major, 2);
+        assert_eq!(hdr.version_minor, 4);
+        assert_eq!(hdr.snaplen, 262_144);
+        assert!(hdr.is_nanosecond_precision());
     }
     #[test]
     fn test_parse_pcap_frame() {
