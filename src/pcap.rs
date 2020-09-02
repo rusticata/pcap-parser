@@ -20,7 +20,7 @@
 use crate::error::PcapError;
 use crate::linktype::Linktype;
 use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
-use nom::{do_parse, switch, take, IResult};
+use nom::{do_parse, take, IResult};
 
 /// PCAP global header
 #[derive(Clone, Debug)]
@@ -128,85 +128,53 @@ fn inner_parse_pcap_frame(
 ///
 /// The global header contains the PCAP description and options
 pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
-    switch! {
-        i,
-        le_u32,
-        0xa1b2_c3d4 => do_parse!(
-            major:   le_u16 >>
-            minor:   le_u16 >>
-            zone:    le_i32 >>
-            sigfigs: le_u32 >>
-            snaplen: le_u32 >>
-            network: le_i32 >>
-            (
-                PcapHeader {
-                    magic_number: 0xa1b2_c3d4,
-                    version_major: major,
-                    version_minor: minor,
-                    thiszone: zone,
-                    sigfigs,
-                    snaplen,
-                    network: Linktype(network)
-                }
-            )
-        ) |
-        0xa1b2_3c4d => do_parse!(
-            major:   le_u16 >>
-            minor:   le_u16 >>
-            zone:    le_i32 >>
-            sigfigs: le_u32 >>
-            snaplen: le_u32 >>
-            network: le_i32 >>
-            (
-                PcapHeader {
-                    magic_number: 0xa1b2_3c4d,
-                    version_major: major,
-                    version_minor: minor,
-                    thiszone: zone,
-                    sigfigs,
-                    snaplen,
-                    network: Linktype(network)
-                }
-            )
-        ) |
-        0xd4c3_b2a1 => do_parse!(
-            major:   be_u16 >>
-            minor:   be_u16 >>
-            zone:    be_i32 >>
-            sigfigs: be_u32 >>
-            snaplen: be_u32 >>
-            network: be_i32 >>
-            (
-                PcapHeader {
-                    magic_number: 0xd4c3_b2a1,
-                    version_major: major,
-                    version_minor: minor,
-                    thiszone: zone,
-                    sigfigs,
-                    snaplen,
-                    network: Linktype(network)
-                }
-            )
-        ) |
-        0x4d3c_b2a1 => do_parse!(
-            major:   be_u16 >>
-            minor:   be_u16 >>
-            zone:    be_i32 >>
-            sigfigs: be_u32 >>
-            snaplen: be_u32 >>
-            network: be_i32 >>
-            (
-                PcapHeader {
-                    magic_number: 0xd43c_b2a1,
-                    version_major: major,
-                    version_minor: minor,
-                    thiszone: zone,
-                    sigfigs,
-                    snaplen,
-                    network: Linktype(network)
-                }
-            )
-        )
+    let (i, magic_number) = le_u32(i)?;
+    match magic_number {
+        0xa1b2_c3d4 | 0xa1b2_3c4d => {
+            do_parse! {
+                i,
+                major:   le_u16 >>
+                minor:   le_u16 >>
+                zone:    le_i32 >>
+                sigfigs: le_u32 >>
+                snaplen: le_u32 >>
+                network: le_i32 >>
+                (
+                    PcapHeader {
+                        magic_number,
+                        version_major: major,
+                        version_minor: minor,
+                        thiszone: zone,
+                        sigfigs,
+                        snaplen,
+                        network: Linktype(network)
+                    }
+                )
+            }
+        }
+        0xd4c3_b2a1 | 0x4d3c_b2a1 => {
+            do_parse! {
+                i,
+                major:   be_u16 >>
+                minor:   be_u16 >>
+                zone:    be_i32 >>
+                sigfigs: be_u32 >>
+                snaplen: be_u32 >>
+                network: be_i32 >>
+                (
+                    PcapHeader {
+                        magic_number,
+                        version_major: major,
+                        version_minor: minor,
+                        thiszone: zone,
+                        sigfigs,
+                        snaplen,
+                        network: Linktype(network)
+                    }
+                )
+            }
+        }
+        _ => Err(nom::Err::Error(PcapError::HeaderNotRecognized)),
     }
 }
 
@@ -221,7 +189,7 @@ pub mod tests {
 D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
 00 00 04 00 01 00 00 00"
     );
-    
+
     // pcap header with nanosecond-precision timestamping
     pub const PCAP_HDR_NSEC: &[u8] = &hex!(
         "
