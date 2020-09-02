@@ -71,7 +71,7 @@ named! {
         t: le_u16 >>
         v: take!(l-4) >>
         _padding: cond!(l % 4 != 0,take!(4-(l%4))) >>
-        ( NflogTlv{l:l,t:t,v:v} )
+        ( NflogTlv{l,t,v} )
     )
 }
 
@@ -101,7 +101,7 @@ named! {
         id: be_u16 >>
         (
             NflogHdr{
-                af: af,
+                af,
                 vers: v,
                 res_id: id,
             }

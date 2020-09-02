@@ -204,7 +204,7 @@ D4 C3 B2 A1 02 00 04 00 00 00 00 00 00 00 00 00
         assert_eq!(hdr.version_major, 2);
         assert_eq!(hdr.version_minor, 4);
         assert_eq!(hdr.snaplen, 262_144);
-        assert!(hdr.is_nanosecond_precision() == false);
+        assert!(!hdr.is_nanosecond_precision());
     }
     #[test]
     fn test_parse_nanosecond_precision_pcap_header() {
