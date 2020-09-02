@@ -6,6 +6,12 @@
 
 ### Changed/Fixed
 
+## 0.9.3
+
+### Added
+
+- Add support for nanosecond-resolution legacy PCAP files
+
 ## 0.9.2
 
 ### Added
