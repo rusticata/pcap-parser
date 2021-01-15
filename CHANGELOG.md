@@ -6,6 +6,12 @@
 
 ### Changed/Fixed
 
+## 0.10.0
+
+### Changed/Fixed
+
+- Upgrade to nom 6
+
 ## 0.9.4
 
 ### Added
