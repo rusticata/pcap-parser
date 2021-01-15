@@ -2,9 +2,8 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE-MIT)
 [![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE-APACHE)
-[![Build
-Status](https://travis-ci.org/rusticata/pcap-parser.svg?branch=master)](https://travis-ci.org/rusticata/pcap-parser)
 [![Crates.io Version](https://img.shields.io/crates/v/pcap-parser.svg)](https://crates.io/crates/pcap-parser)
+[![Github CI](https://github.com/rusticata/pcap-parser/workflows/Continuous%20integration/badge.svg)](https://github.com/rusticata/pcap-parser/actions)
 
 <!-- cargo-sync-readme start -->
 
