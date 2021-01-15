@@ -6,6 +6,18 @@
 
 ### Changed/Fixed
 
+## 0.9.4
+
+### Added
+
+- Add trait PartialEq to PcapError
+
+### Changed/Fixed
+
+- Improve error handling in create_reader (if input is empty or incomplete)
+- Set MSRV to 1.44
+- Update consume() documentation, it does not refill buffer (Closes #9)
+
 ## 0.9.3
 
 ### Added
