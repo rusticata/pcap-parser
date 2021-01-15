@@ -1,3 +1,10 @@
+//! [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE-MIT)
+//! [![Apache License 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE-APACHE)
+//! [![Crates.io Version](https://img.shields.io/crates/v/pcap-parser.svg)](https://crates.io/crates/pcap-parser)
+//! [![docs.rs](https://docs.rs/pcap-parser/badge.svg)](https://docs.rs/pcap-parser)
+//! [![Github CI](https://github.com/rusticata/pcap-parser/workflows/Continuous%20integration/badge.svg)](https://github.com/rusticata/pcap-parser/actions)
+//! [![Minimum rustc version](https://img.shields.io/badge/rustc-1.44.0+-lightgray.svg)](#rust-version-requirements)
+//!
 //! # PCAP and PCAPNG parsers
 //!
 //! This crate contains several parsers for PCAP and PCAPNG files.
