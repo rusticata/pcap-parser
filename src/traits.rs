@@ -82,7 +82,10 @@ where
 {
     /// Get the next pcap block, if possible. Returns the number of bytes read and the block.
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError>;
-    /// Consume data, and refill buffer if needed.
+    /// Consume data, and shift buffer if needed.
+    ///
+    /// If the position gets past the buffer's half, this will move the remaining data to the
+    /// beginning of the buffer.
     ///
     /// **The blocks already read, and underlying data, must be discarded before calling
     /// this function.**
