@@ -146,3 +146,6 @@ pub use serialize::ToVec;
 
 #[cfg(feature = "data")]
 pub mod data;
+
+// re-exports
+pub use nom;
