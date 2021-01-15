@@ -80,7 +80,7 @@ pub fn get_packetdata_raw(i: &[u8], caplen: usize) -> Option<PacketData> {
 
 /// Get packet data for LINKTYPE_LINUX_SLL (113)
 ///
-/// See http://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html
+/// See <http://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html>
 pub fn get_packetdata_linux_sll(i: &[u8], caplen: usize) -> Option<PacketData> {
     if i.len() < caplen || caplen == 0 {
         None

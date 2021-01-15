@@ -5,7 +5,7 @@ use rusticata_macros::newtype_enum;
 /// The link-layer header type specifies the type of headers at the beginning
 /// of the packet.
 ///
-/// See [http://www.tcpdump.org/linktypes.html](http://www.tcpdump.org/linktypes.html)
+/// See <http://www.tcpdump.org/linktypes.html>
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct Linktype(pub i32);
 

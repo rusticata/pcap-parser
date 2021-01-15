@@ -1,8 +1,6 @@
 //! PCAP file format
 //!
-//! See
-//! [https://wiki.wireshark.org/Development/LibpcapFileFormat](https://wiki.wireshark.org/Development/LibpcapFileFormat)
-//! for details.
+//! See <https://wiki.wireshark.org/Development/LibpcapFileFormat> for details.
 //!
 //! There are 2 main ways of parsing a PCAP file. The first method is to use
 //! [`parse_pcap`](fn.parse_pcap.html). This method requires to load the entire

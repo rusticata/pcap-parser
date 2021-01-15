@@ -3,7 +3,7 @@
 //! Helper module to access content of data stored using NFLOG (239)
 //! data link type.
 //!
-//! See [http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html](http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html) for details.
+//! See <http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html> for details.
 
 use crate::data::{PacketData, ETHERTYPE_IPV4, ETHERTYPE_IPV6};
 use nom::number::streaming::{be_u16, le_u16, le_u8};
@@ -134,7 +134,7 @@ named! {
 ///
 /// Parse nflog data, and extract only packet payload
 ///
-/// See http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html
+/// See <http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html>
 pub fn get_packetdata_nflog(i: &[u8], _caplen: usize) -> Option<PacketData> {
     match parse_nflog(i) {
         Ok((_, res)) => {

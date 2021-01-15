@@ -1,6 +1,6 @@
 //! PCAPNG file format
 //!
-//! See [https://github.com/pcapng/pcapng](https://github.com/pcapng/pcapng) for details.
+//! See <https://github.com/pcapng/pcapng> for details.
 //!
 //! There are 2 main ways of parsing a PCAPNG file. The first method is to use
 //! [`parse_pcapng`](fn.parse_pcapng.html). This method requires to load the entire
