@@ -1,6 +1,3 @@
-extern crate nom;
-extern crate pcap_parser;
-
 use pcap_parser::pcapng::Block;
 use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
