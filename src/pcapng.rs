@@ -94,10 +94,7 @@ pub enum Block<'a> {
 impl<'a> Block<'a> {
     /// Returns true if blocks contains a network packet
     pub fn is_data_block(&self) -> bool {
-        match self {
-            &Block::EnhancedPacket(_) | &Block::SimplePacket(_) => true,
-            _ => false,
-        }
+        matches!(self, &Block::EnhancedPacket(_) | &Block::SimplePacket(_))
     }
 
     /// Return the normalized magic number of the block
@@ -310,7 +307,7 @@ pub struct SecretsType(pub u32);
 
 newtype_enum! {
     impl debug SecretsType {
-        TlsKeyLog = 0x544_c534b, // TLSK
+        TlsKeyLog = 0x544c_534b, // TLSK
         WireguardKeyLog = 0x5747_4b4c,
     }
 }
@@ -404,11 +401,11 @@ pub fn parse_option_be<'i, E: ParseError<&'i [u8]>>(
     }
 }
 
-fn opt_parse_options<'i>(
-    i: &'i [u8],
+fn opt_parse_options(
+    i: &[u8],
     len: usize,
     opt_offset: usize,
-) -> IResult<&'i [u8], Vec<PcapNGOption<'i>>, PcapError> {
+) -> IResult<&[u8], Vec<PcapNGOption>, PcapError> {
     if len > opt_offset {
         map_parser(take(len - opt_offset), many0(complete(parse_option)))(i)
     } else {
@@ -416,11 +413,11 @@ fn opt_parse_options<'i>(
     }
 }
 
-fn opt_parse_options_be<'i>(
-    i: &'i [u8],
+fn opt_parse_options_be(
+    i: &[u8],
     len: usize,
     opt_offset: usize,
-) -> IResult<&'i [u8], Vec<PcapNGOption<'i>>, PcapError> {
+) -> IResult<&[u8], Vec<PcapNGOption>, PcapError> {
     if len > opt_offset {
         map_parser(take(len - opt_offset), many0(complete(parse_option_be)))(i)
     } else {
