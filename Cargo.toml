@@ -41,8 +41,8 @@ all-features = true
 [dependencies]
 circular = "0.3"
 cookie-factory = { version="0.3.0", optional=true }
-nom = "5.0"
-rusticata-macros = "2.0.3"
+nom = "6.0"
+rusticata-macros = "3.0"
 
 [dev-dependencies]
 hex-literal = "0.3"
