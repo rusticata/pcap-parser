@@ -6,6 +6,13 @@
 
 ### Changed/Fixed
 
+## 0.10.1
+
+### Changed/Fixed
+
+- Re-export nom so crate users do not need to import it
+- Convert doc links to short form when possible
+
 ## 0.10.0
 
 ### Changed/Fixed
