@@ -2,7 +2,6 @@ use crate::blocks::PcapBlockOwned;
 use crate::error::PcapError;
 use crate::read_u32_e;
 use rusticata_macros::align32;
-use std::io::Read;
 
 /// Common methods for PcapNG blocks
 pub trait PcapNGBlock {
@@ -76,9 +75,7 @@ pub trait PcapNGBlock {
 /// **The blocks already read, and underlying data, must be discarded before calling
 /// `consume` or `refill`.** It is the caller's responsibility to call functions in the correct
 /// order.
-pub trait PcapReaderIterator<R>
-where
-    R: Read,
+pub trait PcapReaderIterator
 {
     /// Get the next pcap block, if possible. Returns the number of bytes read and the block.
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError>;

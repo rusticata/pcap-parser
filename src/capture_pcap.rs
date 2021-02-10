@@ -131,7 +131,7 @@ where
     }
 }
 
-impl<R> PcapReaderIterator<R> for LegacyPcapReader<R>
+impl<R> PcapReaderIterator for LegacyPcapReader<R>
 where
     R: Read,
 {

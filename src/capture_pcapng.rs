@@ -140,7 +140,7 @@ where
     }
 }
 
-impl<R> PcapReaderIterator<R> for PcapNGReader<R>
+impl<R> PcapReaderIterator for PcapNGReader<R>
 where
     R: Read,
 {

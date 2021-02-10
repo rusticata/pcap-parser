@@ -33,7 +33,7 @@ pub trait Capture {
 pub fn create_reader<'b, R>(
     capacity: usize,
     mut reader: R,
-) -> Result<Box<dyn PcapReaderIterator<R> + 'b>, PcapError>
+) -> Result<Box<dyn PcapReaderIterator + 'b>, PcapError>
 where
     R: Read + 'b,
 {
@@ -46,11 +46,11 @@ where
     // just check that first block is a valid one
     if parse_sectionheaderblock(buffer.data()).is_ok() {
         return PcapNGReader::from_buffer(buffer, reader)
-            .map(|r| Box::new(r) as Box<dyn PcapReaderIterator<R>>);
+            .map(|r| Box::new(r) as Box<dyn PcapReaderIterator>);
     }
     match parse_pcap_header(buffer.data()) {
         Ok(_) => LegacyPcapReader::from_buffer(buffer, reader)
-            .map(|r| Box::new(r) as Box<dyn PcapReaderIterator<R>>),
+            .map(|r| Box::new(r) as Box<dyn PcapReaderIterator>),
         Err(nom::Err::Incomplete(_)) => Err(PcapError::Incomplete),
         _ => Err(PcapError::HeaderNotRecognized),
     }
