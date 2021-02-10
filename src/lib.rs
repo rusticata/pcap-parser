@@ -113,7 +113,7 @@
 #![deny(/*missing_docs,*/
         unstable_features,
         unused_import_braces, unused_qualifications)]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 mod utils;
 pub use utils::{Data, MutableData};

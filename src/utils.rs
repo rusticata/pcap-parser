@@ -193,3 +193,24 @@ macro_rules! write_u32_e {
         }
     };
 }
+
+/// Generate an array reference to a subset
+/// of a sliceable bit of data (which could be an array, or a slice,
+/// or a Vec).
+///
+/// **Panics** if the slice is out of bounds.
+///
+/// implementation inspired from arrayref::array_ref
+#[allow(unsafe_code)]
+#[inline]
+pub(crate) fn array_ref4(s: &[u8], offset: usize) -> &[u8; 4] {
+    #[inline]
+    unsafe fn as_array<T>(slice: &[T]) -> &[T; 4] {
+        &*(slice.as_ptr() as *const [_; 4])
+    }
+    let slice = &s[offset..offset + 4];
+    #[allow(unused_unsafe)]
+    unsafe {
+        as_array(slice)
+    }
+}
