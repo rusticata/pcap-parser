@@ -20,7 +20,7 @@ use crate::linktype::Linktype;
 use crate::utils::array_ref4;
 use nom::bytes::streaming::take;
 use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
-use nom::{do_parse, IResult};
+use nom::IResult;
 
 /// PCAP global header
 #[derive(Clone, Debug)]
@@ -138,48 +138,40 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
     let (i, magic_number) = le_u32(i)?;
     match magic_number {
         0xa1b2_c3d4 | 0xa1b2_3c4d => {
-            do_parse! {
-                i,
-                major:   le_u16 >>
-                minor:   le_u16 >>
-                zone:    le_i32 >>
-                sigfigs: le_u32 >>
-                snaplen: le_u32 >>
-                network: le_i32 >>
-                (
-                    PcapHeader {
-                        magic_number,
-                        version_major: major,
-                        version_minor: minor,
-                        thiszone: zone,
-                        sigfigs,
-                        snaplen,
-                        network: Linktype(network)
-                    }
-                )
-            }
+            let (i, version_major) = le_u16(i)?;
+            let (i, version_minor) = le_u16(i)?;
+            let (i, thiszone) = le_i32(i)?;
+            let (i, sigfigs) = le_u32(i)?;
+            let (i, snaplen) = le_u32(i)?;
+            let (i, network) = le_i32(i)?;
+            let header = PcapHeader {
+                magic_number,
+                version_major,
+                version_minor,
+                thiszone,
+                sigfigs,
+                snaplen,
+                network: Linktype(network),
+            };
+            Ok((i, header))
         }
         0xd4c3_b2a1 | 0x4d3c_b2a1 => {
-            do_parse! {
-                i,
-                major:   be_u16 >>
-                minor:   be_u16 >>
-                zone:    be_i32 >>
-                sigfigs: be_u32 >>
-                snaplen: be_u32 >>
-                network: be_i32 >>
-                (
-                    PcapHeader {
-                        magic_number,
-                        version_major: major,
-                        version_minor: minor,
-                        thiszone: zone,
-                        sigfigs,
-                        snaplen,
-                        network: Linktype(network)
-                    }
-                )
-            }
+            let (i, version_major) = be_u16(i)?;
+            let (i, version_minor) = be_u16(i)?;
+            let (i, thiszone) = be_i32(i)?;
+            let (i, sigfigs) = be_u32(i)?;
+            let (i, snaplen) = be_u32(i)?;
+            let (i, network) = be_i32(i)?;
+            let header = PcapHeader {
+                magic_number,
+                version_major,
+                version_minor,
+                thiszone,
+                sigfigs,
+                snaplen,
+                network: Linktype(network),
+            };
+            Ok((i, header))
         }
         _ => Err(nom::Err::Error(PcapError::HeaderNotRecognized)),
     }

@@ -110,7 +110,6 @@ Most structures gain the `to_vec()` method (provided by the `ToVec` trait).
 
 Note: support is still experimental, though working. API may change in the
 future.
-
 <!-- cargo-sync-readme end -->
 
 ## Changes
