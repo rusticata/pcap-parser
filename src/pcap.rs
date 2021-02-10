@@ -17,8 +17,10 @@
 
 use crate::error::PcapError;
 use crate::linktype::Linktype;
+use crate::utils::array_ref4;
+use nom::bytes::streaming::take;
 use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
-use nom::{do_parse, take, IResult};
+use nom::{do_parse, IResult};
 
 /// PCAP global header
 #[derive(Clone, Debug)]
@@ -87,40 +89,46 @@ pub struct LegacyPcapBlock<'a> {
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-#[inline]
 pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
-    inner_parse_pcap_frame(i, false)
+    if i.len() < 16 {
+        return Err(nom::Err::Incomplete(nom::Needed::new(16)));
+    }
+    let ts_sec = u32::from_le_bytes(*array_ref4(i, 0));
+    let ts_usec = u32::from_le_bytes(*array_ref4(i, 4));
+    let caplen = u32::from_le_bytes(*array_ref4(i, 8));
+    let origlen = u32::from_le_bytes(*array_ref4(i, 12));
+    let (i, data) = take(caplen as usize)(&i[16..])?;
+    let block = LegacyPcapBlock {
+        ts_sec,
+        ts_usec,
+        caplen,
+        origlen,
+        data,
+    };
+    Ok((i, block))
 }
 
 /// Read a PCAP record header and data (big-endian)
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-#[inline]
 pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
-    inner_parse_pcap_frame(i, true)
-}
-
-fn inner_parse_pcap_frame(
-    i: &[u8],
-    big_endian: bool,
-) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse! {
-        i,
-        ts_sec: read_u32 >>
-        ts_usec: read_u32 >>
-        caplen: read_u32 >>
-        origlen: read_u32 >>
-        data: take!(caplen) >>
-        (LegacyPcapBlock {
-                ts_sec,
-                ts_usec,
-                caplen,
-                origlen,
-                data
-            })
+    if i.len() < 16 {
+        return Err(nom::Err::Incomplete(nom::Needed::new(16)));
     }
+    let ts_sec = u32::from_be_bytes(*array_ref4(i, 0));
+    let ts_usec = u32::from_be_bytes(*array_ref4(i, 4));
+    let caplen = u32::from_be_bytes(*array_ref4(i, 8));
+    let origlen = u32::from_be_bytes(*array_ref4(i, 12));
+    let (i, data) = take(caplen as usize)(&i[16..])?;
+    let block = LegacyPcapBlock {
+        ts_sec,
+        ts_usec,
+        caplen,
+        origlen,
+        data,
+    };
+    Ok((i, block))
 }
 
 /// Read the PCAP global header
