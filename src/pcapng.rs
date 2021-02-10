@@ -515,7 +515,8 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
             }
             OptionCode::IfTsoffset => {
                 if opt.value.len() >= 8 {
-                    let int_bytes = <[u8; 8]>::try_from(opt.value).expect("Convert bytes to u64");
+                    let int_bytes =
+                        <[u8; 8]>::try_from(&opt.value[..8]).expect("Convert bytes to u64");
                     if_tsoffset = u64::from_le_bytes(int_bytes);
                 }
             }
