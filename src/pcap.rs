@@ -74,6 +74,7 @@ impl Default for PcapHeader {
 }
 
 /// Container for network data in legacy Pcap files
+#[derive(Debug)]
 pub struct LegacyPcapBlock<'a> {
     pub ts_sec: u32,
     pub ts_usec: u32,

@@ -78,6 +78,7 @@ impl debug OptionCode {
 }
 
 /// A block from a PcapNG file
+#[derive(Debug)]
 pub enum Block<'a> {
     SectionHeader(SectionHeaderBlock<'a>),
     InterfaceDescription(InterfaceDescriptionBlock<'a>),
@@ -237,6 +238,7 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub if_tsoffset: u64,
 }
 
+#[derive(Debug)]
 pub struct EnhancedPacketBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -252,6 +254,7 @@ pub struct EnhancedPacketBlock<'a> {
     pub block_len2: u32,
 }
 
+#[derive(Debug)]
 pub struct SimplePacketBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -265,18 +268,20 @@ pub struct SimplePacketBlock<'a> {
 pub struct NameRecordType(pub u16);
 
 newtype_enum! {
-    impl NameRecordType {
+    impl debug NameRecordType {
         End = 0,
         Ipv4 = 1,
         Ipv6 = 2
     }
 }
 
+#[derive(Debug)]
 pub struct NameRecord<'a> {
     pub record_type: NameRecordType,
     pub record_value: &'a [u8],
 }
 
+#[derive(Debug)]
 pub struct NameResolutionBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -285,6 +290,7 @@ pub struct NameResolutionBlock<'a> {
     pub block_len2: u32,
 }
 
+#[derive(Debug)]
 pub struct InterfaceStatisticsBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -295,6 +301,7 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub block_len2: u32,
 }
 
+#[derive(Debug)]
 pub struct SystemdJournalExportBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -312,6 +319,7 @@ newtype_enum! {
     }
 }
 
+#[derive(Debug)]
 pub struct DecryptionSecretsBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -322,6 +330,7 @@ pub struct DecryptionSecretsBlock<'a> {
     pub block_len2: u32,
 }
 
+#[derive(Debug)]
 pub struct CustomBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
@@ -338,6 +347,7 @@ impl<'a> CustomBlock<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct UnknownBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
