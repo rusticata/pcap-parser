@@ -223,6 +223,12 @@ pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32
     (ts_sec, ts_fractional, unit)
 }
 
+/// The Section Header Block (SHB) identifies the
+/// beginning of a section of the capture capture file.
+///
+/// The
+/// Section Header Block does not contain data but it rather identifies a
+/// list of blocks (interfaces, packets) that are logically correlated.
 #[derive(Debug)]
 pub struct SectionHeaderBlock<'a> {
     pub block_type: u32,
@@ -304,6 +310,8 @@ impl<'a> PcapNGBlockParser<'a, PcapLE, SectionHeaderBlock<'a>> for SectionHeader
     }
 }
 
+/// An Interface Description Block (IDB) is the container for information
+/// describing an interface on which packet data is captured.
 #[derive(Debug)]
 pub struct InterfaceDescriptionBlock<'a> {
     pub block_type: u32,
@@ -315,6 +323,44 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub block_len2: u32,
     pub if_tsresol: u8,
     pub if_tsoffset: u64,
+}
+
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock<'a>>
+    for InterfaceDescriptionBlock<'a>
+{
+    const HDR_SZ: usize = 20;
+    const MAGIC: u32 = IDB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], InterfaceDescriptionBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, linktype) = En::parse_u16(i)?;
+        let (i, reserved) = En::parse_u16(i)?;
+        let (i, snaplen) = En::parse_u32(i)?;
+        // read options
+        let (i, options) = En::opt_parse_options(i, block_len1 as usize, 20)?;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
+        let block = InterfaceDescriptionBlock {
+            block_type,
+            block_len1,
+            linktype: Linktype(linktype as i32),
+            reserved,
+            snaplen,
+            options,
+            block_len2,
+            if_tsresol,
+            if_tsoffset,
+        };
+        Ok((i, block))
+    }
 }
 
 /// An Enhanced Packet Block (EPB) is the standard container for storing
@@ -764,65 +810,18 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
     (if_tsresol, if_tsoffset)
 }
 
-fn inner_parse_interfacedescription(
-    i: &[u8],
-    big_endian: bool,
-) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
-    let read_u16 = if big_endian { be_u16 } else { le_u16 };
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    let read_options = if big_endian {
-        opt_parse_options_be
-    } else {
-        opt_parse_options
-    };
-    do_parse! {
-        i,
-        magic:      verify!(read_u32, |x:&u32| *x == IDB_MAGIC) >>
-        block_len1: read_u32 >>
-        linktype:   read_u16 >>
-        reserved:   read_u16 >>
-        snaplen:    read_u32 >>
-        options:    call!(read_options, block_len1 as usize, 20) >>
-        block_len2: verify!(read_u32, |x:&u32| *x == block_len1) >>
-        ({
-            let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
-            InterfaceDescriptionBlock{
-                block_type: magic,
-                block_len1,
-                linktype: Linktype(linktype as i32),
-                reserved,
-                snaplen,
-                options,
-                block_len2,
-                if_tsresol,
-                if_tsoffset,
-            }
-        })
-    }
-}
-
-#[inline]
-pub fn parse_interfacedescription(
+/// Parse an Interface Packet Block (little-endian)
+pub fn parse_interfacedescriptionblock_le(
     i: &[u8],
 ) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
-    inner_parse_interfacedescription(i, false)
+    ng_block_parser::<InterfaceDescriptionBlock, PcapLE, _, _>()(i)
 }
 
-#[inline]
-pub fn parse_interfacedescription_be(
+/// Parse an Interface Packet Block (big-endian)
+pub fn parse_interfacedescriptionblock_be(
     i: &[u8],
 ) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
-    inner_parse_interfacedescription(i, true)
-}
-
-#[inline]
-pub fn parse_interfacedescriptionblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    parse_interfacedescription(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
-}
-
-#[inline]
-pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    parse_interfacedescription_be(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
+    ng_block_parser::<InterfaceDescriptionBlock, PcapBE, _, _>()(i)
 }
 
 /// Parse a Simple Packet Block (little-endian)
@@ -1115,7 +1114,10 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     match peek!(i, call!(le_u32)) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(rem),
-            IDB_MAGIC => parse_interfacedescriptionblock(rem),
+            IDB_MAGIC => map(
+                parse_interfacedescriptionblock_le,
+                Block::InterfaceDescription,
+            )(rem),
             SPB_MAGIC => map(
                 ng_block_parser::<SimplePacketBlock, PcapLE, _, _>(),
                 Block::SimplePacket,
@@ -1143,7 +1145,10 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     match peek!(i, call!(be_u32)) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(rem),
-            IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
+            IDB_MAGIC => map(
+                parse_interfacedescriptionblock_be,
+                Block::InterfaceDescription,
+            )(rem),
             SPB_MAGIC => map(
                 ng_block_parser::<SimplePacketBlock, PcapBE, _, _>(),
                 Block::SimplePacket,
