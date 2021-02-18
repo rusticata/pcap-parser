@@ -16,10 +16,12 @@
 //! This can be used in a streaming parser.
 
 use crate::blocks::PcapBlock;
+use crate::endianness::*;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
+use crate::utils::*;
 use nom::bytes::complete::take;
-use nom::combinator::{complete, map_parser, rest};
+use nom::combinator::{complete, map, map_parser, rest};
 use nom::error::*;
 use nom::multi::many0;
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
@@ -29,6 +31,19 @@ use nom::{
 };
 use rusticata_macros::{align32, newtype_enum, q};
 use std::convert::TryFrom;
+
+trait PcapNGBlockParser<'a, En: PcapEndianness, O: 'a> {
+    const HDR_SZ: usize;
+    const MAGIC: u32;
+
+    // caller function must have tested header type(magic) and length
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], O, E>;
+}
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D_0D0A;
@@ -254,6 +269,56 @@ pub struct EnhancedPacketBlock<'a> {
     pub block_len2: u32,
 }
 
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
+    for EnhancedPacketBlock<'a>
+{
+    const HDR_SZ: usize = 32;
+    const MAGIC: u32 = 0x0000_0006;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], EnhancedPacketBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (b_hdr, packet_data) = i.split_at(20);
+        let if_id = En::u32_from_bytes(*array_ref4(b_hdr, 0));
+        let ts_high = En::u32_from_bytes(*array_ref4(b_hdr, 4));
+        let ts_low = En::u32_from_bytes(*array_ref4(b_hdr, 8));
+        let caplen = En::u32_from_bytes(*array_ref4(b_hdr, 12));
+        let origlen = En::u32_from_bytes(*array_ref4(b_hdr, 16));
+        // read packet data
+        let padding_length = pad4(caplen);
+        let (i, data) = take(caplen)(packet_data)?;
+        let i = if padding_length != 0 {
+            take(padding_length)(i)?.0
+        } else {
+            i
+        };
+        // read options
+        let current_offset = (32 + caplen + padding_length) as usize;
+        let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let block = EnhancedPacketBlock {
+            block_type,
+            block_len1,
+            if_id,
+            ts_high,
+            ts_low,
+            caplen,
+            origlen,
+            data,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
 #[derive(Debug)]
 pub struct SimplePacketBlock<'a> {
     pub block_type: u32,
@@ -375,6 +440,38 @@ pub struct PcapNGHeader {
     pub network: u32,
 }
 
+/// Create a block parser function, given the parameters (block object and endianness)
+fn ng_block_parser<'a, P, En, O, E>() -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], O, E>
+where
+    P: PcapNGBlockParser<'a, En, O>,
+    En: PcapEndianness,
+    O: 'a,
+    E: ParseError<&'a [u8]>,
+{
+    move |i: &[u8]| {
+        // read generic block layout
+        //
+        if i.len() < P::HDR_SZ {
+            return Err(nom::Err::Incomplete(nom::Needed::new(P::HDR_SZ)));
+        }
+        let (i, block_type) = En::parse_u32(i)?;
+        let (i, block_len1) = En::parse_u32(i)?;
+        if block_len1 < P::HDR_SZ as u32 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        if block_type != P::MAGIC {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        // 12 is block_type (4) + block_len1 (4) + block_len2 (4)
+        let (i, block_content) = take(block_len1 - 12)(i)?;
+        let (i, block_len2) = En::parse_u32(i)?;
+        // call block content parsing function
+        let (_, b) = P::inner_parse(block_type, block_len1, block_content, block_len2)?;
+        // return the remaining bytes from the container, not content
+        Ok((i, b))
+    }
+}
+
 pub fn parse_option<'i, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
 ) -> IResult<&'i [u8], PcapNGOption, E> {
@@ -411,11 +508,11 @@ pub fn parse_option_be<'i, E: ParseError<&'i [u8]>>(
     }
 }
 
-fn opt_parse_options(
-    i: &[u8],
+pub(crate) fn opt_parse_options<'i, E: ParseError<&'i [u8]>>(
+    i: &'i [u8],
     len: usize,
     opt_offset: usize,
-) -> IResult<&[u8], Vec<PcapNGOption>, PcapError> {
+) -> IResult<&'i [u8], Vec<PcapNGOption>, E> {
     if len > opt_offset {
         map_parser(take(len - opt_offset), many0(complete(parse_option)))(i)
     } else {
@@ -423,11 +520,11 @@ fn opt_parse_options(
     }
 }
 
-fn opt_parse_options_be(
-    i: &[u8],
+pub(crate) fn opt_parse_options_be<'i, E: ParseError<&'i [u8]>>(
+    i: &'i [u8],
     len: usize,
     opt_offset: usize,
-) -> IResult<&[u8], Vec<PcapNGOption>, PcapError> {
+) -> IResult<&'i [u8], Vec<PcapNGOption>, E> {
     if len > opt_offset {
         map_parser(take(len - opt_offset), many0(complete(parse_option_be)))(i)
     } else {
@@ -627,51 +724,20 @@ pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> 
     inner_parse_simplepacketblock(i, true)
 }
 
-fn inner_parse_enhancedpacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    let read_options = if big_endian {
-        opt_parse_options_be
-    } else {
-        opt_parse_options
-    };
-    do_parse! {
-        i,
-                    verify!(read_u32, |x:&u32| *x == EPB_MAGIC) >>
-        block_len1: verify!(read_u32, |val:&u32| *val >= 32) >>
-        if_id:      read_u32 >>
-        ts_high:    read_u32 >>
-        ts_low:     read_u32 >>
-        caplen:     verify!(read_u32, |x| *x < ::std::u32::MAX - 4) >>
-        origlen:    read_u32 >>
-        al_len:     q!(align32!(caplen) as usize) >>
-        data:       take!(al_len) >>
-        options:    call!(read_options, block_len1 as usize, 32 + al_len) >>
-        block_len2: verify!(read_u32, |x:&u32| *x == block_len1) >>
-        ({
-            Block::EnhancedPacket(EnhancedPacketBlock{
-                block_type: EPB_MAGIC,
-                block_len1,
-                if_id,
-                ts_high,
-                ts_low,
-                caplen,
-                origlen,
-                data,
-                options,
-                block_len2,
-            })
-        })
-    }
-}
-
-#[inline]
+/// Parse an Enhanced Packet Block (little-endian)
 pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_enhancedpacketblock(i, false)
+    map(
+        ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>(),
+        Block::EnhancedPacket,
+    )(i)
 }
 
-#[inline]
+/// Parse an Enhanced Packet Block (big-endian)
 pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_enhancedpacketblock(i, true)
+    map(
+        ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>(),
+        Block::EnhancedPacket,
+    )(i)
 }
 
 fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord, PcapError> {

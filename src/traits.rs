@@ -218,7 +218,7 @@ c4 00 00 00"
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 0);
             assert_eq!(epb.origlen, 314);
-            assert_eq!(epb.data.len(), 316); // XXX padding
+            assert_eq!(epb.data.len(), 314); // XXX padding
         }
     }
     #[test]
@@ -228,7 +228,7 @@ c4 00 00 00"
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 0);
             assert_eq!(epb.origlen, 314);
-            assert_eq!(epb.data.len(), 316); // XXX padding ?
+            assert_eq!(epb.data.len(), 314); // XXX padding ?
             println!("options: {:?}", epb.options);
         // use nom::HexDisplay;
         // println!("raw_options:\n{}", pkt.raw_options().to_hex(16));
