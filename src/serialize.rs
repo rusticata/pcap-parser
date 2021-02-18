@@ -538,7 +538,7 @@ mod tests {
         };
         let v = idb.to_vec().expect("serialize");
         // println!("idb.to_vec: {:?}", v);
-        let res = parse_interfacedescriptionblock(&v);
+        let res = parse_interfacedescriptionblock_le(&v);
         assert!(res.is_ok());
     }
     #[test]
