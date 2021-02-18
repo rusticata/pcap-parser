@@ -124,7 +124,7 @@ pub trait PcapReaderIterator {
 #[cfg(test)]
 pub mod tests {
     use crate::pcap::parse_pcap_frame;
-    use crate::pcapng::{parse_block, Block, SecretsType};
+    use crate::pcapng::{parse_block_le, Block, SecretsType};
     use crate::traits::PcapNGPacketBlock;
     use crate::utils::Data;
     use hex_literal::hex;
@@ -220,7 +220,7 @@ c4 00 00 00"
     }
     #[test]
     fn test_pcapng_packet_functions() {
-        let (rem, pkt) = parse_block(FRAME_PCAPNG_EPB).expect("packet creation failed");
+        let (rem, pkt) = parse_block_le(FRAME_PCAPNG_EPB).expect("packet creation failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 1);
@@ -232,7 +232,7 @@ c4 00 00 00"
     #[test]
     fn test_pcapng_packet_epb_with_options() {
         let (rem, pkt) =
-            parse_block(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet creation failed");
+            parse_block_le(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet creation failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 0);
@@ -243,7 +243,8 @@ c4 00 00 00"
     }
     #[test]
     fn test_parse_enhancepacketblock() {
-        let (rem, pkt) = parse_block(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet parsing failed");
+        let (rem, pkt) =
+            parse_block_le(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet parsing failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 0);
@@ -260,7 +261,7 @@ c4 00 00 00"
 
     #[test]
     fn test_pcapng_decryptionsecretsblock() {
-        let (rem, block) = parse_block(FRAME_PCAPNG_DSB).expect("could not parse DSB");
+        let (rem, block) = parse_block_le(FRAME_PCAPNG_DSB).expect("could not parse DSB");
         assert!(rem.is_empty());
         if let Block::DecryptionSecrets(dsb) = block {
             assert_eq!(dsb.secrets_type, SecretsType::TlsKeyLog);

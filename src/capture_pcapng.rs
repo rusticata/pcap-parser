@@ -153,7 +153,7 @@ where
         let parse = if self.info.big_endian {
             parse_block_be
         } else {
-            parse_block
+            parse_block_le
         };
         match parse(data) {
             Ok((rem, b)) => {
@@ -244,7 +244,7 @@ impl<'a> Iterator for PcapNGSlice<'a> {
         let parse = if self.info.big_endian {
             parse_block_be
         } else {
-            parse_block
+            parse_block_le
         };
         let r = parse(self.rem).map(|(rem, b)| {
             self.rem = rem;

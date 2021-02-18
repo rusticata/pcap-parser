@@ -12,6 +12,12 @@
   - the 'block_type' field is always read as little-endian
     This is used to get the endianness for the encoding of the block.
   - new parsing functions are faster
+- Use consistent names for big-endian/little-endian versions:
+  - 'parse_block' is deprecated and replaced by 'parse_block_le'
+  - 'parse_enhancedpacketblock' is deprecated and replaced by 'parse_enhancedpacketblock_le'
+  - same for all parsing functions with '_le'
+- Functions that parse a specific block type (for ex. EPB) return the matching type
+  (EnhancedPacketBlock) with encapsulating it in a Block
 
 ## 0.11.0
 

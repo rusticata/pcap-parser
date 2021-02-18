@@ -543,31 +543,31 @@ mod tests {
     }
     #[test]
     fn test_serialize_epb() {
-        let (rem, pkt) = parse_block(FRAME_PCAPNG_EPB).expect("packet creation failed");
+        let (rem, pkt) = parse_block_le(FRAME_PCAPNG_EPB).expect("packet creation failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(mut epb) = pkt {
             let v = epb.to_vec().expect("serialize");
             // NOTE: v and FRAME_PCAPNG_EPB are different (interface id changes)
             // println!("epb.to_vec: {:?}", v);
-            let res = parse_enhancedpacketblock(&v);
+            let res = parse_enhancedpacketblock_le(&v);
             assert!(res.is_ok());
         }
     }
     #[test]
     fn test_serialize_epb_with_options() {
         let (rem, pkt) =
-            parse_block(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet creation failed");
+            parse_block_le(FRAME_PCAPNG_EPB_WITH_OPTIONS).expect("packet creation failed");
         assert!(rem.is_empty());
         if let Block::EnhancedPacket(mut epb) = pkt {
             let v = epb.to_vec().expect("serialize");
             // println!("epb.to_vec: {:?}", v);
-            let res = parse_enhancedpacketblock(&v);
+            let res = parse_enhancedpacketblock_le(&v);
             assert!(res.is_ok());
         }
     }
     #[test]
     fn test_serialize_dsb() {
-        let (rem, pkt) = parse_block(FRAME_PCAPNG_DSB).expect("packet creation failed");
+        let (rem, pkt) = parse_block_le(FRAME_PCAPNG_DSB).expect("packet creation failed");
         assert!(rem.is_empty());
         assert!(pkt.magic() == DSB_MAGIC);
         if let Block::DecryptionSecrets(mut dsb) = pkt {
