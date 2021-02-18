@@ -33,7 +33,9 @@ use rusticata_macros::{align32, newtype_enum, q};
 use std::convert::TryFrom;
 
 trait PcapNGBlockParser<'a, En: PcapEndianness, O: 'a> {
+    /// Minimum header size, in bytes
     const HDR_SZ: usize;
+    /// Little-endian magic number for this block type
     const MAGIC: u32;
 
     // caller function must have tested header type(magic) and length
@@ -235,8 +237,70 @@ pub struct SectionHeaderBlock<'a> {
 }
 
 impl<'a> SectionHeaderBlock<'a> {
-    pub fn is_bigendian(&self) -> bool {
+    pub fn bigendian(&self) -> bool {
         self.bom != BOM_MAGIC
+    }
+}
+
+impl<'a> PcapNGBlockParser<'a, PcapBE, SectionHeaderBlock<'a>> for SectionHeaderBlock<'a> {
+    const HDR_SZ: usize = 28;
+    const MAGIC: u32 = SHB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], SectionHeaderBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, bom) = le_u32(i)?;
+        let (i, major_version) = be_u16(i)?;
+        let (i, minor_version) = be_u16(i)?;
+        let (i, section_len) = be_i64(i)?;
+        let (i, options) = opt_parse_options_be(i, block_len1 as usize, 28)?;
+        let block = SectionHeaderBlock {
+            block_type,
+            block_len1,
+            bom,
+            major_version,
+            minor_version,
+            section_len,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
+impl<'a> PcapNGBlockParser<'a, PcapLE, SectionHeaderBlock<'a>> for SectionHeaderBlock<'a> {
+    const HDR_SZ: usize = 28;
+    const MAGIC: u32 = SHB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], SectionHeaderBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, bom) = le_u32(i)?;
+        let (i, major_version) = le_u16(i)?;
+        let (i, minor_version) = le_u16(i)?;
+        let (i, section_len) = le_i64(i)?;
+        let (i, options) = opt_parse_options(i, block_len1 as usize, 28)?;
+        let block = SectionHeaderBlock {
+            block_type,
+            block_len1,
+            bom,
+            major_version,
+            minor_version,
+            section_len,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
     }
 }
 
@@ -309,7 +373,7 @@ impl<'a> EnhancedPacketBlock<'a> {
 
 impl<'a> PcapNGPacketBlock for EnhancedPacketBlock<'a> {
     fn big_endian(&self) -> bool {
-        self.block_type == EPB_MAGIC
+        self.block_type != EPB_MAGIC
     }
     fn truncated(&self) -> bool {
         self.origlen != self.caplen
@@ -393,7 +457,7 @@ pub struct SimplePacketBlock<'a> {
 
 impl<'a> PcapNGPacketBlock for SimplePacketBlock<'a> {
     fn big_endian(&self) -> bool {
-        self.block_type == SPB_MAGIC
+        self.block_type != SPB_MAGIC
     }
     fn truncated(&self) -> bool {
         self.origlen as usize <= self.data.len()
@@ -645,59 +709,19 @@ pub(crate) fn opt_parse_options_be<'i, E: ParseError<&'i [u8]>>(
 }
 
 pub fn parse_sectionheaderblock_le(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
-    do_parse! {
-        i,
-        block_type:    verify!(le_u32, |x:&u32| *x == SHB_MAGIC) >>
-        block_len1:    le_u32 >>
-        bom:           verify!(le_u32, |x:&u32| *x == BOM_MAGIC) >>
-        major_version: le_u16 >>
-        minor_version: le_u16 >>
-        section_len:   le_i64 >>
-        options:       call!(opt_parse_options, block_len1 as usize, 28) >>
-        block_len2:    verify!(le_u32, |x:&u32| *x == block_len1) >>
-        (
-            SectionHeaderBlock{
-                block_type,
-                block_len1,
-                bom,
-                major_version,
-                minor_version,
-                section_len,
-                options,
-                block_len2,
-            }
-        )
-    }
+    ng_block_parser::<SectionHeaderBlock, PcapLE, _, _>()(i)
 }
 
 pub fn parse_sectionheaderblock_be(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
-    do_parse! {
-        i,
-        block_type:    verify!(be_u32, |x:&u32| *x == SHB_MAGIC) >>
-        block_len1:    be_u32 >>
-        bom:           le_u32 >>
-        major_version: be_u16 >>
-        minor_version: be_u16 >>
-        section_len:   be_i64 >>
-        options:       call!(opt_parse_options_be, block_len1 as usize, 28) >>
-        block_len2:    verify!(be_u32, |x:&u32| *x == block_len1) >>
-        (
-            SectionHeaderBlock{
-                block_type,
-                block_len1,
-                bom,
-                major_version,
-                minor_version,
-                section_len,
-                options,
-                block_len2,
-            }
-        )
-    }
+    ng_block_parser::<SectionHeaderBlock, PcapBE, _, _>()(i)
 }
 
+/// Parse a SectionHeaderBlock (little or big endian)
 pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
-    let (_, (_, bom)) = peek!(i, tuple!(take!(8), le_u32))?;
+    if i.len() < 12 {
+        return Err(nom::Err::Incomplete(nom::Needed::new(12)));
+    }
+    let bom = u32::from_le_bytes(*array_ref4(i, 8));
     if bom == BOM_MAGIC {
         parse_sectionheaderblock_le(i)
     } else if bom == u32::from_be(BOM_MAGIC) {
@@ -1169,7 +1193,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 /// Parse one section (little or big endian)
 pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
-    let big_endian = shb.is_bigendian();
+    let big_endian = shb.bigendian();
     let (rem, mut b) = if big_endian {
         many0(complete(parse_section_content_block_be))(rem)?
     } else {
