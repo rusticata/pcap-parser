@@ -254,6 +254,29 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub if_tsoffset: u64,
 }
 
+/// An Enhanced Packet Block (EPB) is the standard container for storing
+/// the packets coming from the network.
+///
+/// This struct is a thin abstraction layer, and stores the raw block data.
+/// For ex the `data` field is stored with the padding.
+/// It implements the `PcapNGPacketBlock` trait, which provides helper functions.
+///
+/// ## Examples
+///
+/// ```rust
+/// use pcap_parser::pcapng::parse_enhancedpacketblock_le;
+/// use pcap_parser::traits::PcapNGPacketBlock;
+///
+/// # let input_data = include_bytes!("../assets/test001-le.pcapng");
+/// # let pcap_data = &input_data[148..=495];
+/// let (i, epb) = parse_enhancedpacketblock_le(pcap_data).unwrap();
+/// let packet_data = epb.packet_data();
+/// if packet_data.len() < epb.orig_len() as usize {
+///     // packet was truncated
+/// } else {
+///     // we have a full packet
+/// }
+/// ```
 #[derive(Debug)]
 pub struct EnhancedPacketBlock<'a> {
     // Block type, read as little-endian.
@@ -271,6 +294,18 @@ pub struct EnhancedPacketBlock<'a> {
     pub data: &'a [u8],
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
+}
+
+impl<'a> EnhancedPacketBlock<'a> {
+    /// Decode the packet timestamp
+    ///
+    /// To decode the timestamp, the resolution and offset are required.
+    /// These values are stored as options in the `InterfaceDescriptionBlock`
+    /// matching the interface ID.
+    #[inline]
+    pub fn decode_ts(&self, ts_offset: u64, ts_resol: u8) -> (u32, u32, u64) {
+        build_ts(self.ts_high, self.ts_low, ts_offset, ts_resol)
+    }
 }
 
 impl<'a> PcapNGPacketBlock for EnhancedPacketBlock<'a> {
@@ -341,6 +376,12 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
     }
 }
 
+/// The Simple Packet Block (SPB) is a lightweight container for storing
+/// the packets coming from the network.
+///
+/// This struct is a thin abstraction layer, and stores the raw block data.
+/// For ex the `data` field is stored with the padding.
+/// It implements the `PcapNGPacketBlock` trait, which provides helper functions.
 #[derive(Debug)]
 pub struct SimplePacketBlock<'a> {
     pub block_type: u32,
@@ -760,37 +801,25 @@ pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block, Pca
 ///
 /// *Note: this function does not remove padding in the `data` field.
 /// Use `packet_data` to get field without padding.*
-pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    map(
-        ng_block_parser::<SimplePacketBlock, PcapLE, _, _>(),
-        Block::SimplePacket,
-    )(i)
+pub fn parse_simplepacketblock_le(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError> {
+    ng_block_parser::<SimplePacketBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse a Simple Packet Block (big-endian)
 ///
 /// *Note: this function does not remove padding*
-pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    map(
-        ng_block_parser::<SimplePacketBlock, PcapBE, _, _>(),
-        Block::SimplePacket,
-    )(i)
+pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError> {
+    ng_block_parser::<SimplePacketBlock, PcapBE, _, _>()(i)
 }
 
 /// Parse an Enhanced Packet Block (little-endian)
-pub fn parse_enhancedpacketblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    map(
-        ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>(),
-        Block::EnhancedPacket,
-    )(i)
+pub fn parse_enhancedpacketblock_le(i: &[u8]) -> IResult<&[u8], EnhancedPacketBlock, PcapError> {
+    ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an Enhanced Packet Block (big-endian)
-pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    map(
-        ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>(),
-        Block::EnhancedPacket,
-    )(i)
+pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], EnhancedPacketBlock, PcapError> {
+    ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>()(i)
 }
 
 fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord, PcapError> {
@@ -1041,17 +1070,32 @@ pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_unknownblock(i, true)
 }
 
+#[deprecated(
+    since = "0.11.0",
+    note = "Please use the parse_block_le function instead"
+)]
+#[inline]
+pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    parse_block_le(i)
+}
+
 /// Parse any block, as little-endian
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     match peek!(i, call!(le_u32)) {
         Ok((rem, id)) => match id {
             SHB_MAGIC => parse_sectionheader(rem),
             IDB_MAGIC => parse_interfacedescriptionblock(rem),
-            SPB_MAGIC => parse_simplepacketblock(rem),
-            EPB_MAGIC => parse_enhancedpacketblock(rem),
+            SPB_MAGIC => map(
+                ng_block_parser::<SimplePacketBlock, PcapLE, _, _>(),
+                Block::SimplePacket,
+            )(rem),
+            EPB_MAGIC => map(
+                ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>(),
+                Block::EnhancedPacket,
+            )(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
             SJE_MAGIC => parse_systemdjournalexportblock(rem),
@@ -1072,8 +1116,14 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
         Ok((rem, id)) => match id {
             SHB_MAGIC => parse_sectionheader(rem),
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
-            SPB_MAGIC => parse_simplepacketblock_be(rem),
-            EPB_MAGIC => parse_enhancedpacketblock_be(rem),
+            SPB_MAGIC => map(
+                ng_block_parser::<SimplePacketBlock, PcapBE, _, _>(),
+                Block::SimplePacket,
+            )(rem),
+            EPB_MAGIC => map(
+                ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>(),
+                Block::EnhancedPacket,
+            )(rem),
             NRB_MAGIC => parse_nameresolutionblock_be(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
@@ -1085,16 +1135,25 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     }
 }
 
-/// Parse any block from a section
+#[deprecated(
+    since = "0.11.0",
+    note = "Please use the parse_section_content_block_le function instead"
+)]
+#[inline]
 pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    let (rem, block) = parse_block(i)?;
+    parse_section_content_block_le(i)
+}
+
+/// Parse any block from a section (little-endian)
+pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+    let (rem, block) = parse_block_le(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
         _ => Ok((rem, block)),
     }
 }
 
-/// Parse any block from a section (big-endian version)
+/// Parse any block from a section (big-endian)
 pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     let (rem, block) = parse_block_be(i)?;
     match block {
@@ -1103,14 +1162,14 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapErr
     }
 }
 
-/// Parse one section
+/// Parse one section (little or big endian)
 pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.is_bigendian();
     let (rem, mut b) = if big_endian {
         many0!(rem, complete!(parse_section_content_block_be))?
     } else {
-        many0!(rem, complete!(parse_section_content_block))?
+        many0!(rem, complete!(parse_section_content_block_le))?
     };
     let mut blocks = Vec::with_capacity(b.len() + 1);
     blocks.push(Block::SectionHeader(shb));
@@ -1119,7 +1178,7 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
     Ok((rem, section))
 }
 
-/// Parse multiple sections
+/// Parse multiple sections (little or big endian)
 #[inline]
 pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>, PcapError> {
     many1!(i, complete!(parse_section))
