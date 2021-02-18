@@ -119,6 +119,7 @@ mod utils;
 pub use utils::{Data, MutableData};
 
 mod blocks;
+mod endianness;
 mod error;
 mod linktype;
 pub use blocks::*;

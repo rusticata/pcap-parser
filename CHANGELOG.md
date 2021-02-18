@@ -12,6 +12,9 @@
 
 - Re-export nom so crate users do not need to import it
 - Convert doc links to short form when possible
+- Rewrite Pcap and PcapNG block parsing functions
+  - padding is now removed from block content
+  - new parsing functions are faster
 
 ## 0.10.0
 

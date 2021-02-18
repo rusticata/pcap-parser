@@ -194,6 +194,14 @@ macro_rules! write_u32_e {
     };
 }
 
+/// Get the number of padding bytes to align to 32-bits
+#[inline]
+pub const fn pad4(n: u32) -> u32 {
+    // for power of 2, formula is (~n + 1) & (size - 1)
+    // note that (~n+1) can overflow if n == 0
+    ((!n).wrapping_add(1)) & 3
+}
+
 /// Generate an array reference to a subset
 /// of a sliceable bit of data (which could be an array, or a slice,
 /// or a Vec).
