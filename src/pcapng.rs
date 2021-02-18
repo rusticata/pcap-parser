@@ -707,6 +707,11 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, 
     }
 }
 
+/// Parse a SectionHeaderBlock (little or big endian)
+#[deprecated(
+    since = "0.11.0",
+    note = "Please use the parse_sectionheaderblock function instead"
+)]
 #[inline]
 pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     parse_sectionheaderblock(i).map(|(r, b)| (r, Block::SectionHeader(b)))
@@ -1085,7 +1090,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
 pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     match peek!(i, call!(le_u32)) {
         Ok((rem, id)) => match id {
-            SHB_MAGIC => parse_sectionheader(rem),
+            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(rem),
             IDB_MAGIC => parse_interfacedescriptionblock(rem),
             SPB_MAGIC => map(
                 ng_block_parser::<SimplePacketBlock, PcapLE, _, _>(),
@@ -1113,7 +1118,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
 pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     match peek!(i, call!(be_u32)) {
         Ok((rem, id)) => match id {
-            SHB_MAGIC => parse_sectionheader(rem),
+            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(rem),
             IDB_MAGIC => parse_interfacedescriptionblock_be(rem),
             SPB_MAGIC => map(
                 ng_block_parser::<SimplePacketBlock, PcapBE, _, _>(),
