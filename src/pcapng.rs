@@ -19,6 +19,7 @@ use crate::blocks::PcapBlock;
 use crate::endianness::*;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
+use crate::traits::*;
 use crate::utils::*;
 use nom::bytes::complete::take;
 use nom::combinator::{complete, map, map_parser, rest};
@@ -255,6 +256,8 @@ pub struct InterfaceDescriptionBlock<'a> {
 
 #[derive(Debug)]
 pub struct EnhancedPacketBlock<'a> {
+    // Block type, read as little-endian.
+    // If block value is the reverse the the expected magic, this means block is encoded as big-endian
     pub block_type: u32,
     pub block_len1: u32,
     pub if_id: u32,
@@ -264,16 +267,40 @@ pub struct EnhancedPacketBlock<'a> {
     pub caplen: u32,
     /// Original packet length
     pub origlen: u32,
+    /// Raw data from packet (with padding)
     pub data: &'a [u8],
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
+}
+
+impl<'a> PcapNGPacketBlock for EnhancedPacketBlock<'a> {
+    fn big_endian(&self) -> bool {
+        self.block_type == EPB_MAGIC
+    }
+    fn truncated(&self) -> bool {
+        self.origlen != self.caplen
+    }
+    fn orig_len(&self) -> u32 {
+        self.origlen
+    }
+    fn raw_packet_data(&self) -> &[u8] {
+        self.data
+    }
+    fn packet_data(&self) -> &[u8] {
+        let caplen = self.caplen as usize;
+        if caplen < self.data.len() {
+            &self.data[..caplen]
+        } else {
+            self.data
+        }
+    }
 }
 
 impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
     for EnhancedPacketBlock<'a>
 {
     const HDR_SZ: usize = 32;
-    const MAGIC: u32 = 0x0000_0006;
+    const MAGIC: u32 = EPB_MAGIC;
 
     fn inner_parse<E: ParseError<&'a [u8]>>(
         block_type: u32,
@@ -290,15 +317,10 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
         let caplen = En::u32_from_bytes(*array_ref4(b_hdr, 12));
         let origlen = En::u32_from_bytes(*array_ref4(b_hdr, 16));
         // read packet data
-        let padding_length = pad4(caplen);
-        let (i, data) = take(caplen)(packet_data)?;
-        let i = if padding_length != 0 {
-            take(padding_length)(i)?.0
-        } else {
-            i
-        };
+        let padded_length = align32!(caplen);
+        let (i, data) = take(padded_length)(packet_data)?;
         // read options
-        let current_offset = (32 + caplen + padding_length) as usize;
+        let current_offset = (32 + padded_length) as usize;
         let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
@@ -327,6 +349,56 @@ pub struct SimplePacketBlock<'a> {
     pub origlen: u32,
     pub data: &'a [u8],
     pub block_len2: u32,
+}
+
+impl<'a> PcapNGPacketBlock for SimplePacketBlock<'a> {
+    fn big_endian(&self) -> bool {
+        self.block_type == SPB_MAGIC
+    }
+    fn truncated(&self) -> bool {
+        self.origlen as usize <= self.data.len()
+    }
+    fn orig_len(&self) -> u32 {
+        self.origlen
+    }
+    fn raw_packet_data(&self) -> &[u8] {
+        self.data
+    }
+    fn packet_data(&self) -> &[u8] {
+        let caplen = self.origlen as usize;
+        if caplen < self.data.len() {
+            &self.data[..caplen]
+        } else {
+            self.data
+        }
+    }
+}
+
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, SimplePacketBlock<'a>>
+    for SimplePacketBlock<'a>
+{
+    const HDR_SZ: usize = 16;
+    const MAGIC: u32 = SPB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], SimplePacketBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, origlen) = En::parse_u32(i)?;
+        let (i, data) = take((block_len1 as usize) - 16)(i)?;
+        let block = SimplePacketBlock {
+            block_type,
+            block_len1,
+            origlen,
+            data,
+            block_len2,
+        };
+        Ok((i, block))
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -454,12 +526,12 @@ where
         if i.len() < P::HDR_SZ {
             return Err(nom::Err::Incomplete(nom::Needed::new(P::HDR_SZ)));
         }
-        let (i, block_type) = En::parse_u32(i)?;
+        let (i, block_type) = le_u32(i)?;
         let (i, block_len1) = En::parse_u32(i)?;
         if block_len1 < P::HDR_SZ as u32 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
-        if block_type != P::MAGIC {
+        if En::as_native_u32(block_type) != P::MAGIC {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
         // 12 is block_type (4) + block_len1 (4) + block_len2 (4)
@@ -684,44 +756,25 @@ pub fn parse_interfacedescriptionblock_be(i: &[u8]) -> IResult<&[u8], Block, Pca
     parse_interfacedescription_be(i).map(|(r, b)| (r, Block::InterfaceDescription(b)))
 }
 
-fn inner_parse_simplepacketblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse! {
-        i,
-        magic:     verify!(read_u32, |x:&u32| *x == SPB_MAGIC) >>
-        len1:      verify!(read_u32, |val:&u32| *val >= 32) >>
-        origlen:   le_u32 >>
-        // XXX if snaplen is < origlen, we MUST use snaplen
-        // al_len:    value!(align32!(origlen)) >>
-        // data:      take!(al_len) >>
-        data:      take!(len1 - 16) >>
-        len2:      verify!(read_u32, |x:&u32| *x == len1) >>
-        (
-            Block::SimplePacket(SimplePacketBlock{
-                block_type: magic,
-                block_len1: len1,
-                origlen,
-                data,
-                block_len2: len2
-            })
-        )
-    }
-}
-
-/// Parse a Simple Packet Block
+/// Parse a Simple Packet Block (little-endian)
 ///
-/// *Note: this function does not remove padding*
-#[inline]
+/// *Note: this function does not remove padding in the `data` field.
+/// Use `packet_data` to get field without padding.*
 pub fn parse_simplepacketblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_simplepacketblock(i, false)
+    map(
+        ng_block_parser::<SimplePacketBlock, PcapLE, _, _>(),
+        Block::SimplePacket,
+    )(i)
 }
 
 /// Parse a Simple Packet Block (big-endian)
 ///
 /// *Note: this function does not remove padding*
-#[inline]
 pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_simplepacketblock(i, true)
+    map(
+        ng_block_parser::<SimplePacketBlock, PcapBE, _, _>(),
+        Block::SimplePacket,
+    )(i)
 }
 
 /// Parse an Enhanced Packet Block (little-endian)

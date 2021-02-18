@@ -4,6 +4,19 @@
 
 ### Added
 
+- Add trait PcapNGPacketBlock
+
+### Changed/Fixed
+
+- Rewrite Pcap and PcapNG block parsing functions
+  - the 'block_type' field is always read as little-endian
+    This is used to get the endianness for the encoding of the block.
+  - new parsing functions are faster
+
+## 0.11.0
+
+### Added
+
 ### Changed/Fixed
 
 ## 0.10.1
@@ -12,10 +25,6 @@
 
 - Re-export nom so crate users do not need to import it
 - Convert doc links to short form when possible
-- Rewrite Pcap and PcapNG block parsing functions
-  - padding is now removed from block content
-  - new parsing functions are faster
-
 ## 0.10.0
 
 ### Changed/Fixed

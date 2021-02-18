@@ -59,6 +59,24 @@ pub trait PcapNGBlock {
     }
 }
 
+/// Common methods for PcapNG Packet blocks
+pub trait PcapNGPacketBlock {
+    /// Return true if block is encoded as big-endian
+    fn big_endian(&self) -> bool;
+    /// Return true if block data was truncated (typically when snaplen < origlen)
+    fn truncated(&self) -> bool {
+        false
+    }
+    /// Return the original length of the packet
+    fn orig_len(&self) -> u32;
+    /// Return the raw captured packet data, with padding if present, and eventually truncated.
+    fn raw_packet_data(&self) -> &[u8];
+    /// Return the captured packet data without padding
+    ///
+    /// If packet was truncated, the truncated data field is returned.
+    fn packet_data(&self) -> &[u8];
+}
+
 /// Iterator over pcap files
 ///
 /// Each call to `next` will return the next block,
@@ -107,6 +125,7 @@ pub trait PcapReaderIterator {
 pub mod tests {
     use crate::pcap::parse_pcap_frame;
     use crate::pcapng::{parse_block, Block, SecretsType};
+    use crate::traits::PcapNGPacketBlock;
     use crate::utils::Data;
     use hex_literal::hex;
     // tls12-23.pcap frame 0
@@ -218,7 +237,8 @@ c4 00 00 00"
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 0);
             assert_eq!(epb.origlen, 314);
-            assert_eq!(epb.data.len(), 314); // XXX padding
+            assert_eq!(epb.data.len(), 316); // with padding
+            assert_eq!(epb.packet_data().len(), 314); // without padding
         }
     }
     #[test]
@@ -228,7 +248,8 @@ c4 00 00 00"
         if let Block::EnhancedPacket(epb) = pkt {
             assert_eq!(epb.if_id, 0);
             assert_eq!(epb.origlen, 314);
-            assert_eq!(epb.data.len(), 314); // XXX padding ?
+            assert_eq!(epb.data.len(), 316); // with padding
+            assert_eq!(epb.packet_data().len(), 314); // without padding
             println!("options: {:?}", epb.options);
         // use nom::HexDisplay;
         // println!("raw_options:\n{}", pkt.raw_options().to_hex(16));
