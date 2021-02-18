@@ -16,6 +16,7 @@
   - 'parse_block' is deprecated and replaced by 'parse_block_le'
   - 'parse_enhancedpacketblock' is deprecated and replaced by 'parse_enhancedpacketblock_le'
   - same for all parsing functions with '_le'
+  - 'parse_sectionheader' is replaced by 'parse_sectionheaderblock'
 - Functions that parse a specific block type (for ex. EPB) return the matching type
   (EnhancedPacketBlock) with encapsulating it in a Block
 
