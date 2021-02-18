@@ -24,11 +24,10 @@ use crate::utils::*;
 use nom::bytes::complete::take;
 use nom::combinator::{complete, map, map_parser, rest};
 use nom::error::*;
-use nom::multi::many0;
+use nom::multi::{many0, many1};
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
 use nom::{
-    call, complete, do_parse, error_position, flat_map, many0, many1, many_till, peek, take, tuple,
-    verify, Err, IResult,
+    call, do_parse, error_position, flat_map, many_till, peek, take, tuple, verify, Err, IResult,
 };
 use rusticata_macros::{align32, newtype_enum, q};
 use std::convert::TryFrom;
@@ -1167,9 +1166,9 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.is_bigendian();
     let (rem, mut b) = if big_endian {
-        many0!(rem, complete!(parse_section_content_block_be))?
+        many0(complete(parse_section_content_block_be))(rem)?
     } else {
-        many0!(rem, complete!(parse_section_content_block_le))?
+        many0(complete(parse_section_content_block_le))(rem)?
     };
     let mut blocks = Vec::with_capacity(b.len() + 1);
     blocks.push(Block::SectionHeader(shb));
@@ -1181,5 +1180,5 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
 /// Parse multiple sections (little or big endian)
 #[inline]
 pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>, PcapError> {
-    many1!(i, complete!(parse_section))
+    many1(complete(parse_section))(i)
 }
