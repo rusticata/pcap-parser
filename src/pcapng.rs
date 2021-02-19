@@ -27,7 +27,7 @@ use nom::error::*;
 use nom::multi::{many0, many1, many_till};
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
 use nom::{call, do_parse, error_position, peek, take, verify, Err, IResult};
-use rusticata_macros::{align32, newtype_enum, q};
+use rusticata_macros::{align32, newtype_enum};
 use std::convert::TryFrom;
 
 trait PcapNGBlockParser<'a, En: PcapEndianness, O: 'a> {
@@ -714,6 +714,44 @@ pub struct DecryptionSecretsBlock<'a> {
     pub block_len2: u32,
 }
 
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a>>
+    for DecryptionSecretsBlock<'a>
+{
+    const HDR_SZ: usize = 20;
+    const MAGIC: u32 = DSB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], DecryptionSecretsBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, secrets_type) = En::parse_u32(i)?;
+        let (i, secrets_len) = En::parse_u32(i)?;
+        // read packet data
+        let padded_length = align32!(secrets_len);
+        let (i, data) = take(padded_length)(i)?;
+        // read options
+        let current_offset = (20 + padded_length) as usize;
+        let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let block = DecryptionSecretsBlock {
+            block_type,
+            block_len1,
+            secrets_type: SecretsType(secrets_type),
+            secrets_len,
+            data,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
 #[derive(Debug)]
 pub struct CustomBlock<'a> {
     pub block_type: u32,
@@ -1030,48 +1068,18 @@ pub fn parse_systemdjournalexportblock_be(
     ng_block_parser::<SystemdJournalExportBlock, PcapBE, _, _>()(i)
 }
 
-fn inner_parse_decryptionsecretsblock(
+#[inline]
+pub fn parse_decryptionsecretsblock_le(
     i: &[u8],
-    big_endian: bool,
-) -> IResult<&[u8], Block, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    let read_options = if big_endian {
-        opt_parse_options_be
-    } else {
-        opt_parse_options
-    };
-    do_parse! {
-        i,
-        block_type:   verify!(read_u32, |x:&u32| *x == DSB_MAGIC) >>
-        block_len1:   verify!(read_u32, |val: &u32| *val >= 16) >>
-        secrets_type: read_u32 >>
-        secrets_len:  verify!(read_u32, |x| *x < ::std::u32::MAX - 4) >>
-        al_len:       q!(align32!(secrets_len) as usize) >>
-        data:         take!(al_len) >>
-        options:      call!(read_options, block_len1 as usize, 24 + al_len) >>
-        block_len2:   verify!(read_u32, |x: &u32| *x == block_len1) >>
-        (
-            Block::DecryptionSecrets(DecryptionSecretsBlock {
-                block_type,
-                block_len1,
-                secrets_type: SecretsType(secrets_type),
-                secrets_len,
-                data,
-                options,
-                block_len2,
-            })
-        )
-    }
+) -> IResult<&[u8], DecryptionSecretsBlock, PcapError> {
+    ng_block_parser::<DecryptionSecretsBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_decryptionsecretsblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_decryptionsecretsblock(i, false)
-}
-
-#[inline]
-pub fn parse_decryptionsecretsblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_decryptionsecretsblock(i, true)
+pub fn parse_decryptionsecretsblock_be(
+    i: &[u8],
+) -> IResult<&[u8], DecryptionSecretsBlock, PcapError> {
+    ng_block_parser::<DecryptionSecretsBlock, PcapBE, _, _>()(i)
 }
 
 fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
@@ -1148,7 +1156,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 parse_systemdjournalexportblock_le,
                 Block::SystemdJournalExport,
             )(rem),
-            DSB_MAGIC => parse_decryptionsecretsblock(rem),
+            DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
             _ => map(parse_unknownblock_le, Block::Unknown)(rem),
         },
@@ -1179,7 +1187,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 parse_systemdjournalexportblock_be,
                 Block::SystemdJournalExport,
             )(rem),
-            DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
+            DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => map(parse_unknownblock_be, Block::Unknown)(rem),
         },
