@@ -671,6 +671,28 @@ pub struct SystemdJournalExportBlock<'a> {
     pub block_len2: u32,
 }
 
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, SystemdJournalExportBlock<'a>>
+    for SystemdJournalExportBlock<'a>
+{
+    const HDR_SZ: usize = 12;
+    const MAGIC: u32 = SJE_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], SystemdJournalExportBlock<'a>, E> {
+        let block = SystemdJournalExportBlock {
+            block_type,
+            block_len1,
+            data: i,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct SecretsType(pub u32);
 
@@ -994,37 +1016,18 @@ pub fn parse_interfacestatisticsblock_be(
     ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>()(i)
 }
 
-fn inner_parse_systemdjournalexportblock(
+#[inline]
+pub fn parse_systemdjournalexportblock_le(
     i: &[u8],
-    big_endian: bool,
-) -> IResult<&[u8], Block, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse! {
-        i,
-        block_type:   verify!(read_u32, |x:&u32| *x == SJE_MAGIC) >>
-        block_len1:   verify!(read_u32, |val: &u32| *val >= 12) >>
-        data:         take!(block_len1 - 12) >>
-        // no options in this block
-        block_len2:   verify!(read_u32, |x: &u32| *x == block_len1) >>
-        (
-            Block::SystemdJournalExport(SystemdJournalExportBlock {
-                block_type,
-                block_len1,
-                data,
-                block_len2,
-            })
-        )
-    }
+) -> IResult<&[u8], SystemdJournalExportBlock, PcapError> {
+    ng_block_parser::<SystemdJournalExportBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_systemdjournalexportblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_systemdjournalexportblock(i, false)
-}
-
-#[inline]
-pub fn parse_systemdjournalexportblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_systemdjournalexportblock(i, true)
+pub fn parse_systemdjournalexportblock_be(
+    i: &[u8],
+) -> IResult<&[u8], SystemdJournalExportBlock, PcapError> {
+    ng_block_parser::<SystemdJournalExportBlock, PcapBE, _, _>()(i)
 }
 
 fn inner_parse_decryptionsecretsblock(
@@ -1141,7 +1144,10 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 parse_interfacestatisticsblock_le,
                 Block::InterfaceStatistics,
             )(rem),
-            SJE_MAGIC => parse_systemdjournalexportblock(rem),
+            SJE_MAGIC => map(
+                parse_systemdjournalexportblock_le,
+                Block::SystemdJournalExport,
+            )(rem),
             DSB_MAGIC => parse_decryptionsecretsblock(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
             _ => map(parse_unknownblock_le, Block::Unknown)(rem),
@@ -1169,7 +1175,10 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 parse_interfacestatisticsblock_be,
                 Block::InterfaceStatistics,
             )(rem),
-            SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
+            SJE_MAGIC => map(
+                parse_systemdjournalexportblock_be,
+                Block::SystemdJournalExport,
+            )(rem),
             DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
             _ => map(parse_unknownblock_be, Block::Unknown)(rem),
