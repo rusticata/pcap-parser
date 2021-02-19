@@ -21,14 +21,12 @@ use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::traits::*;
 use crate::utils::*;
-use nom::bytes::complete::take;
-use nom::combinator::{complete, map, map_parser, rest};
+use nom::bytes::complete::{tag, take};
+use nom::combinator::{complete, map, map_parser};
 use nom::error::*;
-use nom::multi::{many0, many1};
+use nom::multi::{many0, many1, many_till};
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
-use nom::{
-    call, do_parse, error_position, flat_map, many_till, peek, take, tuple, verify, Err, IResult,
-};
+use nom::{call, do_parse, error_position, peek, take, verify, Err, IResult};
 use rusticata_macros::{align32, newtype_enum, q};
 use std::convert::TryFrom;
 
@@ -569,13 +567,53 @@ pub struct NameRecord<'a> {
     pub record_value: &'a [u8],
 }
 
+impl<'a> NameRecord<'a> {
+    pub const END: NameRecord<'static> = NameRecord {
+        record_type: NameRecordType::End,
+        record_value: &[],
+    };
+}
+
 #[derive(Debug)]
 pub struct NameResolutionBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
     pub nr: Vec<NameRecord<'a>>,
-    pub opt: &'a [u8],
+    pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
+}
+
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, NameResolutionBlock<'a>>
+    for NameResolutionBlock<'a>
+{
+    const HDR_SZ: usize = 12;
+    const MAGIC: u32 = NRB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], NameResolutionBlock<'a>, E> {
+        let start_i = i;
+        // caller function already tested header type(magic) and length
+        // read records
+        let (i, nr) = parse_name_record_list::<En, E>(i)?;
+        // read options
+        let current_offset = 12 + (i.as_ptr() as usize) - (start_i.as_ptr() as usize);
+        let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let block = NameResolutionBlock {
+            block_type,
+            block_len1,
+            nr,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
+    }
 }
 
 #[derive(Debug)]
@@ -872,65 +910,40 @@ pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], EnhancedPacketBl
     ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>()(i)
 }
 
-fn parse_name_record(i: &[u8], big_endian: bool) -> IResult<&[u8], NameRecord, PcapError> {
-    let read_u16 = if big_endian { be_u16 } else { le_u16 };
-    do_parse! {
-        i,
-        record_type: read_u16 >>
-        record_len: verify!(read_u16, |x| *x < ::std::u16::MAX - 4) >>
-        record_value: take!(align32!(record_len)) >>
-        (
-            NameRecord{
-                record_type: NameRecordType(record_type),
-                record_value,
-            }
-        )
-    }
+fn parse_name_record<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
+    i: &'a [u8],
+) -> IResult<&'a [u8], NameRecord, E> {
+    let (i, record_type) = En::parse_u16(i)?;
+    let (i, record_len) = En::parse_u16(i)?;
+    let aligned_len = align32!(record_len as u32);
+    let (i, record_value) = take(aligned_len)(i)?;
+    let name_record = NameRecord {
+        record_type: NameRecordType(record_type),
+        record_value,
+    };
+    Ok((i, name_record))
 }
 
-fn parse_name_record_list(
-    i: &[u8],
-    big_endian: bool,
-) -> IResult<&[u8], Vec<NameRecord>, PcapError> {
-    many_till!(
-        i,
-        call!(parse_name_record, big_endian),
-        verify!(le_u32, |x: &u32| *x == 0)
-    )
-    .map(|(rem, (v, _))| (rem, v))
-}
-
-fn inner_parse_nameresolutionblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse! {
-        i,
-                    verify!(read_u32, |x:&u32| *x == NRB_MAGIC) >>
-        len1:       verify!(read_u32, |val:&u32| *val >= 16) >>
-        nr_and_opt: flat_map!(
-            take!(len1 - 12),
-            tuple!(call!(parse_name_record_list, big_endian), rest)
-            ) >>
-        len2:       verify!(read_u32, |x:&u32| *x == len1) >>
-        ({
-            Block::NameResolution(NameResolutionBlock{
-                block_type: EPB_MAGIC,
-                block_len1: len1,
-                nr: nr_and_opt.0,
-                opt: nr_and_opt.1,
-                block_len2: len2
-            })
-        })
-    }
+fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
+    i: &'a [u8],
+) -> IResult<&'a [u8], Vec<NameRecord>, E> {
+    map(
+        many_till(parse_name_record::<En, E>, tag(b"\x00\x00\x00\x00")),
+        |(mut v, _)| {
+            v.push(NameRecord::END);
+            v
+        },
+    )(i)
 }
 
 #[inline]
-pub fn parse_nameresolutionblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_nameresolutionblock(i, false)
+pub fn parse_nameresolutionblock_le(i: &[u8]) -> IResult<&[u8], NameResolutionBlock, PcapError> {
+    ng_block_parser::<NameResolutionBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_nameresolutionblock(i, true)
+pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], NameResolutionBlock, PcapError> {
+    ng_block_parser::<NameResolutionBlock, PcapBE, _, _>()(i)
 }
 
 pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
@@ -1123,7 +1136,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             )(rem),
             SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(rem),
             EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(rem),
-            NRB_MAGIC => parse_nameresolutionblock(rem),
+            NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
             SJE_MAGIC => parse_systemdjournalexportblock(rem),
             DSB_MAGIC => parse_decryptionsecretsblock(rem),
@@ -1148,7 +1161,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             )(rem),
             SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(rem),
             EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(rem),
-            NRB_MAGIC => parse_nameresolutionblock_be(rem),
+            NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
             DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
