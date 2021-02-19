@@ -569,7 +569,7 @@ mod tests {
         if let Block::DecryptionSecrets(mut dsb) = pkt {
             let v = dsb.to_vec().expect("serialize");
             // println!("dsb.to_vec: {:?}", v);
-            let res = parse_decryptionsecretsblock(&v);
+            let res = parse_decryptionsecretsblock_le(&v);
             assert!(res.is_ok());
         }
     }
