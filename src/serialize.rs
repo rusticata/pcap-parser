@@ -248,23 +248,19 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
     fn fix(&mut self) {
         self.block_type = NRB_MAGIC;
         // fix length
-        let length = (12 + namerecords_length(&self.nr) + self.opt.len()) as u32;
+        let length = (12 + namerecords_length(&self.nr) + options_length(&self.options)) as u32;
         self.block_len1 = align32!(length);
         self.block_len2 = self.block_len1;
     }
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let opt_len = align32!(self.opt.len());
-        let diff = opt_len - self.opt.len();
-        let opt_padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
                 many_ref(&self.nr, namerecord_le),
-                slice(self.opt),
-                slice(opt_padding),
+                many_ref(&self.options, pcapngoption_le),
                 le_u32(self.block_len2),
             )),
             &mut v,
