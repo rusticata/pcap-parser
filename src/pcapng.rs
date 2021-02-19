@@ -26,7 +26,7 @@ use nom::combinator::{complete, map, map_parser};
 use nom::error::*;
 use nom::multi::{many0, many1, many_till};
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
-use nom::{call, do_parse, error_position, peek, take, verify, Err, IResult};
+use nom::{call, do_parse, error_position, peek, take, Err, IResult};
 use rusticata_macros::{align32, newtype_enum};
 use std::convert::TryFrom;
 
@@ -763,9 +763,56 @@ pub struct CustomBlock<'a> {
     pub block_len2: u32,
 }
 
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, CustomBlock<'a>> for CustomBlock<'a> {
+    const HDR_SZ: usize = 16;
+    const MAGIC: u32 = CB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], CustomBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, pen) = En::parse_u32(i)?;
+        // there is no way to differentiate custom data and options,
+        // since length of data is not provided
+        let data = i;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let block = CustomBlock {
+            block_type,
+            block_len1,
+            pen,
+            data,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
+struct DCBParser;
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, CustomBlock<'a>> for DCBParser {
+    const HDR_SZ: usize = 16;
+    const MAGIC: u32 = DCB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], CustomBlock<'a>, E> {
+        <CustomBlock as PcapNGBlockParser<En, CustomBlock<'a>>>::inner_parse::<E>(
+            block_type, block_len1, i, block_len2,
+        )
+    }
+}
+
 impl<'a> CustomBlock<'a> {
     pub fn do_not_copy(&self) -> bool {
-        self.block_type == DCB_MAGIC
+        self.block_type == DCB_MAGIC || self.block_type == DCB_MAGIC.swap_bytes()
     }
 }
 
@@ -1082,36 +1129,24 @@ pub fn parse_decryptionsecretsblock_be(
     ng_block_parser::<DecryptionSecretsBlock, PcapBE, _, _>()(i)
 }
 
-fn inner_parse_customblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse! {
-        i,
-        blocktype: read_u32 >>
-        len1:      verify!(read_u32, |val: &u32| *val >= 16) >>
-        pen:       read_u32 >>
-        data:      take!(len1 - 16) >>
-        // options cannot be parsed, we don't know the length of data
-        len2:      verify!(read_u32, |x: &u32| *x == len1) >>
-        (
-            Block::Custom(CustomBlock {
-                block_type: blocktype,
-                block_len1: len1,
-                pen,
-                data,
-                block_len2: len2
-            })
-        )
-    }
+#[inline]
+pub fn parse_customblock_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+    ng_block_parser::<CustomBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_customblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_customblock(i, false)
+pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+    ng_block_parser::<CustomBlock, PcapBE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_customblock(i, true)
+pub fn parse_dcb_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+    ng_block_parser::<DCBParser, PcapLE, _, _>()(i)
+}
+
+#[inline]
+pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+    ng_block_parser::<DCBParser, PcapBE, _, _>()(i)
 }
 
 /// Parse an unknown block (little-endian)
@@ -1157,7 +1192,8 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 Block::SystemdJournalExport,
             )(rem),
             DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(rem),
-            CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
+            CB_MAGIC => map(parse_customblock_le, Block::Custom)(rem),
+            DCB_MAGIC => map(parse_dcb_le, Block::Custom)(rem),
             _ => map(parse_unknownblock_le, Block::Unknown)(rem),
         },
         Err(e) => Err(e),
@@ -1188,7 +1224,8 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 Block::SystemdJournalExport,
             )(rem),
             DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(rem),
-            CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
+            CB_MAGIC => map(parse_customblock_be, Block::Custom)(rem),
+            DCB_MAGIC => map(parse_dcb_be, Block::Custom)(rem),
             _ => map(parse_unknownblock_be, Block::Unknown)(rem),
         },
         Err(e) => Err(e),
