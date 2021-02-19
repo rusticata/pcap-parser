@@ -330,7 +330,7 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
             self.block_type = DSB_MAGIC;
         }
         // fix length
-        self.block_len1 = (24 + align32!(self.data.len())) as u32;
+        self.block_len1 = (20 + align32!(self.data.len())) as u32;
         self.block_len2 = self.block_len1;
     }
 
@@ -568,7 +568,6 @@ mod tests {
         assert!(pkt.magic() == DSB_MAGIC);
         if let Block::DecryptionSecrets(mut dsb) = pkt {
             let v = dsb.to_vec().expect("serialize");
-            // println!("dsb.to_vec: {:?}", v);
             let res = parse_decryptionsecretsblock_le(&v);
             assert!(res.is_ok());
         }

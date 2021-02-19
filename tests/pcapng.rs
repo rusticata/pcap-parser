@@ -10,6 +10,8 @@ static TEST001_LE: &[u8] = include_bytes!("../assets/test001-le.pcapng");
 static TEST010_LE: &[u8] = include_bytes!("../assets/test010-le.pcapng");
 static TEST016_BE: &[u8] = include_bytes!("../assets/test016-be.pcapng");
 static TEST016_LE: &[u8] = include_bytes!("../assets/test016-le.pcapng");
+static TEST017_BE: &[u8] = include_bytes!("../assets/test017-be.pcapng");
+static TEST017_LE: &[u8] = include_bytes!("../assets/test017-le.pcapng");
 
 const NG_BLOCK_ISB_BE: &[u8] = &hex!(
     "
@@ -206,6 +208,58 @@ fn ng_block_dsb_le() {
     assert_eq!(block.data.len(), 176);
     assert_eq!(block.options.len(), 0);
     assert_eq!(block.block_len1, 196);
+}
+
+#[test]
+fn ng_block_cb_be() {
+    let input = &TEST017_BE[96..=135];
+    let (i, block) = parse_customblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, CB_MAGIC.swap_bytes());
+    assert_eq!(block.pen, 0x7ed9);
+    assert_eq!(block.data.len(), 24);
+    let s = std::str::from_utf8(block.data).unwrap();
+    assert_eq!(s, "an example Custom Block\x00");
+    assert_eq!(block.block_len1, 40);
+}
+
+#[test]
+fn ng_block_cb_le() {
+    let input = &TEST017_LE[96..=135];
+    let (i, block) = parse_customblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, CB_MAGIC);
+    assert_eq!(block.pen, 0x7ed9);
+    assert_eq!(block.data.len(), 24);
+    let s = std::str::from_utf8(block.data).unwrap();
+    assert_eq!(s, "an example Custom Block\x00");
+    assert_eq!(block.block_len1, 40);
+}
+
+#[test]
+fn ng_block_dcb_be() {
+    let input = &TEST017_BE[136..=211];
+    let (i, block) = parse_dcb_be(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, DCB_MAGIC.swap_bytes());
+    assert_eq!(block.pen, 0x7ed9);
+    assert_eq!(block.data.len(), 60);
+    let s = std::str::from_utf8(block.data).unwrap();
+    assert_eq!(s, "an example Custom Block not to be copied\u{0}\u{1}\u{0}\u{b}test017 DCB\u{0}\u{0}\u{0}\u{0}\u{0}");
+    assert_eq!(block.block_len1, 76);
+}
+
+#[test]
+fn ng_block_dcb_le() {
+    let input = &TEST017_LE[136..=211];
+    let (i, block) = parse_dcb_le(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, DCB_MAGIC);
+    assert_eq!(block.pen, 0x7ed9);
+    assert_eq!(block.data.len(), 60);
+    let s = std::str::from_utf8(block.data).unwrap();
+    assert_eq!(s, "an example Custom Block not to be copied\u{1}\u{0}\u{b}\u{0}test017 DCB\u{0}\u{0}\u{0}\u{0}\u{0}");
+    assert_eq!(block.block_len1, 76);
 }
 
 #[test]
