@@ -1119,14 +1119,8 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 parse_interfacedescriptionblock_le,
                 Block::InterfaceDescription,
             )(rem),
-            SPB_MAGIC => map(
-                ng_block_parser::<SimplePacketBlock, PcapLE, _, _>(),
-                Block::SimplePacket,
-            )(rem),
-            EPB_MAGIC => map(
-                ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>(),
-                Block::EnhancedPacket,
-            )(rem),
+            SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(rem),
+            EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(rem),
             NRB_MAGIC => parse_nameresolutionblock(rem),
             ISB_MAGIC => parse_interfacestatisticsblock(rem),
             SJE_MAGIC => parse_systemdjournalexportblock(rem),
@@ -1150,14 +1144,8 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
                 parse_interfacedescriptionblock_be,
                 Block::InterfaceDescription,
             )(rem),
-            SPB_MAGIC => map(
-                ng_block_parser::<SimplePacketBlock, PcapBE, _, _>(),
-                Block::SimplePacket,
-            )(rem),
-            EPB_MAGIC => map(
-                ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>(),
-                Block::EnhancedPacket,
-            )(rem),
+            SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(rem),
+            EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(rem),
             NRB_MAGIC => parse_nameresolutionblock_be(rem),
             ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
             SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
