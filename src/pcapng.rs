@@ -634,12 +634,33 @@ impl<'a> CustomBlock<'a> {
     }
 }
 
+/// Unknown block (magic not recognized, or not yet implemented)
 #[derive(Debug)]
 pub struct UnknownBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
     pub data: &'a [u8],
     pub block_len2: u32,
+}
+
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, UnknownBlock<'a>> for UnknownBlock<'a> {
+    const HDR_SZ: usize = 12;
+    const MAGIC: u32 = 0;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], UnknownBlock<'a>, E> {
+        let block = UnknownBlock {
+            block_type,
+            block_len1,
+            data: i,
+            block_len2,
+        };
+        Ok((i, block))
+    }
 }
 
 #[derive(Debug)]
@@ -681,7 +702,7 @@ where
         if block_len1 < P::HDR_SZ as u32 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
-        if En::as_native_u32(block_type) != P::MAGIC {
+        if P::MAGIC != 0 && En::as_native_u32(block_type) != P::MAGIC {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
         // 12 is block_type (4) + block_len1 (4) + block_len2 (4)
@@ -1067,34 +1088,14 @@ pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     inner_parse_customblock(i, true)
 }
 
-fn inner_parse_unknownblock(i: &[u8], big_endian: bool) -> IResult<&[u8], Block, PcapError> {
-    // debug!("Unknown block of ID {:x}", peek!(i, le_u32).unwrap().1);
-    let read_u32 = if big_endian { be_u32 } else { le_u32 };
-    do_parse! {
-        i,
-        blocktype: read_u32 >>
-        len1:      verify!(read_u32, |val: &u32| *val >= 12) >>
-        data:      take!(len1 - 12) >>
-        len2:      verify!(read_u32, |x: &u32| *x == len1) >>
-        (
-            Block::Unknown(UnknownBlock {
-                block_type: blocktype,
-                block_len1: len1,
-                data,
-                block_len2: len2
-            })
-        )
-    }
+/// Parse an unknown block (little-endian)
+pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError> {
+    ng_block_parser::<UnknownBlock, PcapLE, _, _>()(i)
 }
 
-#[inline]
-pub fn parse_unknownblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_unknownblock(i, false)
-}
-
-#[inline]
-pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    inner_parse_unknownblock(i, true)
+/// Parse an unknown block (big-endian)
+pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError> {
+    ng_block_parser::<UnknownBlock, PcapBE, _, _>()(i)
 }
 
 #[deprecated(
@@ -1131,7 +1132,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             SJE_MAGIC => parse_systemdjournalexportblock(rem),
             DSB_MAGIC => parse_decryptionsecretsblock(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
-            _ => parse_unknownblock(rem),
+            _ => map(parse_unknownblock_le, Block::Unknown)(rem),
         },
         Err(e) => Err(e),
     }
@@ -1162,7 +1163,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
             DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
-            _ => parse_unknownblock_be(rem),
+            _ => map(parse_unknownblock_be, Block::Unknown)(rem),
         },
         Err(e) => Err(e),
     }
