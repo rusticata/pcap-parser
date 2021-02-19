@@ -7,7 +7,7 @@ pub(crate) struct PcapBE;
 pub(crate) struct PcapLE;
 
 pub(crate) trait PcapEndianness {
-    fn as_native_u32(n: u32) -> u32;
+    fn native_u32(n: u32) -> u32;
 
     fn parse_u16<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], u16, E>;
     fn parse_u32<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], u32, E>;
@@ -23,7 +23,7 @@ pub(crate) trait PcapEndianness {
 
 impl PcapEndianness for PcapBE {
     #[inline]
-    fn as_native_u32(n: u32) -> u32 {
+    fn native_u32(n: u32) -> u32 {
         u32::from_be(n)
     }
 
@@ -54,7 +54,7 @@ impl PcapEndianness for PcapBE {
 
 impl PcapEndianness for PcapLE {
     #[inline]
-    fn as_native_u32(n: u32) -> u32 {
+    fn native_u32(n: u32) -> u32 {
         u32::from_le(n)
     }
 

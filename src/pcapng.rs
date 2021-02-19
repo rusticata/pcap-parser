@@ -704,7 +704,7 @@ where
         if block_len1 < P::HDR_SZ as u32 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
-        if P::MAGIC != 0 && En::as_native_u32(block_type) != P::MAGIC {
+        if P::MAGIC != 0 && En::native_u32(block_type) != P::MAGIC {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
         // 12 is block_type (4) + block_len1 (4) + block_len2 (4)
