@@ -11,6 +11,22 @@ static TEST010_LE: &[u8] = include_bytes!("../assets/test010-le.pcapng");
 static TEST016_BE: &[u8] = include_bytes!("../assets/test016-be.pcapng");
 static TEST016_LE: &[u8] = include_bytes!("../assets/test016-le.pcapng");
 
+const NG_BLOCK_ISB_BE: &[u8] = &hex!(
+    "
+00 00 00 05 00 00 00 40 00 00 00 01 00 04 C3 97
+64 CA 47 AA 00 02 00 08 00 04 C3 97 64 CA 47 AA
+00 03 00 08 00 04 C3 97 64 CA 4B 92 00 05 00 08
+00 00 00 00 00 00 00 0A 00 00 00 00 00 00 00 40
+"
+);
+const NG_BLOCK_ISB_LE: &[u8] = &hex!(
+    "
+05 00 00 00 40 00 00 00 01 00 00 00 97 C3 04 00
+AA 47 CA 64 02 00 08 00 97 C3 04 00 AA 47 CA 64
+03 00 08 00 97 C3 04 00 92 4B CA 64 05 00 08 00
+0A 00 00 00 00 00 00 00 00 00 00 00 40 00 00 00
+"
+);
 const NG_BLOCK_UNK_BE: &[u8] = &hex!("12 34 56 78 00 00 00 10 12 34 56 78 00 00 00 10");
 const NG_BLOCK_UNK_LE: &[u8] = &hex!("12 34 56 78 10 00 00 00 12 34 56 78 10 00 00 00");
 
@@ -138,6 +154,28 @@ fn ng_block_nrb_le() {
     assert_eq!(block.nr.len(), 4);
     assert_eq!(block.options.len(), 2);
     assert_eq!(block.block_len1, 96);
+}
+
+#[test]
+fn ng_block_isb_be() {
+    let input = NG_BLOCK_ISB_BE;
+    let (i, block) = parse_interfacestatisticsblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, ISB_MAGIC.swap_bytes());
+    assert_eq!(block.if_id, 1);
+    assert_eq!(block.options.len(), 4);
+    assert_eq!(block.block_len1, 64);
+}
+
+#[test]
+fn ng_block_isb_le() {
+    let input = NG_BLOCK_ISB_LE;
+    let (i, block) = parse_interfacestatisticsblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, ISB_MAGIC);
+    assert_eq!(block.if_id, 1);
+    assert_eq!(block.options.len(), 4);
+    assert_eq!(block.block_len1, 64);
 }
 
 #[test]

@@ -627,6 +627,42 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub block_len2: u32,
 }
 
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceStatisticsBlock<'a>>
+    for InterfaceStatisticsBlock<'a>
+{
+    const HDR_SZ: usize = 24;
+    const MAGIC: u32 = ISB_MAGIC;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], InterfaceStatisticsBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read end of header
+        let (i, if_id) = En::parse_u32(i)?;
+        let (i, ts_high) = En::parse_u32(i)?;
+        let (i, ts_low) = En::parse_u32(i)?;
+        // caller function already tested header type(magic) and length
+        // read options
+        let (i, options) = En::opt_parse_options(i, block_len1 as usize, 24)?;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let block = InterfaceStatisticsBlock {
+            block_type,
+            block_len1,
+            if_id,
+            ts_high,
+            ts_low,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
 #[derive(Debug)]
 pub struct SystemdJournalExportBlock<'a> {
     pub block_type: u32,
@@ -946,52 +982,16 @@ pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], NameResolutionBl
     ng_block_parser::<NameResolutionBlock, PcapBE, _, _>()(i)
 }
 
-pub fn parse_interfacestatisticsblock(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    do_parse! {
-        i,
-        magic:      verify!(le_u32, |x:&u32| *x == ISB_MAGIC) >>
-        block_len1: le_u32 >>
-        if_id:      le_u32 >>
-        ts_high:    le_u32 >>
-        ts_low:     le_u32 >>
-        options:    call!(opt_parse_options, block_len1 as usize, 24) >>
-        block_len2: verify!(le_u32, |x:&u32| *x == block_len1) >>
-        (
-            Block::InterfaceStatistics(InterfaceStatisticsBlock{
-                block_type: magic,
-                block_len1,
-                if_id,
-                ts_high,
-                ts_low,
-                options,
-                block_len2,
-            })
-        )
-    }
+pub fn parse_interfacestatisticsblock_le(
+    i: &[u8],
+) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError> {
+    ng_block_parser::<InterfaceStatisticsBlock, PcapLE, _, _>()(i)
 }
 
-pub fn parse_interfacestatisticsblock_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    do_parse! {
-        i,
-        magic:      verify!(be_u32, |x:&u32| *x == ISB_MAGIC) >>
-        block_len1: be_u32 >>
-        if_id:      be_u32 >>
-        ts_high:    be_u32 >>
-        ts_low:     be_u32 >>
-        options:    call!(opt_parse_options_be, block_len1 as usize, 24) >>
-        block_len2: verify!(be_u32, |x:&u32| *x == block_len1) >>
-        (
-            Block::InterfaceStatistics(InterfaceStatisticsBlock{
-                block_type: magic,
-                block_len1,
-                if_id,
-                ts_high,
-                ts_low,
-                options,
-                block_len2,
-            })
-        )
-    }
+pub fn parse_interfacestatisticsblock_be(
+    i: &[u8],
+) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError> {
+    ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>()(i)
 }
 
 fn inner_parse_systemdjournalexportblock(
@@ -1137,7 +1137,10 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(rem),
             EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(rem),
             NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(rem),
-            ISB_MAGIC => parse_interfacestatisticsblock(rem),
+            ISB_MAGIC => map(
+                parse_interfacestatisticsblock_le,
+                Block::InterfaceStatistics,
+            )(rem),
             SJE_MAGIC => parse_systemdjournalexportblock(rem),
             DSB_MAGIC => parse_decryptionsecretsblock(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock(rem),
@@ -1162,7 +1165,10 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
             SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(rem),
             EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(rem),
             NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(rem),
-            ISB_MAGIC => parse_interfacestatisticsblock_be(rem),
+            ISB_MAGIC => map(
+                parse_interfacestatisticsblock_be,
+                Block::InterfaceStatistics,
+            )(rem),
             SJE_MAGIC => parse_systemdjournalexportblock_be(rem),
             DSB_MAGIC => parse_decryptionsecretsblock_be(rem),
             CB_MAGIC | DCB_MAGIC => parse_customblock_be(rem),
