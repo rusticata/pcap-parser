@@ -1,5 +1,6 @@
-use pcap_parser::pcapng::Block;
-use pcap_parser::traits::PcapReaderIterator;
+use hex_literal::hex;
+use pcap_parser::pcapng::*;
+use pcap_parser::traits::*;
 use pcap_parser::*;
 use std::fs::File;
 use std::io::BufReader;
@@ -7,6 +8,131 @@ use std::io::BufReader;
 static TEST001_BE: &[u8] = include_bytes!("../assets/test001-be.pcapng");
 static TEST001_LE: &[u8] = include_bytes!("../assets/test001-le.pcapng");
 static TEST010_LE: &[u8] = include_bytes!("../assets/test010-le.pcapng");
+static TEST016_BE: &[u8] = include_bytes!("../assets/test016-be.pcapng");
+static TEST016_LE: &[u8] = include_bytes!("../assets/test016-le.pcapng");
+
+const NG_BLOCK_UNK_BE: &[u8] = &hex!("12 34 56 78 00 00 00 10 12 34 56 78 00 00 00 10");
+const NG_BLOCK_UNK_LE: &[u8] = &hex!("12 34 56 78 10 00 00 00 12 34 56 78 10 00 00 00");
+
+#[test]
+fn ng_block_shb_be() {
+    let input = &TEST016_BE[0..=95];
+    let (i, block) = parse_sectionheaderblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, SHB_MAGIC.swap_bytes());
+    assert!(block.big_endian());
+    assert_eq!(block.major_version, 1);
+    assert_eq!(block.minor_version, 0);
+    assert_eq!(block.section_len, -1);
+    assert_eq!(block.options.iter().count(), 5);
+}
+
+#[test]
+fn ng_block_shb_le() {
+    let input = &TEST016_LE[0..=95];
+    let (i, block) = parse_sectionheaderblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, SHB_MAGIC);
+    assert!(!block.big_endian());
+    assert_eq!(block.major_version, 1);
+    assert_eq!(block.minor_version, 0);
+    assert_eq!(block.section_len, -1);
+    assert_eq!(block.options.iter().count(), 5);
+}
+
+#[test]
+fn ng_block_idb_be() {
+    let input = &TEST016_BE[96..=127];
+    let (i, block) = parse_interfacedescriptionblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, IDB_MAGIC.swap_bytes());
+    assert_eq!(block.options.iter().count(), 2);
+    assert_eq!(block.linktype, Linktype(1));
+    assert_eq!(block.snaplen, 0);
+    assert_eq!(block.if_tsresol, 6);
+    assert_eq!(block.if_tsoffset, 0);
+}
+
+#[test]
+fn ng_block_idb_le() {
+    let input = &TEST016_LE[96..=127];
+    let (i, block) = parse_interfacedescriptionblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, IDB_MAGIC);
+    assert_eq!(block.options.iter().count(), 2);
+    assert_eq!(block.linktype, Linktype(1));
+    assert_eq!(block.snaplen, 0);
+    assert_eq!(block.if_tsresol, 6);
+    assert_eq!(block.if_tsoffset, 0);
+}
+
+#[test]
+fn ng_block_spb_be() {
+    let input = &TEST016_BE[1020..=1351];
+    let (i, block) = parse_simplepacketblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert!(block.big_endian());
+    assert_eq!(block.block_type, SPB_MAGIC.swap_bytes());
+    assert_eq!(block.block_len1, 332);
+    assert_eq!(block.data.len(), 316); // with padding
+    let packet_data = block.packet_data();
+    assert_eq!(packet_data.len(), 314); // without padding
+}
+
+#[test]
+fn ng_block_spb_le() {
+    let input = &TEST016_LE[1020..=1351];
+    let (i, block) = parse_simplepacketblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert!(!block.big_endian());
+    assert_eq!(block.block_type, SPB_MAGIC);
+    assert_eq!(block.block_len1, 332);
+    assert_eq!(block.data.len(), 316); // with padding
+    let packet_data = block.packet_data();
+    assert_eq!(packet_data.len(), 314); // without padding
+}
+
+#[test]
+fn ng_block_epb_be() {
+    let input = &TEST001_BE[148..=495];
+    let (i, block) = parse_enhancedpacketblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert!(block.big_endian());
+    assert_eq!(block.block_type, EPB_MAGIC.swap_bytes());
+    assert_eq!(block.block_len1, 348);
+    assert_eq!(block.data.len(), 316); // with padding
+    let packet_data = block.packet_data();
+    assert_eq!(packet_data.len(), 314); // without padding
+}
+
+#[test]
+fn ng_block_epb_le() {
+    let input = &TEST001_LE[148..=495];
+    let (i, block) = parse_enhancedpacketblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert!(!block.big_endian());
+    assert_eq!(block.block_type, EPB_MAGIC);
+    assert_eq!(block.block_len1, 348);
+    assert_eq!(block.data.len(), 316); // with padding
+    let packet_data = block.packet_data();
+    assert_eq!(packet_data.len(), 314); // without padding
+}
+
+#[test]
+fn ng_block_unknown_be() {
+    let (i, block) = parse_unknownblock_be(NG_BLOCK_UNK_BE).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, 0x78563412);
+    assert_eq!(block.block_len1, 16);
+}
+
+#[test]
+fn ng_block_unknown_le() {
+    let (i, block) = parse_unknownblock_le(NG_BLOCK_UNK_LE).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, 0x78563412);
+    assert_eq!(block.block_len1, 16);
+}
 
 #[test]
 fn test_pcapng_capture_from_file_and_iter_le() {

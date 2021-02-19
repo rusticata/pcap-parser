@@ -243,7 +243,7 @@ pub struct SectionHeaderBlock<'a> {
 }
 
 impl<'a> SectionHeaderBlock<'a> {
-    pub fn bigendian(&self) -> bool {
+    pub fn big_endian(&self) -> bool {
         self.bom != BOM_MAGIC
     }
 }
@@ -493,6 +493,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
 /// It implements the `PcapNGPacketBlock` trait, which provides helper functions.
 #[derive(Debug)]
 pub struct SimplePacketBlock<'a> {
+    /// Block type (little endian)
     pub block_type: u32,
     pub block_len1: u32,
     /// Original packet length
@@ -637,6 +638,7 @@ impl<'a> CustomBlock<'a> {
 /// Unknown block (magic not recognized, or not yet implemented)
 #[derive(Debug)]
 pub struct UnknownBlock<'a> {
+    /// Block type (little endian)
     pub block_type: u32,
     pub block_len1: u32,
     pub data: &'a [u8],
@@ -1187,7 +1189,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 /// Parse one section (little or big endian)
 pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
-    let big_endian = shb.bigendian();
+    let big_endian = shb.big_endian();
     let (rem, mut b) = if big_endian {
         many0(complete(parse_section_content_block_be))(rem)?
     } else {
