@@ -3,7 +3,9 @@ use crate::error::PcapError;
 use crate::pcapng::*;
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
-use nom::{complete, do_parse, many1, IResult, Offset};
+use nom::combinator::{complete, map};
+use nom::multi::many1;
+use nom::{IResult, Offset};
 use std::fmt;
 use std::io::Read;
 
@@ -308,8 +310,7 @@ impl<'a> PcapNGCapture<'a> {
 ///
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture, PcapError> {
-    do_parse!(
-        i,
-        sections: many1!(complete!(parse_section)) >> (PcapNGCapture { sections })
-    )
+    map(many1(complete(parse_section)), |sections| PcapNGCapture {
+        sections,
+    })(i)
 }

@@ -1,6 +1,8 @@
 use crate::data::PacketData;
+use nom::bytes::streaming::{tag, take};
+use nom::multi::many_till;
 use nom::number::streaming::be_u16;
-use nom::{do_parse, many_till, tag, take, IResult};
+use nom::IResult;
 use std::convert::TryFrom;
 
 /* values from epan/exported_pdu.h */
@@ -18,19 +20,14 @@ pub struct ExportedTlv<'a> {
 }
 
 pub fn parse_exported_tlv(i: &[u8]) -> IResult<&[u8], ExportedTlv> {
-    do_parse! {
-        i,
-        t: be_u16 >>
-        l: be_u16 >>
-        v: take!(l) >>
-        (
-            ExportedTlv{ t, l, v }
-        )
-    }
+    let (i, t) = be_u16(i)?;
+    let (i, l) = be_u16(i)?;
+    let (i, v) = take(l)(i)?;
+    Ok((i, ExportedTlv { t, l, v }))
 }
 
 pub fn parse_many_exported_tlv(i: &[u8]) -> IResult<&[u8], Vec<ExportedTlv>> {
-    many_till!(i, parse_exported_tlv, tag!(b"\x00\x00\x00\x00")).map(|(rem, (v, _))| (rem, v))
+    many_till(parse_exported_tlv, tag(b"\x00\x00\x00\x00"))(i).map(|(rem, (v, _))| (rem, v))
 }
 
 /// Get packet data for WIRESHARK_UPPER_PDU (252)

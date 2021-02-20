@@ -8,7 +8,7 @@ pub use crate::data::pcap_nflog::*;
 use crate::linktype::Linktype;
 use crate::read_u32_e;
 use nom::number::streaming::{be_u16, be_u64};
-use nom::{do_parse, named};
+use nom::IResult;
 
 pub const ETHERTYPE_IPV4: u16 = 0x0800;
 pub const ETHERTYPE_IPV6: u16 = 0x86dd;
@@ -107,22 +107,20 @@ struct SLLHeader {
     proto: u16,
 }
 
-named! {
-    parse_sll_header<SLLHeader>,
-    do_parse!(
-        _packet_type: be_u16 >>
-        arphrd_type: be_u16 >>
-        _ll_addr_len: be_u16 >>
-        _ll_addr: be_u64 >>
-        proto: be_u16 >>
-        (SLLHeader {
-                _packet_type,
-                arphrd_type,
-                _ll_addr_len,
-                _ll_addr,
-                proto,
-            })
-    )
+fn parse_sll_header(i: &[u8]) -> IResult<&[u8], SLLHeader> {
+    let (i, _packet_type) = be_u16(i)?;
+    let (i, arphrd_type) = be_u16(i)?;
+    let (i, _ll_addr_len) = be_u16(i)?;
+    let (i, _ll_addr) = be_u64(i)?;
+    let (i, proto) = be_u16(i)?;
+    let header = SLLHeader {
+        _packet_type,
+        arphrd_type,
+        _ll_addr_len,
+        _ll_addr,
+        proto,
+    };
+    Ok((i, header))
 }
 
 /// Get packet data for LINKTYPE_IPV4 (228)
