@@ -26,7 +26,7 @@ use nom::combinator::{complete, map, map_parser};
 use nom::error::*;
 use nom::multi::{many0, many1, many_till};
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
-use nom::{call, do_parse, error_position, peek, take, Err, IResult};
+use nom::{Err, IResult};
 use rusticata_macros::{align32, newtype_enum};
 use std::convert::TryFrom;
 
@@ -262,7 +262,7 @@ impl<'a> PcapNGBlockParser<'a, PcapBE, SectionHeaderBlock<'a>> for SectionHeader
         let (i, major_version) = be_u16(i)?;
         let (i, minor_version) = be_u16(i)?;
         let (i, section_len) = be_i64(i)?;
-        let (i, options) = opt_parse_options_be(i, block_len1 as usize, 28)?;
+        let (i, options) = opt_parse_options::<PcapBE, E>(i, block_len1 as usize, 28)?;
         let block = SectionHeaderBlock {
             block_type,
             block_len1,
@@ -293,7 +293,7 @@ impl<'a> PcapNGBlockParser<'a, PcapLE, SectionHeaderBlock<'a>> for SectionHeader
         let (i, major_version) = le_u16(i)?;
         let (i, minor_version) = le_u16(i)?;
         let (i, section_len) = le_i64(i)?;
-        let (i, options) = opt_parse_options(i, block_len1 as usize, 28)?;
+        let (i, options) = opt_parse_options::<PcapLE, E>(i, block_len1 as usize, 28)?;
         let block = SectionHeaderBlock {
             block_type,
             block_len1,
@@ -341,7 +341,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock
         let (i, reserved) = En::parse_u16(i)?;
         let (i, snaplen) = En::parse_u32(i)?;
         // read options
-        let (i, options) = En::opt_parse_options(i, block_len1 as usize, 20)?;
+        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 20)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
@@ -463,7 +463,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
         let (i, data) = take(padded_length)(packet_data)?;
         // read options
         let current_offset = (32 + padded_length) as usize;
-        let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
+        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
@@ -601,7 +601,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, NameResolutionBlock<'a>>
         let (i, nr) = parse_name_record_list::<En, E>(i)?;
         // read options
         let current_offset = 12 + (i.as_ptr() as usize) - (start_i.as_ptr() as usize);
-        let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
+        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
@@ -646,7 +646,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceStatisticsBlock<
         let (i, ts_low) = En::parse_u32(i)?;
         // caller function already tested header type(magic) and length
         // read options
-        let (i, options) = En::opt_parse_options(i, block_len1 as usize, 24)?;
+        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 24)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
@@ -735,7 +735,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a
         let (i, data) = take(padded_length)(i)?;
         // read options
         let current_offset = (20 + padded_length) as usize;
-        let (i, options) = En::opt_parse_options(i, block_len1 as usize, current_offset)?;
+        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
@@ -898,61 +898,44 @@ where
     }
 }
 
-pub fn parse_option<'i, E: ParseError<&'i [u8]>>(
+#[inline]
+pub fn parse_option_le<'i, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
 ) -> IResult<&'i [u8], PcapNGOption, E> {
-    do_parse! {
-        i,
-        code:  le_u16 >>
-        len:   le_u16 >>
-        value: take!(align32!(len as u32)) >>
-        (
-            PcapNGOption {
-                code: OptionCode(code),
-                len,
-                value,
-            }
-        )
-    }
+    parse_option::<PcapLE, E>(i)
 }
 
+#[inline]
 pub fn parse_option_be<'i, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
 ) -> IResult<&'i [u8], PcapNGOption, E> {
-    do_parse! {
-        i,
-        code:  be_u16 >>
-        len:   be_u16 >>
-        value: take!(align32!(len as u32)) >>
-        (
-            PcapNGOption {
-                code: OptionCode(code),
-                len,
-                value,
-            }
-        )
-    }
+    parse_option::<PcapBE, E>(i)
 }
 
-pub(crate) fn opt_parse_options<'i, E: ParseError<&'i [u8]>>(
+pub(crate) fn parse_option<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>(
+    i: &'i [u8],
+) -> IResult<&'i [u8], PcapNGOption, E> {
+    let (i, code) = En::parse_u16(i)?;
+    let (i, len) = En::parse_u16(i)?;
+    let (i, value) = take(align32!(len as u32))(i)?;
+    let option = PcapNGOption {
+        code: OptionCode(code),
+        len,
+        value,
+    };
+    Ok((i, option))
+}
+
+pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
     len: usize,
     opt_offset: usize,
 ) -> IResult<&'i [u8], Vec<PcapNGOption>, E> {
     if len > opt_offset {
-        map_parser(take(len - opt_offset), many0(complete(parse_option)))(i)
-    } else {
-        Ok((i, Vec::new()))
-    }
-}
-
-pub(crate) fn opt_parse_options_be<'i, E: ParseError<&'i [u8]>>(
-    i: &'i [u8],
-    len: usize,
-    opt_offset: usize,
-) -> IResult<&'i [u8], Vec<PcapNGOption>, E> {
-    if len > opt_offset {
-        map_parser(take(len - opt_offset), many0(complete(parse_option_be)))(i)
+        map_parser(
+            take(len - opt_offset),
+            many0(complete(parse_option::<En, E>)),
+        )(i)
     } else {
         Ok((i, Vec::new()))
     }
@@ -1173,28 +1156,28 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
 pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    match peek!(i, call!(le_u32)) {
-        Ok((rem, id)) => match id {
-            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(rem),
+    match le_u32(i) {
+        Ok((_, id)) => match id {
+            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
             IDB_MAGIC => map(
                 parse_interfacedescriptionblock_le,
                 Block::InterfaceDescription,
-            )(rem),
-            SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(rem),
-            EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(rem),
-            NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(rem),
+            )(i),
+            SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(i),
+            EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(i),
+            NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(i),
             ISB_MAGIC => map(
                 parse_interfacestatisticsblock_le,
                 Block::InterfaceStatistics,
-            )(rem),
+            )(i),
             SJE_MAGIC => map(
                 parse_systemdjournalexportblock_le,
                 Block::SystemdJournalExport,
-            )(rem),
-            DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(rem),
-            CB_MAGIC => map(parse_customblock_le, Block::Custom)(rem),
-            DCB_MAGIC => map(parse_dcb_le, Block::Custom)(rem),
-            _ => map(parse_unknownblock_le, Block::Unknown)(rem),
+            )(i),
+            DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(i),
+            CB_MAGIC => map(parse_customblock_le, Block::Custom)(i),
+            DCB_MAGIC => map(parse_dcb_le, Block::Custom)(i),
+            _ => map(parse_unknownblock_le, Block::Unknown)(i),
         },
         Err(e) => Err(e),
     }
@@ -1205,28 +1188,28 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
 pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
-    match peek!(i, call!(be_u32)) {
-        Ok((rem, id)) => match id {
-            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(rem),
+    match be_u32(i) {
+        Ok((_, id)) => match id {
+            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
             IDB_MAGIC => map(
                 parse_interfacedescriptionblock_be,
                 Block::InterfaceDescription,
-            )(rem),
-            SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(rem),
-            EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(rem),
-            NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(rem),
+            )(i),
+            SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(i),
+            EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(i),
+            NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(i),
             ISB_MAGIC => map(
                 parse_interfacestatisticsblock_be,
                 Block::InterfaceStatistics,
-            )(rem),
+            )(i),
             SJE_MAGIC => map(
                 parse_systemdjournalexportblock_be,
                 Block::SystemdJournalExport,
-            )(rem),
-            DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(rem),
-            CB_MAGIC => map(parse_customblock_be, Block::Custom)(rem),
-            DCB_MAGIC => map(parse_dcb_be, Block::Custom)(rem),
-            _ => map(parse_unknownblock_be, Block::Unknown)(rem),
+            )(i),
+            DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(i),
+            CB_MAGIC => map(parse_customblock_be, Block::Custom)(i),
+            DCB_MAGIC => map(parse_dcb_be, Block::Custom)(i),
+            _ => map(parse_unknownblock_be, Block::Unknown)(i),
         },
         Err(e) => Err(e),
     }
@@ -1245,7 +1228,7 @@ pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block, PcapError>
 pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     let (rem, block) = parse_block_le(i)?;
     match block {
-        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+        Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
         _ => Ok((rem, block)),
     }
 }
@@ -1254,7 +1237,7 @@ pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     let (rem, block) = parse_block_be(i)?;
     match block {
-        Block::SectionHeader(_) => Err(Err::Error(error_position!(i, ErrorKind::Tag))),
+        Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
         _ => Ok((rem, block)),
     }
 }
