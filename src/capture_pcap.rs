@@ -7,7 +7,9 @@ use crate::pcap::{
 };
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
-use nom::{self, complete, do_parse, many0, IResult, Offset};
+use nom::combinator::complete;
+use nom::multi::many0;
+use nom::{self, IResult, Offset};
 use std::fmt;
 use std::io::Read;
 
@@ -296,12 +298,7 @@ impl<'a> Capture for PcapCapture<'a> {
 ///
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture, PcapError> {
-    do_parse! {
-        i,
-        header: parse_pcap_header >>
-        blocks: many0!(complete!(parse_pcap_frame)) >>
-        (
-            PcapCapture{ header, blocks }
-        )
-    }
+    let (i, header) = parse_pcap_header(i)?;
+    let (i, blocks) = many0(complete(parse_pcap_frame))(i)?;
+    Ok((i, PcapCapture { header, blocks }))
 }

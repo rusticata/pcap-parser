@@ -6,8 +6,11 @@
 //! See <http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html> for details.
 
 use crate::data::{PacketData, ETHERTYPE_IPV4, ETHERTYPE_IPV6};
+use nom::bytes::streaming::take;
+use nom::combinator::{complete, cond, verify};
+use nom::multi::many0;
 use nom::number::streaming::{be_u16, le_u16, le_u8};
-use nom::{complete, cond, do_parse, many0, named, take};
+use nom::IResult;
 
 // Defined in linux/netfilter/nfnetlink_log.h
 #[derive(Copy, Clone)]
@@ -64,15 +67,12 @@ pub struct NflogTlv<'a> {
     pub v: &'a [u8],
 }
 
-named! {
-    pub parse_nflog_tlv<NflogTlv>,
-    do_parse!(
-        l: le_u16 >>
-        t: le_u16 >>
-        v: take!(l-4) >>
-        _padding: cond!(l % 4 != 0,take!(4-(l%4))) >>
-        ( NflogTlv{l,t,v} )
-    )
+pub fn parse_nflog_tlv(i: &[u8]) -> IResult<&[u8], NflogTlv> {
+    let (i, l) = verify(le_u16, |&n| n >= 4)(i)?;
+    let (i, t) = le_u16(i)?;
+    let (i, v) = take(l - 4)(i)?;
+    let (i, _padding) = cond(l % 4 != 0, take(4 - (l % 4)))(i)?;
+    Ok((i, NflogTlv { l, t, v }))
 }
 
 #[derive(Debug)]
@@ -93,20 +93,11 @@ pub struct NflogPacket<'a> {
     pub data: Vec<NflogTlv<'a>>,
 }
 
-named! {
-    pub parse_nflog_header<NflogHdr>,
-    do_parse!(
-        af: le_u8 >>
-        v:  le_u8 >>
-        id: be_u16 >>
-        (
-            NflogHdr{
-                af,
-                vers: v,
-                res_id: id,
-            }
-        )
-    )
+pub fn parse_nflog_header(i: &[u8]) -> IResult<&[u8], NflogHdr> {
+    let (i, af) = le_u8(i)?;
+    let (i, vers) = le_u8(i)?;
+    let (i, res_id) = be_u16(i)?;
+    Ok((i, NflogHdr { af, vers, res_id }))
 }
 
 impl<'a> NflogPacket<'a> {
@@ -119,15 +110,10 @@ impl<'a> NflogPacket<'a> {
     }
 }
 
-named! {
-    pub parse_nflog<NflogPacket>,
-    do_parse!(
-        header: parse_nflog_header >>
-        data:   many0!(complete!(parse_nflog_tlv)) >>
-        (
-            NflogPacket{ header, data }
-        )
-    )
+pub fn parse_nflog(i: &[u8]) -> IResult<&[u8], NflogPacket> {
+    let (i, header) = parse_nflog_header(i)?;
+    let (i, data) = many0(complete(parse_nflog_tlv))(i)?;
+    Ok((i, NflogPacket { header, data }))
 }
 
 /// Get packet data for LINKTYPE_NFLOG (239)
