@@ -285,45 +285,45 @@ fn test_pcapng_capture_from_file_and_iter_le() {
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
     for (block, expected_len) in cap.iter().zip(expected_origlen.iter()) {
         if let PcapBlock::NG(Block::EnhancedPacket(epb)) = block {
-            println!("block total length: {}", epb.block_len1);
-            println!("captured length: {}", epb.caplen);
             assert_eq!(epb.caplen, *expected_len);
         }
     }
+    assert_eq!(cap.iter().count(), 6);
 }
 
 #[test]
 fn test_pcapng_capture_from_file_and_iter_be() {
     let cap =
         PcapNGCapture::from_file(TEST001_BE).expect("could not parse file into PcapNGCapture");
-    for block in cap.iter() {
+    let expected_origlen = &[0, 0, 314, 342, 314, 342];
+    for (block, expected_len) in cap.iter().zip(expected_origlen.iter()) {
         if let PcapBlock::NG(Block::EnhancedPacket(epb)) = block {
-            println!("block total length: {}", epb.block_len1);
-            println!("captured length: {}", epb.caplen);
+            assert_eq!(epb.caplen, *expected_len);
         }
     }
+    assert_eq!(cap.iter().count(), 6);
 }
 
 #[test]
 fn test_pcapng_iter_section_interfaces() {
     let (_, section) = parse_section(TEST001_LE).expect("could not parse section");
     assert_eq!(section.iter_interfaces().count(), 1);
-    for (idx, interface) in section.iter_interfaces().enumerate() {
-        println!("found interface {}", idx);
-        println!("  linktype: {}", interface.linktype);
-        println!("  snaplen: {}", interface.snaplen);
-    }
+    let interfaces: Vec<_> = section.iter_interfaces().collect();
+    assert_eq!(interfaces.len(), 1);
+    let if0 = &interfaces[0];
+    assert_eq!(if0.linktype, Linktype(1));
+    assert_eq!(if0.snaplen, 0);
 }
 
 #[test]
 fn test_pcapng_iter_section_interfaces_be() {
     let (_, section) = parse_section(TEST001_BE).expect("could not parse section");
     assert_eq!(section.iter_interfaces().count(), 1);
-    for (idx, interface) in section.iter_interfaces().enumerate() {
-        println!("found interface {}", idx);
-        println!("  linktype: {}", interface.linktype);
-        println!("  snaplen: {}", interface.snaplen);
-    }
+    let interfaces: Vec<_> = section.iter_interfaces().collect();
+    assert_eq!(interfaces.len(), 1);
+    let if0 = &interfaces[0];
+    assert_eq!(if0.linktype, Linktype(1));
+    assert_eq!(if0.snaplen, 0);
 }
 
 #[test]

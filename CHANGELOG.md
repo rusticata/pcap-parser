@@ -4,6 +4,12 @@
 
 ### Added
 
+### Changed/Fixed
+
+## 0.11.0
+
+### Added
+
 - Add trait PcapNGPacketBlock
 
 ### Changed/Fixed
@@ -20,18 +26,13 @@
 - Functions that parse a specific block type (for ex. EPB) return the matching type
   (EnhancedPacketBlock) with encapsulating it in a Block
 
-## 0.11.0
-
-### Added
-
-### Changed/Fixed
-
 ## 0.10.1
 
 ### Changed/Fixed
 
 - Re-export nom so crate users do not need to import it
 - Convert doc links to short form when possible
+
 ## 0.10.0
 
 ### Changed/Fixed
