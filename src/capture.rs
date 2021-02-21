@@ -24,11 +24,11 @@ pub trait Capture {
 /// ```rust
 /// # use pcap_parser::*;
 /// # use std::fs::File;
-/// # use std::io::Read;
 /// #
 /// # let path = "assets/ntp.pcap";
-/// let mut file = File::open(path).expect("File open failed");
+/// let file = File::open(path).expect("File open failed");
 /// let mut reader = create_reader(65536, file).expect("LegacyPcapReader");
+/// let _ = reader.next();
 /// ```
 pub fn create_reader<'b, R>(
     capacity: usize,

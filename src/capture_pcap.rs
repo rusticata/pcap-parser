@@ -15,8 +15,12 @@ use std::io::Read;
 
 /// Parsing iterator over legacy pcap data (streaming version)
 ///
-/// This iterator a streaming parser based on a circular buffer, so any input providing the `Read`
-/// trait can be used.
+/// ## Pcap Reader
+///
+/// This reader is a streaming parser based on a circular buffer, which means memory
+/// usage is constant, and that it can be used to parse huge files or infinite streams.
+/// It creates an abstraction over any input providing the `Read` trait, and takes care
+/// of managing the circular buffer to provide an iterator-like interface.
 ///
 /// The first call to `next` will return the file header. Some information of this header must
 /// be stored (for ex. the data link type) to be able to parse following block contents.
@@ -28,14 +32,15 @@ use std::io::Read;
 /// **There are precautions to take when reading multiple blocks before consuming data. See
 /// [PcapReaderIterator](traits/trait.PcapReaderIterator.html) for details.**
 ///
+/// ## Example
+///
 /// ```rust
 /// use pcap_parser::*;
 /// use pcap_parser::traits::PcapReaderIterator;
 /// use std::fs::File;
-/// use std::io::Read;
 ///
 /// # let path = "assets/ntp.pcap";
-/// let mut file = File::open(path).unwrap();
+/// let file = File::open(path).unwrap();
 /// let mut num_blocks = 0;
 /// let mut reader = LegacyPcapReader::new(65536, file).expect("LegacyPcapReader");
 /// loop {
@@ -81,30 +86,12 @@ impl<R> LegacyPcapReader<R>
 where
     R: Read,
 {
-    pub fn new(capacity: usize, mut reader: R) -> Result<LegacyPcapReader<R>, PcapError> {
-        let mut buffer = Buffer::with_capacity(capacity);
-        let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
-        buffer.fill(sz);
-        let (_rem, header) = match parse_pcap_header(buffer.data()) {
-            Ok((r, h)) => Ok((r, h)),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(_) => Err(PcapError::Incomplete),
-        }?;
-        let parse = if header.is_bigendian() {
-            parse_pcap_frame_be
-        } else {
-            parse_pcap_frame
-        };
-        // do not consume
-        Ok(LegacyPcapReader {
-            header,
-            reader,
-            buffer,
-            header_sent: false,
-            reader_exhausted: false,
-            parse,
-        })
+    /// Creates a new `LegacyPcapReader<R>` with the provided buffer capacity.
+    pub fn new(capacity: usize, reader: R) -> Result<LegacyPcapReader<R>, PcapError> {
+        let buffer = Buffer::with_capacity(capacity);
+        Self::from_buffer(buffer, reader)
     }
+    /// Creates a new `LegacyPcapReader<R>` using the provided `Buffer`.
     pub fn from_buffer(
         mut buffer: Buffer,
         mut reader: R,
@@ -190,7 +177,6 @@ where
 ///
 /// ```rust
 /// use pcap_parser::*;
-/// use nom::IResult;
 /// use std::fs::File;
 /// use std::io::Read;
 ///

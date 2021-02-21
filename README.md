@@ -58,15 +58,16 @@ section, in order of appearance.*
 ## Example: streaming parsers
 
 The following code shows how to parse a file in the pcap-ng format, using a
-`PcapNGReader` streaming parser.
+[`PcapNGReader`](https://docs.rs/pcap-parser/latest/pcap_parser/struct.PcapNGReader.html) streaming parser.
+This reader provides a convenient abstraction over the file format, and takes
+care of the endianness.
 
 ```rust
 use pcap_parser::*;
 use pcap_parser::traits::PcapReaderIterator;
 use std::fs::File;
-use std::io::Read;
 
-let mut file = File::open(path).unwrap();
+let file = File::open(path).unwrap();
 let mut num_blocks = 0;
 let mut reader = PcapNGReader::new(65536, file).expect("PcapNGReader");
 loop {
@@ -85,22 +86,23 @@ loop {
 }
 println!("num_blocks: {}", num_blocks);
 ```
-See `PcapNGReader` for a complete example, including handling of
-linktype and accessing packet data.
+See [`PcapNGReader`](https://docs.rs/pcap-parser/latest/pcap_parser/struct.PcapNGReader.html) for a complete example,
+including handling of linktype and accessing packet data.
+
+See also the [`pcapng`](https://docs.rs/pcap-parser/latest/pcap_parser/pcapng/index.html) module for more details about the new capture file format.
 
 For legacy pcap files, use similar code with the
-`LegacyPcapReader` streaming parser.
+[`LegacyPcapReader`](https://docs.rs/pcap-parser/latest/pcap_parser/struct.LegacyPcapReader.html) streaming parser.
 
-See [pcap-tools](https://github.com/rusticata/pcap-tools),
-[pcap-parse](https://github.com/rusticata/pcap-parse) and
-[integration
-tests](https://github.com/rusticata/pcap-parser/tree/master/tests)
+See [pcap-analyzer](https://github.com/rusticata/pcap-analyzer), in particular the
+[libpcap-tools](https://github.com/rusticata/pcap-analyzer/tree/master/libpcap-tools) and
+[pcap-info](https://github.com/rusticata/pcap-analyzer/tree/master/pcap-info) modules
 for more examples.
 
 ## Example: generic streaming parsing
 
 To create a pcap reader for input in either PCAP or PCAPNG format, use the
-`create_reader` function.
+[`create_reader`](https://docs.rs/pcap-parser/latest/pcap_parser/fn.create_reader.html) function.
 
 # Serialization
 

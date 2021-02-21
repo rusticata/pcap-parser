@@ -56,16 +56,17 @@
 //! ## Example: streaming parsers
 //!
 //! The following code shows how to parse a file in the pcap-ng format, using a
-//! `PcapNGReader` streaming parser.
+//! [`PcapNGReader`](struct.PcapNGReader.html) streaming parser.
+//! This reader provides a convenient abstraction over the file format, and takes
+//! care of the endianness.
 //!
 //! ```rust
 //! use pcap_parser::*;
 //! use pcap_parser::traits::PcapReaderIterator;
 //! use std::fs::File;
-//! use std::io::Read;
 //!
 //! # let path = "assets/test001-le.pcapng";
-//! let mut file = File::open(path).unwrap();
+//! let file = File::open(path).unwrap();
 //! let mut num_blocks = 0;
 //! let mut reader = PcapNGReader::new(65536, file).expect("PcapNGReader");
 //! loop {
@@ -84,22 +85,23 @@
 //! }
 //! println!("num_blocks: {}", num_blocks);
 //! ```
-//! See `PcapNGReader` for a complete example, including handling of
-//! linktype and accessing packet data.
+//! See [`PcapNGReader`](struct.PcapNGReader.html) for a complete example,
+//! including handling of linktype and accessing packet data.
+//!
+//! See also the [`pcapng`](pcapng/index.html) module for more details about the new capture file format.
 //!
 //! For legacy pcap files, use similar code with the
-//! `LegacyPcapReader` streaming parser.
+//! [`LegacyPcapReader`](struct.LegacyPcapReader.html) streaming parser.
 //!
-//! See [pcap-tools](https://github.com/rusticata/pcap-tools),
-//! [pcap-parse](https://github.com/rusticata/pcap-parse) and
-//! [integration
-//! tests](https://github.com/rusticata/pcap-parser/tree/master/tests)
+//! See [pcap-analyzer](https://github.com/rusticata/pcap-analyzer), in particular the
+//! [libpcap-tools](https://github.com/rusticata/pcap-analyzer/tree/master/libpcap-tools) and
+//! [pcap-info](https://github.com/rusticata/pcap-analyzer/tree/master/pcap-info) modules
 //! for more examples.
 //!
 //! ## Example: generic streaming parsing
 //!
 //! To create a pcap reader for input in either PCAP or PCAPNG format, use the
-//! `create_reader` function.
+//! [`create_reader`](fn.create_reader.html) function.
 //!
 //! # Serialization
 //!
@@ -114,6 +116,13 @@
         unstable_features,
         unused_import_braces, unused_qualifications)]
 #![deny(unsafe_code)]
+// pragmas for doc
+#![deny(broken_intra_doc_links)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc(test(
+    no_crate_inject,
+    attr(deny(warnings/*, rust_2018_idioms*/), allow(dead_code, unused_variables))
+))]
 
 mod utils;
 pub use utils::{Data, MutableData};
@@ -141,11 +150,14 @@ pub use capture_pcap::*;
 pub use capture_pcapng::*;
 
 #[cfg(feature = "serialize")]
+#[cfg_attr(docsrs, doc(cfg(feature = "serialize")))]
 mod serialize;
+#[cfg_attr(docsrs, doc(cfg(feature = "serialize")))]
 #[cfg(feature = "serialize")]
 pub use serialize::ToVec;
 
 #[cfg(feature = "data")]
+#[cfg_attr(docsrs, doc(cfg(feature = "data")))]
 pub mod data;
 
 // re-exports

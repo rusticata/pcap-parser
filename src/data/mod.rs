@@ -1,4 +1,26 @@
 //! Helper functions to access block contents (depending in linktype)
+//!
+//! ## Example
+//!
+//! ```rust
+//! use pcap_parser::data::{get_packetdata, PacketData};
+//! use pcap_parser::pcapng::EnhancedPacketBlock;
+//! use pcap_parser::Linktype;
+//!
+//! fn parse_block_content<'a>(
+//!     epb: &'a EnhancedPacketBlock<'_>,
+//!     linktype: Linktype
+//! ) -> Option<()> {
+//!     let packet_data =  get_packetdata(epb.data, linktype, epb.caplen as usize)?;
+//!     match packet_data {
+//!         PacketData::L3(_, _data) => {
+//!             // ...
+//!         },
+//!         _ => println!("Unsupported link type"),
+//!     }
+//!     Some(())
+//! }
+//! ```
 
 mod exported_pdu;
 mod pcap_nflog;
@@ -139,10 +161,8 @@ pub fn get_packetdata_ipv6(i: &[u8], _caplen: usize) -> Option<PacketData> {
 
 /// Get packet data, depending on linktype.
 ///
-/// Get packet data, depending on linktype.
-///
-/// Returns None if data could not be extracted (for ex, inner parsing error). If linktype is not
-/// supported, `PacketData::Unsupported` is used.
+/// Returns packet data, or None if data could not be extracted (for ex, inner parsing error).
+/// If linktype is not supported, `PacketData::Unsupported` is used.
 pub fn get_packetdata(i: &[u8], linktype: Linktype, caplen: usize) -> Option<PacketData> {
     match linktype {
         Linktype::NULL => get_packetdata_null(i, caplen),
