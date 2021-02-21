@@ -25,6 +25,7 @@
   - 'parse_sectionheader' is replaced by 'parse_sectionheaderblock'
 - Functions that parse a specific block type (for ex. EPB) return the matching type
   (EnhancedPacketBlock) with encapsulating it in a Block
+- Improve documentation and examples
 
 ## 0.10.1
 

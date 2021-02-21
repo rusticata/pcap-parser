@@ -11,8 +11,12 @@ use std::io::Read;
 
 /// Parsing iterator over pcap-ng data (streaming version)
 ///
-/// This iterator a streaming parser based on a circular buffer, so any input providing the `Read`
-/// trait can be used.
+/// ## Pcap-NG Reader
+///
+/// This reader is a streaming parser based on a circular buffer, which means memory
+/// usage is constant, and that it can be used to parse huge files or infinite streams.
+/// It creates an abstraction over any input providing the `Read` trait, and takes care
+/// of managing the circular buffer to provide an iterator-like interface.
 ///
 /// The first call to `next` should return the a Section Header Block (SHB), marking the start of a
 /// new section.
@@ -31,15 +35,15 @@ use std::io::Read;
 /// **There are precautions to take when reading multiple blocks before consuming data. See
 /// [PcapReaderIterator](traits/trait.PcapReaderIterator.html) for details.**
 ///
+/// ## Example
+///
 /// ```rust
 /// use pcap_parser::*;
 /// use pcap_parser::traits::PcapReaderIterator;
-/// use nom::IResult;
 /// use std::fs::File;
-/// use std::io::{BufReader, Read};
 ///
 /// # let path = "assets/test001-le.pcapng";
-/// let mut file = File::open(path).unwrap();
+/// let file = File::open(path).unwrap();
 /// let mut num_blocks = 0;
 /// let mut reader = PcapNGReader::new(65536, file).expect("PcapNGReader");
 /// let mut if_linktypes = Vec::new();
@@ -103,25 +107,12 @@ impl<R> PcapNGReader<R>
 where
     R: Read,
 {
-    pub fn new(capacity: usize, mut reader: R) -> Result<PcapNGReader<R>, PcapError> {
-        let mut buffer = Buffer::with_capacity(capacity);
-        let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
-        buffer.fill(sz);
-        // just check that first block is a valid one
-        let (_rem, _shb) = match parse_sectionheaderblock(buffer.data()) {
-            Ok((r, h)) => Ok((r, h)),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(_) => Err(PcapError::Incomplete),
-        }?;
-        let info = CurrentSectionInfo::default();
-        // do not consume
-        Ok(PcapNGReader {
-            info,
-            reader,
-            buffer,
-            reader_exhausted: false,
-        })
+    /// Creates a new `PcapNGReader<R>` with the provided buffer capacity.
+    pub fn new(capacity: usize, reader: R) -> Result<PcapNGReader<R>, PcapError> {
+        let buffer = Buffer::with_capacity(capacity);
+        Self::from_buffer(buffer, reader)
     }
+    /// Creates a new `PcapNGReader<R>` using the provided `Buffer`.
     pub fn from_buffer(mut buffer: Buffer, mut reader: R) -> Result<PcapNGReader<R>, PcapError> {
         let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
         buffer.fill(sz);
@@ -205,7 +196,6 @@ pub struct CurrentSectionInfo {
 ///
 /// ```rust
 /// use pcap_parser::*;
-/// use nom::IResult;
 /// use std::fs::File;
 /// use std::io::Read;
 ///

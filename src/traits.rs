@@ -77,11 +77,16 @@ pub trait PcapNGPacketBlock {
     fn packet_data(&self) -> &[u8];
 }
 
-/// Iterator over pcap files
+/// Streaming Iterator over pcap files
+///
+/// Implementors of this trait are usually based on a circular buffer, which means memory
+/// usage is constant, and that it can be used to parse huge files or infinite streams.
+/// However, this also means some care must be taken so no reference (for ex a pcap block) is
+/// kept on the buffer before changing the buffer content.
 ///
 /// Each call to `next` will return the next block,
 /// and must be followed by call to `consume` to avoid reading the same data.
-/// `consume` takes care of refilling the buffer.
+/// `consume` takes care of refilling the buffer if required.
 ///
 /// It is possible to read multiple blocks before consuming data.
 /// Call `consume_noshift` instead of `consume`. To refill the buffer, first ensures that you do

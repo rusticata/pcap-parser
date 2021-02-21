@@ -2,18 +2,36 @@
 //!
 //! See <https://github.com/pcapng/pcapng> for details.
 //!
-//! There are 2 main ways of parsing a PCAPNG file. The first method is to use
+//! There are several ways of parsing a PCAPNG file. The first method is to use
 //! [`parse_pcapng`](fn.parse_pcapng.html). This method requires to load the entire
 //! file to memory, and thus may not be good for large files.
 //!
-//! The [`PcapNGCapture`](struct.PcapNGCapture.html) implements the
-//! [`Capture`](../trait.Capture.html) trait to provide generic methods. However,
-//! this trait also reads the entire file.
+//! The second method is to create a [`PcapNGCapture`](../struct.PcapNGCapture.html) object,
+//! which  implements the [`Capture`](../trait.Capture.html) trait to provide generic methods.
+//! However, this method also reads the entire file.
 //!
-//! The second method is to loop over [`parse_block`](fn.parse_block.html) and match the
-//! result. The first block should be a Section header, then there should be one or more
-//! interfaces, etc.
-//! This can be used in a streaming parser.
+//! The third (and prefered) method is to use a [`PcapNGReader`](../struct.PcapNGReader.html)
+//! object.
+//!
+//! The last method is to manually read the blocks using
+//! [`parse_sectionheaderblock`](fn.parse_sectionheaderblock.html),
+//! [`parse_block_le`](fn.parse_block_le.html) and/or
+//! [`parse_block_be`](fn.parse_block_be.html).
+//!
+//! ## File format and parsing
+//!
+//! A capture file is organized in blocks. Blocks are organized in sections, each section
+//! starting with a Section Header Block (SHB), and followed by blocks (interface description,
+//! statistics, packets, etc.).
+//! A file is usually composed of one section, but can contain multiple sections. When a SHB is
+//! encountered, this means a new section starts (and all information about previous section has to
+//! be flushed, like interfaces).
+//!
+//! ## Endianness
+//!
+//! The endianness of a block is indicated by the Section Header Block that started the section
+//! containing this block. Since a file can contain several sections, a single file can contain
+//! both endianness variants.
 
 use crate::blocks::PcapBlock;
 use crate::endianness::*;
@@ -1144,7 +1162,7 @@ pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError
 
 #[deprecated(
     since = "0.11.0",
-    note = "Please use the parse_block_le function instead"
+    note = "This function is deprecated, it does not specify the endianness. Please use the parse_block_le function instead"
 )]
 #[inline]
 pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
