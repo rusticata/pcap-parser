@@ -6,6 +6,15 @@
 
 ### Changed/Fixed
 
+## 0.11.1
+
+### Added
+
+- Fix potential integer overflows when aligning data in EPB and BSD
+  Overflow was harmless, length arguments is tested after aligning anyway
+
+### Changed/Fixed
+
 ## 0.11.0
 
 ### Added

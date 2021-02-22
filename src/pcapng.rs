@@ -477,6 +477,10 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
         let caplen = En::u32_from_bytes(*array_ref4(b_hdr, 12));
         let origlen = En::u32_from_bytes(*array_ref4(b_hdr, 16));
         // read packet data
+        // align32 can overflow
+        if caplen >= ::std::u32::MAX - 4 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
         let padded_length = align32!(caplen);
         let (i, data) = take(padded_length)(packet_data)?;
         // read options
@@ -749,6 +753,10 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a
         let (i, secrets_type) = En::parse_u32(i)?;
         let (i, secrets_len) = En::parse_u32(i)?;
         // read packet data
+        // align32 can overflow
+        if secrets_len >= ::std::u32::MAX - 4 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
         let padded_length = align32!(secrets_len);
         let (i, data) = take(padded_length)(i)?;
         // read options
