@@ -116,6 +116,7 @@
         unstable_features,
         unused_import_braces, unused_qualifications)]
 #![deny(unsafe_code)]
+#![allow(clippy::upper_case_acronyms)]
 // pragmas for doc
 #![deny(broken_intra_doc_links)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
