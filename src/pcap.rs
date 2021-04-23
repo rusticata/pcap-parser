@@ -89,7 +89,7 @@ pub struct LegacyPcapBlock<'a> {
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
+pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
     if i.len() < 16 {
         return Err(nom::Err::Incomplete(nom::Needed::new(16)));
     }
@@ -112,7 +112,7 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> 
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError> {
+pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
     if i.len() < 16 {
         return Err(nom::Err::Incomplete(nom::Needed::new(16)));
     }
@@ -134,7 +134,7 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapErro
 /// Read the PCAP global header
 ///
 /// The global header contains the PCAP description and options
-pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError> {
+pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError<&[u8]>> {
     let (i, magic_number) = le_u32(i)?;
     match magic_number {
         0xa1b2_c3d4 | 0xa1b2_3c4d => {

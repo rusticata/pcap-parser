@@ -33,7 +33,7 @@ pub trait Capture {
 pub fn create_reader<'b, R>(
     capacity: usize,
     mut reader: R,
-) -> Result<Box<dyn PcapReaderIterator + 'b>, PcapError>
+) -> Result<Box<dyn PcapReaderIterator + 'b>, PcapError<&'static [u8]>>
 where
     R: Read + 'b,
 {
