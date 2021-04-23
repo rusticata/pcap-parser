@@ -39,7 +39,7 @@ use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::traits::*;
 use crate::utils::*;
-use nom::bytes::complete::{tag, take};
+use nom::bytes::streaming::{tag, take};
 use nom::combinator::{complete, map, map_parser};
 use nom::error::*;
 use nom::multi::{many0, many1, many_till};

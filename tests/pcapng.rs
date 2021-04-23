@@ -395,3 +395,11 @@ fn test_pcapng_reader_be() {
     }
     assert_eq!(num_blocks, 6);
 }
+
+// related issue: https://github.com/rusticata/pcap-parser/issues/13
+#[test]
+fn err_eof() {
+    let data = include_bytes!("../assets/err-eof.bin");
+    let res = parse_block_le(data).expect_err("expected incomplete");
+    assert!(res.is_incomplete());
+}
