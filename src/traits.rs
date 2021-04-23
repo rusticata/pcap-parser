@@ -100,7 +100,7 @@ pub trait PcapNGPacketBlock {
 /// order.
 pub trait PcapReaderIterator {
     /// Get the next pcap block, if possible. Returns the number of bytes read and the block.
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError>;
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&[u8]>>;
     /// Consume data, and shift buffer if needed.
     ///
     /// If the position gets past the buffer's half, this will move the remaining data to the
@@ -115,7 +115,7 @@ pub trait PcapReaderIterator {
     ///
     /// **The blocks already read, and underlying data, must be discarded before calling
     /// this function.**
-    fn refill(&mut self) -> Result<(), PcapError>;
+    fn refill(&mut self) -> Result<(), PcapError<&[u8]>>;
     /// Get the position in the internal buffer. Can be used to determine if `refill` is required.
     fn position(&self) -> usize;
     /// Grow size of the internal buffer.

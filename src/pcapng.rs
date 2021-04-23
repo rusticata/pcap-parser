@@ -967,16 +967,20 @@ pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>
     }
 }
 
-pub fn parse_sectionheaderblock_le(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
+pub fn parse_sectionheaderblock_le(
+    i: &[u8],
+) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
     ng_block_parser::<SectionHeaderBlock, PcapLE, _, _>()(i)
 }
 
-pub fn parse_sectionheaderblock_be(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
+pub fn parse_sectionheaderblock_be(
+    i: &[u8],
+) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
     ng_block_parser::<SectionHeaderBlock, PcapBE, _, _>()(i)
 }
 
 /// Parse a SectionHeaderBlock (little or big endian)
-pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError> {
+pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
     if i.len() < 12 {
         return Err(nom::Err::Incomplete(nom::Needed::new(12)));
     }
@@ -996,7 +1000,7 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, 
     note = "Please use the parse_sectionheaderblock function instead"
 )]
 #[inline]
-pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     parse_sectionheaderblock(i).map(|(r, b)| (r, Block::SectionHeader(b)))
 }
 
@@ -1026,14 +1030,14 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
 /// Parse an Interface Packet Block (little-endian)
 pub fn parse_interfacedescriptionblock_le(
     i: &[u8],
-) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
+) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceDescriptionBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an Interface Packet Block (big-endian)
 pub fn parse_interfacedescriptionblock_be(
     i: &[u8],
-) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError> {
+) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceDescriptionBlock, PcapBE, _, _>()(i)
 }
 
@@ -1041,24 +1045,28 @@ pub fn parse_interfacedescriptionblock_be(
 ///
 /// *Note: this function does not remove padding in the `data` field.
 /// Use `packet_data` to get field without padding.*
-pub fn parse_simplepacketblock_le(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError> {
+pub fn parse_simplepacketblock_le(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError<&[u8]>> {
     ng_block_parser::<SimplePacketBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse a Simple Packet Block (big-endian)
 ///
 /// *Note: this function does not remove padding*
-pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError> {
+pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError<&[u8]>> {
     ng_block_parser::<SimplePacketBlock, PcapBE, _, _>()(i)
 }
 
 /// Parse an Enhanced Packet Block (little-endian)
-pub fn parse_enhancedpacketblock_le(i: &[u8]) -> IResult<&[u8], EnhancedPacketBlock, PcapError> {
+pub fn parse_enhancedpacketblock_le(
+    i: &[u8],
+) -> IResult<&[u8], EnhancedPacketBlock, PcapError<&[u8]>> {
     ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an Enhanced Packet Block (big-endian)
-pub fn parse_enhancedpacketblock_be(i: &[u8]) -> IResult<&[u8], EnhancedPacketBlock, PcapError> {
+pub fn parse_enhancedpacketblock_be(
+    i: &[u8],
+) -> IResult<&[u8], EnhancedPacketBlock, PcapError<&[u8]>> {
     ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>()(i)
 }
 
@@ -1089,82 +1097,86 @@ fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
 }
 
 #[inline]
-pub fn parse_nameresolutionblock_le(i: &[u8]) -> IResult<&[u8], NameResolutionBlock, PcapError> {
+pub fn parse_nameresolutionblock_le(
+    i: &[u8],
+) -> IResult<&[u8], NameResolutionBlock, PcapError<&[u8]>> {
     ng_block_parser::<NameResolutionBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_nameresolutionblock_be(i: &[u8]) -> IResult<&[u8], NameResolutionBlock, PcapError> {
+pub fn parse_nameresolutionblock_be(
+    i: &[u8],
+) -> IResult<&[u8], NameResolutionBlock, PcapError<&[u8]>> {
     ng_block_parser::<NameResolutionBlock, PcapBE, _, _>()(i)
 }
 
 pub fn parse_interfacestatisticsblock_le(
     i: &[u8],
-) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError> {
+) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceStatisticsBlock, PcapLE, _, _>()(i)
 }
 
 pub fn parse_interfacestatisticsblock_be(
     i: &[u8],
-) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError> {
+) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>()(i)
 }
 
 #[inline]
 pub fn parse_systemdjournalexportblock_le(
     i: &[u8],
-) -> IResult<&[u8], SystemdJournalExportBlock, PcapError> {
+) -> IResult<&[u8], SystemdJournalExportBlock, PcapError<&[u8]>> {
     ng_block_parser::<SystemdJournalExportBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
 pub fn parse_systemdjournalexportblock_be(
     i: &[u8],
-) -> IResult<&[u8], SystemdJournalExportBlock, PcapError> {
+) -> IResult<&[u8], SystemdJournalExportBlock, PcapError<&[u8]>> {
     ng_block_parser::<SystemdJournalExportBlock, PcapBE, _, _>()(i)
 }
 
 #[inline]
 pub fn parse_decryptionsecretsblock_le(
     i: &[u8],
-) -> IResult<&[u8], DecryptionSecretsBlock, PcapError> {
+) -> IResult<&[u8], DecryptionSecretsBlock, PcapError<&[u8]>> {
     ng_block_parser::<DecryptionSecretsBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
 pub fn parse_decryptionsecretsblock_be(
     i: &[u8],
-) -> IResult<&[u8], DecryptionSecretsBlock, PcapError> {
+) -> IResult<&[u8], DecryptionSecretsBlock, PcapError<&[u8]>> {
     ng_block_parser::<DecryptionSecretsBlock, PcapBE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_customblock_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+pub fn parse_customblock_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
     ng_block_parser::<CustomBlock, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
     ng_block_parser::<CustomBlock, PcapBE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_dcb_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+pub fn parse_dcb_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
     ng_block_parser::<DCBParser, PcapLE, _, _>()(i)
 }
 
 #[inline]
-pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError> {
+pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
     ng_block_parser::<DCBParser, PcapBE, _, _>()(i)
 }
 
 /// Parse an unknown block (little-endian)
-pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError> {
+pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
     ng_block_parser::<UnknownBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an unknown block (big-endian)
-pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError> {
+pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
     ng_block_parser::<UnknownBlock, PcapBE, _, _>()(i)
 }
 
@@ -1173,7 +1185,7 @@ pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError
     note = "This function is deprecated, it does not specify the endianness. Please use the parse_block_le function instead"
 )]
 #[inline]
-pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     parse_block_le(i)
 }
 
@@ -1181,7 +1193,7 @@ pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     match le_u32(i) {
         Ok((_, id)) => match id {
             SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
@@ -1213,7 +1225,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     match be_u32(i) {
         Ok((_, id)) => match id {
             SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
@@ -1246,12 +1258,12 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
     note = "Please use the parse_section_content_block_le function instead"
 )]
 #[inline]
-pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     parse_section_content_block_le(i)
 }
 
 /// Parse any block from a section (little-endian)
-pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     let (rem, block) = parse_block_le(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
@@ -1260,7 +1272,7 @@ pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 }
 
 /// Parse any block from a section (big-endian)
-pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError> {
+pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     let (rem, block) = parse_block_be(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
@@ -1269,7 +1281,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 }
 
 /// Parse one section (little or big endian)
-pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
+pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError<&[u8]>> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.big_endian();
     let (rem, mut b) = if big_endian {
@@ -1286,6 +1298,6 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError> {
 
 /// Parse multiple sections (little or big endian)
 #[inline]
-pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>, PcapError> {
+pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>, PcapError<&[u8]>> {
     many1(complete(parse_section))(i)
 }

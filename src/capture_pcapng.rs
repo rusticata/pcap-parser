@@ -108,18 +108,21 @@ where
     R: Read,
 {
     /// Creates a new `PcapNGReader<R>` with the provided buffer capacity.
-    pub fn new(capacity: usize, reader: R) -> Result<PcapNGReader<R>, PcapError> {
+    pub fn new(capacity: usize, reader: R) -> Result<PcapNGReader<R>, PcapError<&'static [u8]>> {
         let buffer = Buffer::with_capacity(capacity);
         Self::from_buffer(buffer, reader)
     }
     /// Creates a new `PcapNGReader<R>` using the provided `Buffer`.
-    pub fn from_buffer(mut buffer: Buffer, mut reader: R) -> Result<PcapNGReader<R>, PcapError> {
+    pub fn from_buffer(
+        mut buffer: Buffer,
+        mut reader: R,
+    ) -> Result<PcapNGReader<R>, PcapError<&'static [u8]>> {
         let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
         buffer.fill(sz);
         // just check that first block is a valid one
         let (_rem, _shb) = match parse_sectionheaderblock(buffer.data()) {
             Ok((r, h)) => Ok((r, h)),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
+            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
             Err(_) => Err(PcapError::Incomplete),
         }?;
         let info = CurrentSectionInfo::default();
@@ -137,7 +140,7 @@ impl<R> PcapReaderIterator for PcapNGReader<R>
 where
     R: Read,
 {
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError> {
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&[u8]>> {
         // Return EOF if
         // 1) all bytes have been read
         // 2) no more data is available
@@ -170,7 +173,7 @@ where
     fn consume_noshift(&mut self, offset: usize) {
         self.buffer.consume_noshift(offset);
     }
-    fn refill(&mut self) -> Result<(), PcapError> {
+    fn refill(&mut self) -> Result<(), PcapError<&[u8]>> {
         self.buffer.shift();
         let sz = self
             .reader
@@ -219,7 +222,7 @@ pub struct PcapNGSlice<'a> {
 }
 
 impl<'a> PcapNGSlice<'a> {
-    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, nom::Err<PcapError>> {
+    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, nom::Err<PcapError<&[u8]>>> {
         // just check that first block is a valid one
         let (_rem, _shb) = parse_sectionheaderblock(i)?;
         let info = CurrentSectionInfo::default();
@@ -231,9 +234,9 @@ impl<'a> PcapNGSlice<'a> {
 /// Iterator for PcapNGSlice. Returns a result so parsing errors are not
 /// silently ignored
 impl<'a> Iterator for PcapNGSlice<'a> {
-    type Item = Result<PcapBlockOwned<'a>, nom::Err<PcapError>>;
+    type Item = Result<PcapBlockOwned<'a>, nom::Err<PcapError<&'a [u8]>>>;
 
-    fn next(&mut self) -> Option<Result<PcapBlockOwned<'a>, nom::Err<PcapError>>> {
+    fn next(&mut self) -> Option<Self::Item> {
         if self.rem.is_empty() {
             return None;
         }
@@ -286,7 +289,7 @@ impl<'a> Iterator for PcapNGCaptureIterator<'a> {
 }
 
 impl<'a> PcapNGCapture<'a> {
-    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture, PcapError> {
+    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture, PcapError<&[u8]>> {
         // XXX change return type to just an IResult
         match parse_pcapng(i) {
             Ok((_, pcap)) => Ok(pcap),
@@ -303,7 +306,7 @@ impl<'a> PcapNGCapture<'a> {
 /// Parse the entire file
 ///
 /// Note: this requires the file to be fully loaded to memory.
-pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture, PcapError> {
+pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture, PcapError<&[u8]>> {
     map(many1(complete(parse_section)), |sections| PcapNGCapture {
         sections,
     })(i)
