@@ -8,12 +8,11 @@
 
 ## 0.11.1
 
-### Added
+### Changed/Fixed
 
 - Fix potential integer overflows when aligning data in EPB and BSD
   Overflow was harmless, length arguments is tested after aligning anyway
-
-### Changed/Fixed
+- pcapng: use streaming parsers, return incomplete instead of eof (#13)
 
 ## 0.11.0
 
