@@ -59,7 +59,7 @@ fn ng_block_shb_be() {
     assert_eq!(block.major_version, 1);
     assert_eq!(block.minor_version, 0);
     assert_eq!(block.section_len, -1);
-    assert_eq!(block.options.iter().count(), 5);
+    assert_eq!(block.options.len(), 5);
 }
 
 #[test]
@@ -72,7 +72,7 @@ fn ng_block_shb_le() {
     assert_eq!(block.major_version, 1);
     assert_eq!(block.minor_version, 0);
     assert_eq!(block.section_len, -1);
-    assert_eq!(block.options.iter().count(), 5);
+    assert_eq!(block.options.len(), 5);
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn ng_block_idb_be() {
     let (i, block) = parse_interfacedescriptionblock_be(input).unwrap();
     assert!(i.is_empty());
     assert_eq!(block.block_type, IDB_MAGIC.swap_bytes());
-    assert_eq!(block.options.iter().count(), 2);
+    assert_eq!(block.options.len(), 2);
     assert_eq!(block.linktype, Linktype(1));
     assert_eq!(block.snaplen, 0);
     assert_eq!(block.if_tsresol, 6);
@@ -94,7 +94,7 @@ fn ng_block_idb_le() {
     let (i, block) = parse_interfacedescriptionblock_le(input).unwrap();
     assert!(i.is_empty());
     assert_eq!(block.block_type, IDB_MAGIC);
-    assert_eq!(block.options.iter().count(), 2);
+    assert_eq!(block.options.len(), 2);
     assert_eq!(block.linktype, Linktype(1));
     assert_eq!(block.snaplen, 0);
     assert_eq!(block.if_tsresol, 6);

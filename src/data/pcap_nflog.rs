@@ -129,14 +129,10 @@ pub fn get_packetdata_nflog(i: &[u8], _caplen: usize) -> Option<PacketData> {
                 10 => ETHERTYPE_IPV6,
                 _ => 0,
             };
-            match res
-                .data
+            res.data
                 .into_iter()
                 .find(|v| v.t == NfAttrType::Payload as u16)
-            {
-                Some(v) => Some(PacketData::L3(ethertype, v.v)),
-                None => None,
-            }
+                .map(|tlv| PacketData::L3(ethertype, tlv.v))
         }
         _ => None,
     }
