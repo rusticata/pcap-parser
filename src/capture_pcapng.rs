@@ -138,7 +138,11 @@ where
     R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError> {
-        if self.buffer.position() == 0 && self.buffer.available_data() == 0 || self.reader_exhausted
+        // Return EOF if
+        // 1) all bytes have been read
+        // 2) no more data is available
+        if self.buffer.available_data() == 0
+            && (self.buffer.position() == 0 || self.reader_exhausted)
         {
             return Err(PcapError::Eof);
         }
