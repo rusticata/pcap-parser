@@ -100,6 +100,7 @@ where
     info: CurrentSectionInfo,
     reader: R,
     buffer: Buffer,
+    consumed: usize,
     reader_exhausted: bool,
 }
 
@@ -131,6 +132,7 @@ where
             info,
             reader,
             buffer,
+            consumed: 0,
             reader_exhausted: false,
         })
     }
@@ -168,10 +170,15 @@ where
         }
     }
     fn consume(&mut self, offset: usize) {
+        self.consumed += offset;
         self.buffer.consume(offset);
     }
     fn consume_noshift(&mut self, offset: usize) {
+        self.consumed += offset;
         self.buffer.consume_noshift(offset);
+    }
+    fn consumed(&self) -> usize {
+        self.consumed
     }
     fn refill(&mut self) -> Result<(), PcapError<&[u8]>> {
         self.buffer.shift();

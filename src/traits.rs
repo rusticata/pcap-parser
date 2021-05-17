@@ -111,6 +111,8 @@ pub trait PcapReaderIterator {
     fn consume(&mut self, offset: usize);
     /// Consume date, but do not change the buffer. Blocks already read are still valid.
     fn consume_noshift(&mut self, offset: usize);
+    /// Get the number of consumed bytes
+    fn consumed(&self) -> usize;
     /// Refill the internal buffer, shifting it if necessary.
     ///
     /// **The blocks already read, and underlying data, must be discarded before calling
