@@ -93,13 +93,15 @@ pub trait PcapNGPacketBlock {
 /// not keep any reference over internal data (blocks or slices), and call `refill`.
 ///
 /// To determine when a refill is needed, either test `next()` for an incomplete read. You can also
-/// use `position` to implement a heuristic refill (for ex, when `positon > capacity / 2`.
+/// use `position` to implement a heuristic refill (for ex, when `position > capacity / 2`.
 ///
 /// **The blocks already read, and underlying data, must be discarded before calling
 /// `consume` or `refill`.** It is the caller's responsibility to call functions in the correct
 /// order.
 pub trait PcapReaderIterator {
     /// Get the next pcap block, if possible. Returns the number of bytes read and the block.
+    ///
+    /// The returned object is valid until `consume` or `refill` is called.
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&[u8]>>;
     /// Consume data, and shift buffer if needed.
     ///
