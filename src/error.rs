@@ -1,22 +1,38 @@
 use nom::error::{ErrorKind, ParseError};
 use std::fmt;
 
+/// The error type which is returned when reading a pcap file
 #[derive(Debug, PartialEq)]
 pub enum PcapError<I: Sized> {
+    /// No more data available
     Eof,
+    /// An error happened during a `read` operation
     ReadError,
+    /// Last block is incomplete, and no more data available
     Incomplete,
 
+    /// File could not be recognized as Pcap nor Pcap-NG
     HeaderNotRecognized,
 
+    /// An error encountered during parsing
     NomError(I, ErrorKind),
+    /// An error encountered during parsing (owned version)
     OwnedNomError(Vec<u8>, ErrorKind),
+}
+
+impl<I> PcapError<I> {
+    /// Creates a `PcapError` from input and error kind.
+    pub fn from_data(input: I, errorkind: ErrorKind) -> Self {
+        Self::NomError(input, errorkind)
+    }
 }
 
 impl<I> PcapError<I>
 where
     I: AsRef<[u8]> + Sized,
 {
+    /// Creates an owned `PcapError` object from borrowed data, cloning object.
+    /// Owned object has `'static` lifetime.
     pub fn to_owned_vec(&self) -> PcapError<&'static [u8]> {
         match self {
             PcapError::Eof => PcapError::Eof,
@@ -28,10 +44,6 @@ where
             }
             PcapError::OwnedNomError(v, e) => PcapError::OwnedNomError(v.clone(), *e),
         }
-    }
-
-    pub fn from_data(input: I, errorkind: ErrorKind) -> Self {
-        Self::NomError(input, errorkind)
     }
 }
 
