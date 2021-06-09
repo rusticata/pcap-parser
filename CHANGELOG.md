@@ -6,6 +6,18 @@
 
 ### Changed/Fixed
 
+## 0.12.0
+
+### Added
+
+- Add method to get total number of consumed bytes for PcapReaderIterator
+
+### Changed/Fixed
+
+- Report error instead of EOF when a block is incomplete and no more data is available
+- Add input to error type (helps diagnosing errors)
+  `PcapError` now usually has a lifetime
+
 ## 0.11.1
 
 ### Changed/Fixed
