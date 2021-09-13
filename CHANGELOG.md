@@ -6,6 +6,13 @@
 
 ### Changed/Fixed
 
+## 0.13.0
+
+### Changed/Fixed
+
+- Upgrade to nom 7
+- Set MSRV to 1.46
+
 ## 0.12.0
 
 ### Added
