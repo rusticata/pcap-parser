@@ -146,7 +146,7 @@ where
             return Err(PcapError::Eof);
         }
         let data = self.buffer.data();
-        match (self.parse)(&data) {
+        match (self.parse)(data) {
             Ok((rem, b)) => {
                 let offset = data.offset(rem);
                 Ok((offset, PcapBlockOwned::from(b)))

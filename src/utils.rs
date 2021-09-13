@@ -19,21 +19,21 @@ impl<'a> Data<'a> {
     pub fn as_slice(&self) -> &[u8] {
         match self {
             Data::Owned(ref o) => o.deref(),
-            Data::Borrowed(ref b) => b,
+            Data::Borrowed(b) => b,
         }
     }
     #[inline]
     pub fn len(&self) -> usize {
         match self {
             Data::Owned(ref o) => o.len(),
-            Data::Borrowed(ref b) => b.len(),
+            Data::Borrowed(b) => b.len(),
         }
     }
     #[inline]
     pub fn is_empty(&self) -> bool {
         match self {
             Data::Owned(ref o) => o.is_empty(),
-            Data::Borrowed(ref b) => b.is_empty(),
+            Data::Borrowed(b) => b.is_empty(),
         }
     }
 }
