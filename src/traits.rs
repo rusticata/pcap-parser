@@ -126,6 +126,11 @@ pub trait PcapReaderIterator {
     fn grow(&mut self, new_size: usize) -> bool;
     /// Returns a slice with all the available data
     fn data(&self) -> &[u8];
+    /// Returns true if underlying reader is exhausted
+    ///
+    /// Note that exhausted reader only means that next `refill` will not
+    /// add any data, but there can still be data not consumed in the current buffer.
+    fn reader_exhausted(&self) -> bool;
 }
 
 /* ******************* */

@@ -182,10 +182,13 @@ where
     }
     fn refill(&mut self) -> Result<(), PcapError<&[u8]>> {
         self.buffer.shift();
-        let sz = self
-            .reader
-            .read(self.buffer.space())
-            .or(Err(PcapError::ReadError))?;
+        let space = self.buffer.space();
+        // check if available space is empty, so we can distinguish
+        // a read() returning 0 because of EOF or because we requested 0
+        if space.is_empty() {
+            return Ok(());
+        }
+        let sz = self.reader.read(space).or(Err(PcapError::ReadError))?;
         self.reader_exhausted = sz == 0;
         self.buffer.fill(sz);
         Ok(())
@@ -198,6 +201,9 @@ where
     }
     fn data(&self) -> &[u8] {
         self.buffer.data()
+    }
+    fn reader_exhausted(&self) -> bool {
+        self.reader_exhausted
     }
 }
 
