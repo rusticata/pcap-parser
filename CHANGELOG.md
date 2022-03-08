@@ -6,6 +6,14 @@
 
 ### Changed/Fixed
 
+## 0.13.1
+
+### Changed/Fixed
+
+- PcapReaderIterator: add method to test if reader is exhausted
+  This also fix a case where reader returned Incomplete because it could
+  not distinguish EOF and a request of 0 bytes.
+
 ## 0.13.0
 
 ### Changed/Fixed
