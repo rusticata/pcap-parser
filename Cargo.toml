@@ -37,6 +37,7 @@ serialize = ["cookie-factory"]
 [package.metadata.docs.rs]
 features = [ "data", "serialize" ]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
 circular = "0.3"
