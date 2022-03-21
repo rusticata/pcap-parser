@@ -6,6 +6,12 @@
 
 ### Changed/Fixed
 
+## 0.13.2
+
+### Changed/Fixed
+
+- Add explicit configuration flags for rustdoc (#17)
+
 ## 0.13.1
 
 ### Changed/Fixed
