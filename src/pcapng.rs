@@ -227,11 +227,11 @@ impl<'a> Iterator for InterfaceBlockIterator<'a> {
 pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32, u32, u64) {
     let if_tsoffset = ts_offset;
     let if_tsresol = ts_resol;
-    let ts_mode = if_tsresol & 0x70;
+    let ts_mode = if_tsresol & 0x80;
     let unit = if ts_mode == 0 {
         10u64.pow(if_tsresol as u32)
     } else {
-        2u64.pow((if_tsresol & !0x70) as u32)
+        2u64.pow((if_tsresol & !0x80) as u32)
     };
     let ts: u64 = ((ts_high as u64) << 32) | (ts_low as u64);
     let ts_sec = (if_tsoffset + (ts / unit)) as u32;
