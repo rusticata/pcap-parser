@@ -222,21 +222,49 @@ impl<'a> Iterator for InterfaceBlockIterator<'a> {
     }
 }
 
-/// Given the timestamp parameters, return the timestamp seconds, fractional part and precision
-/// (unit) of the fractional part.
-pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, ts_resol: u8) -> (u32, u32, u64) {
-    let if_tsoffset = ts_offset;
-    let if_tsresol = ts_resol;
-    let ts_mode = if_tsresol & 0x80;
+/// Compute the timestamp resolution, in units per second
+///
+/// Return the resolution, or `None` if the resolution is invalid (for ex. greater than `2^64`)
+pub fn build_ts_resolution(ts_resol: u8) -> Option<u64> {
+    let ts_mode = ts_resol & 0x80;
     let unit = if ts_mode == 0 {
-        10u64.pow(if_tsresol as u32)
+        // 10^if_tsresol
+        // check that if_tsresol <= 19 (10^19 is the largest power of 10 to fit in a u64)
+        if ts_resol > 19 {
+            return None;
+        }
+        10u64.pow(ts_resol as u32)
     } else {
-        2u64.pow((if_tsresol & !0x80) as u32)
+        // 2^if_tsresol
+        // check that if_tsresol <= 63
+        if ts_resol > 63 {
+            return None;
+        }
+        1 << ((ts_resol & 0x7f) as u64)
     };
+    Some(unit)
+}
+
+/// Given the timestamp parameters, return the timestamp seconds and fractional part (in resolution
+/// units)
+pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, resolution: u64) -> (u32, u32) {
+    let if_tsoffset = ts_offset;
     let ts: u64 = ((ts_high as u64) << 32) | (ts_low as u64);
-    let ts_sec = (if_tsoffset + (ts / unit)) as u32;
-    let ts_fractional = (ts % unit) as u32;
-    (ts_sec, ts_fractional, unit)
+    let ts_sec = (if_tsoffset + (ts / resolution)) as u32;
+    let ts_fractional = (ts % resolution) as u32;
+    (ts_sec, ts_fractional)
+}
+
+/// Given the timestamp parameters, return the timestamp as a `f64` value.
+///
+/// The resolution is given in units per second. In pcap-ng files, it is stored in the
+/// Interface Description Block, and can be obtained using [`InterfaceDescriptionBlock::ts_resolution`]
+pub fn build_ts_f64(ts_high: u32, ts_low: u32, ts_offset: u64, resolution: u64) -> f64 {
+    let ts: u64 = ((ts_high as u64) << 32) | (ts_low as u64);
+    let ts_sec = (ts_offset + (ts / resolution)) as u32;
+    let ts_fractional = (ts % resolution) as u32;
+    // XXX should we round to closest unit?
+    ts_sec as f64 + ((ts_fractional as f64) / (resolution as f64))
 }
 
 /// The Section Header Block (SHB) identifies the
@@ -341,6 +369,22 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub if_tsoffset: u64,
 }
 
+impl<'a> InterfaceDescriptionBlock<'a> {
+    /// Decode the interface time resolution, in units per second
+    ///
+    /// Return the resolution, or `None` if the resolution is invalid (for ex. greater than `2^64`)
+    #[inline]
+    pub fn ts_resolution(&self) -> Option<u64> {
+        build_ts_resolution(self.if_tsresol)
+    }
+
+    /// Return the interface timestamp offset
+    #[inline]
+    pub fn ts_offset(&self) -> u64 {
+        self.if_tsoffset
+    }
+}
+
 impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock<'a>>
     for InterfaceDescriptionBlock<'a>
 {
@@ -424,12 +468,24 @@ pub struct EnhancedPacketBlock<'a> {
 impl<'a> EnhancedPacketBlock<'a> {
     /// Decode the packet timestamp
     ///
+    /// To decode the timestamp, the raw values if_tsresol and if_tsoffset are required.
+    /// These values are stored as options in the [`InterfaceDescriptionBlock`]
+    /// matching the interface ID.
+    ///
+    /// Return the timestamp seconds and fractional part (in resolution units)
+    #[inline]
+    pub fn decode_ts(&self, ts_offset: u64, resolution: u64) -> (u32, u32) {
+        build_ts(self.ts_high, self.ts_low, ts_offset, resolution)
+    }
+
+    /// Decode the packet timestamp as `f64`
+    ///
     /// To decode the timestamp, the resolution and offset are required.
-    /// These values are stored as options in the `InterfaceDescriptionBlock`
+    /// These values are stored as options in the [`InterfaceDescriptionBlock`]
     /// matching the interface ID.
     #[inline]
-    pub fn decode_ts(&self, ts_offset: u64, ts_resol: u8) -> (u32, u32, u64) {
-        build_ts(self.ts_high, self.ts_low, ts_offset, ts_resol)
+    pub fn decode_ts_f64(&self, ts_offset: u64, resolution: u64) -> f64 {
+        build_ts_f64(self.ts_high, self.ts_low, ts_offset, resolution)
     }
 }
 
