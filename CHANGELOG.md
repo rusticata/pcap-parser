@@ -10,6 +10,8 @@
 
 ### Changed/Fixed
 
+- Properly handle errors when decoding timestamp resolution (#16)
+- Remove deprecated pcapng parsing functions
 
 ## 0.13.3
 

@@ -1050,16 +1050,6 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, 
     }
 }
 
-/// Parse a SectionHeaderBlock (little or big endian)
-#[deprecated(
-    since = "0.11.0",
-    note = "Please use the parse_sectionheaderblock function instead"
-)]
-#[inline]
-pub fn parse_sectionheader(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
-    parse_sectionheaderblock(i).map(|(r, b)| (r, Block::SectionHeader(b)))
-}
-
 fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
     let mut if_tsresol: u8 = 6;
     let mut if_tsoffset: u64 = 0;
@@ -1236,15 +1226,6 @@ pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError
     ng_block_parser::<UnknownBlock, PcapBE, _, _>()(i)
 }
 
-#[deprecated(
-    since = "0.11.0",
-    note = "This function is deprecated, it does not specify the endianness. Please use the parse_block_le function instead"
-)]
-#[inline]
-pub fn parse_block(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
-    parse_block_le(i)
-}
-
 /// Parse any block, as little-endian
 ///
 /// To find which endianess to use, read the section header
@@ -1307,15 +1288,6 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
         },
         Err(e) => Err(e),
     }
-}
-
-#[deprecated(
-    since = "0.11.0",
-    note = "Please use the parse_section_content_block_le function instead"
-)]
-#[inline]
-pub fn parse_section_content_block(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
-    parse_section_content_block_le(i)
 }
 
 /// Parse any block from a section (little-endian)
