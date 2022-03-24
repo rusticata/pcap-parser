@@ -6,6 +6,12 @@
 
 ### Changed/Fixed
 
+## 0.13.3
+
+### Changed/Fixed
+
+- Fix computation of resolution for pcapng, when using power of two (#16)
+
 ## 0.13.2
 
 ### Changed/Fixed
