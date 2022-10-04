@@ -3,10 +3,10 @@
 //! See <https://wiki.wireshark.org/Development/LibpcapFileFormat> for details.
 //!
 //! There are 2 main ways of parsing a PCAP file. The first method is to use
-//! [`parse_pcap`](fn.parse_pcap.html). This method requires to load the entire
+//! [`parse_pcap`](../fn.parse_pcap.html). This method requires to load the entire
 //! file to memory, and thus may not be good for large files.
 //!
-//! The [`PcapCapture`](struct.PcapCapture.html) implements the
+//! The [`PcapCapture`](../struct.PcapCapture.html) implements the
 //! [`Capture`](../trait.Capture.html) trait to provide generic methods. However,
 //! this trait also reads the entire file.
 //!
