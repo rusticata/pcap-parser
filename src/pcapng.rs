@@ -3,7 +3,7 @@
 //! See <https://github.com/pcapng/pcapng> for details.
 //!
 //! There are several ways of parsing a PCAPNG file. The first method is to use
-//! [`parse_pcapng`](fn.parse_pcapng.html). This method requires to load the entire
+//! [`parse_pcapng`](../fn.parse_pcapng.html). This method requires to load the entire
 //! file to memory, and thus may not be good for large files.
 //!
 //! The second method is to create a [`PcapNGCapture`](../struct.PcapNGCapture.html) object,
