@@ -362,7 +362,7 @@ impl<'a> ToVec for CustomBlock<'a> {
             self.block_type = CB_MAGIC;
         }
         // fix length
-        self.block_len1 = (20 + align32!(self.data.len())) as u32;
+        self.block_len1 = (16 + align32!(self.data.len())) as u32;
         self.block_len2 = self.block_len1;
     }
 
