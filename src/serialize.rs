@@ -330,7 +330,8 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
             self.block_type = DSB_MAGIC;
         }
         // fix length
-        self.block_len1 = (20 + align32!(self.data.len())) as u32;
+        self.block_len1 =
+            (20 + align32!(options_length(&self.options)) + align32!(self.data.len())) as u32;
         self.block_len2 = self.block_len1;
     }
 
