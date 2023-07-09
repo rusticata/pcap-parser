@@ -63,6 +63,15 @@ impl<'a> ToVec for LegacyPcapBlock<'a> {
     }
 }
 
+fn padding_for<'a, W: Write + 'a>(unaligned_length: u32) -> impl SerializeFn<W> + 'a {
+    let length = align32!(unaligned_length) - unaligned_length;
+    slice(if length > 0 {
+        &[0, 0, 0, 0][..length as usize]
+    } else {
+        b""
+    })
+}
+
 impl<'a> ToVec for PcapNGOption<'a> {
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::new();
@@ -71,11 +80,29 @@ impl<'a> ToVec for PcapNGOption<'a> {
 }
 
 fn pcapngoption_le<'a, 'b: 'a, W: Write + 'a>(i: &'b PcapNGOption) -> impl SerializeFn<W> + 'a {
-    tuple((le_u16(i.code.0), le_u16(i.len), slice(i.value)))
+    tuple((
+        le_u16(i.code.0),
+        le_u16(i.len),
+        slice(i.value),
+        padding_for(i.value.len() as u32),
+    ))
 }
 
 fn options_length(options: &[PcapNGOption]) -> usize {
     options.iter().map(|o| align32!(4 + o.value.len())).sum()
+}
+
+fn fix_options(options: &mut Vec<PcapNGOption>) {
+    options.retain(|e| e.code != OptionCode::EndOfOpt);
+    if options.is_empty() {
+        // No EndOfOpt is required if there are no options.
+    } else {
+        options.push(PcapNGOption {
+            code: OptionCode::EndOfOpt,
+            len: 0,
+            value: &[],
+        })
+    }
 }
 
 impl<'a> ToVec for SectionHeaderBlock<'a> {
@@ -86,6 +113,7 @@ impl<'a> ToVec for SectionHeaderBlock<'a> {
         self.bom = BOM_MAGIC;
         self.major_version = 1;
         self.minor_version = 0;
+        fix_options(&mut self.options);
         // fix length
         let length = (28 + options_length(&self.options)) as u32;
         self.block_len1 = length;
@@ -117,9 +145,6 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
         self.block_type = IDB_MAGIC;
         self.reserved = 0;
         // check time resolutopn
-        if self.options.last().map(|o| o.code.0 == 0).unwrap_or(false) {
-            self.options.pop();
-        }
         if !self.options.iter().any(|o| o.code == OptionCode::IfTsresol) {
             self.options.push(PcapNGOption {
                 code: OptionCode::IfTsresol,
@@ -138,11 +163,7 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
                 value: &[0, 0, 0, 0, 0, 0, 0, 0],
             });
         }
-        self.options.push(PcapNGOption {
-            code: OptionCode::EndOfOpt,
-            len: 0,
-            value: b"",
-        });
+        fix_options(&mut self.options);
         // fix length
         let length = (20 + options_length(&self.options)) as u32;
         self.block_len1 = length;
@@ -173,6 +194,7 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
     fn fix(&mut self) {
         self.block_type = EPB_MAGIC;
         self.if_id = 0;
+        fix_options(&mut self.options);
         // fix length
         let length = (32 + self.data.len() + options_length(&self.options)) as u32;
         self.block_len1 = align32!(length);
@@ -181,9 +203,6 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let al_len = align32!(self.data.len());
-        let diff = al_len - self.data.len();
-        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
@@ -194,7 +213,7 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
                 le_u32(self.caplen),
                 le_u32(self.origlen),
                 slice(self.data),
-                slice(padding),
+                padding_for(self.data.len() as u32),
                 many_ref(&self.options, pcapngoption_le),
                 le_u32(self.block_len2),
             )),
@@ -214,16 +233,13 @@ impl<'a> ToVec for SimplePacketBlock<'a> {
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let al_len = align32!(self.data.len());
-        let diff = al_len - self.data.len();
-        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
                 le_u32(self.origlen),
                 slice(self.data),
-                slice(padding),
+                padding_for(self.data.len() as u32),
                 le_u32(self.block_len2),
             )),
             &mut v,
@@ -247,6 +263,7 @@ fn namerecords_length(nr: &[NameRecord]) -> usize {
 impl<'a> ToVec for NameResolutionBlock<'a> {
     fn fix(&mut self) {
         self.block_type = NRB_MAGIC;
+        fix_options(&mut self.options);
         // fix length
         let length = (12 + namerecords_length(&self.nr) + options_length(&self.options)) as u32;
         self.block_len1 = align32!(length);
@@ -272,6 +289,7 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
 impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
     fn fix(&mut self) {
         self.block_type = ISB_MAGIC;
+        fix_options(&mut self.options);
         // fix length
         self.block_len1 = (24 + align32!(options_length(&self.options))) as u32;
         self.block_len2 = self.block_len1;
@@ -307,15 +325,12 @@ impl<'a> ToVec for SystemdJournalExportBlock<'a> {
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let al_len = align32!(self.data.len());
-        let diff = al_len - self.data.len();
-        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
                 slice(self.data),
-                slice(padding),
+                padding_for(self.data.len() as u32),
                 le_u32(self.block_len2),
             )),
             &mut v,
@@ -329,6 +344,7 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
         if self.block_type != DSB_MAGIC {
             self.block_type = DSB_MAGIC;
         }
+        fix_options(&mut self.options);
         // fix length
         self.block_len1 =
             (20 + align32!(options_length(&self.options)) + align32!(self.data.len())) as u32;
@@ -337,9 +353,6 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let al_len = align32!(self.data.len());
-        let diff = al_len - self.data.len();
-        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
@@ -347,7 +360,7 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
                 le_u32(self.secrets_type.0),
                 le_u32(self.secrets_len),
                 slice(self.data),
-                slice(padding),
+                padding_for(self.data.len() as u32),
                 many_ref(&self.options, pcapngoption_le),
                 le_u32(self.block_len2),
             )),
@@ -369,16 +382,13 @@ impl<'a> ToVec for CustomBlock<'a> {
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(64);
-        let al_len = align32!(self.data.len());
-        let diff = al_len - self.data.len();
-        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
                 le_u32(self.pen),
                 slice(self.data),
-                slice(padding),
+                padding_for(self.data.len() as u32),
                 le_u32(self.block_len2),
             )),
             &mut v,
@@ -397,15 +407,12 @@ impl<'a> ToVec for UnknownBlock<'a> {
 
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::new();
-        let al_len = align32!(self.data.len());
-        let diff = al_len - self.data.len();
-        let padding = if diff > 0 { &[0, 0, 0, 0][..diff] } else { b"" };
         gen(
             tuple((
                 le_u32(self.block_type),
                 le_u32(self.block_len1),
                 slice(self.data),
-                slice(padding),
+                padding_for(self.data.len() as u32),
                 le_u32(self.block_len2),
             )),
             &mut v,
@@ -454,6 +461,7 @@ mod tests {
     use crate::serialize::ToVec;
     use crate::traits::tests::{
         FRAME_PCAP, FRAME_PCAPNG_DSB, FRAME_PCAPNG_EPB, FRAME_PCAPNG_EPB_WITH_OPTIONS,
+        FRAME_PCAPNG_SHB,
     };
     use crate::Linktype;
 
@@ -481,6 +489,31 @@ mod tests {
         assert_eq!(v.len(), FRAME_PCAP.len());
         assert_eq!(v, FRAME_PCAP);
     }
+
+    fn frame_should_not_be_fixed(frame: &[u8]) {
+        let (rem, mut pkt) = parse_block_le(frame).expect("packet parsing failed");
+        assert!(rem.is_empty());
+        assert_eq!(pkt.to_vec().unwrap(), frame);
+    }
+
+    #[test]
+    fn test_dsb_not_fixed() {
+        frame_should_not_be_fixed(FRAME_PCAPNG_DSB);
+    }
+    #[test]
+    #[ignore = "broken"]
+    fn test_epb_not_fixed() {
+        frame_should_not_be_fixed(FRAME_PCAPNG_EPB);
+    }
+    #[test]
+    fn test_epb_with_options_not_fixed() {
+        frame_should_not_be_fixed(FRAME_PCAPNG_EPB_WITH_OPTIONS);
+    }
+    #[test]
+    fn test_shb_not_fixed() {
+        frame_should_not_be_fixed(FRAME_PCAPNG_SHB);
+    }
+
     #[test]
     fn test_serialize_shb() {
         let shb = SectionHeaderBlock {
@@ -497,6 +530,33 @@ mod tests {
         // println!("shb.to_vec_raw: {:?}", v);
         let res = parse_sectionheaderblock_le(&v);
         assert!(res.is_ok());
+    }
+    #[test]
+    fn test_serialize_shb_fix() {
+        let mut shb = SectionHeaderBlock {
+            block_type: 0,
+            block_len1: 0,
+            bom: 0,
+            major_version: 0,
+            minor_version: 0,
+            section_len: -1,
+            options: vec![
+                // Unaligned option length
+                PcapNGOption {
+                    code: OptionCode::ShbUserAppl,
+                    len: 5,
+                    value: b"meows",
+                },
+                // Missing endofopt
+            ],
+            block_len2: 0,
+        };
+
+        let v = shb.to_vec().expect("serialize");
+        // println!("shb.to_vec_raw: {:?}", v);
+        let res = parse_sectionheaderblock_le(&v);
+        // println!("res: {:?}", res);
+        res.unwrap();
     }
     #[test]
     fn test_serialize_shb_options() {
