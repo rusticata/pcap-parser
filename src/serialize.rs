@@ -193,7 +193,6 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
     /// Check and correct all fields: use magic, version and fix lengths fields
     fn fix(&mut self) {
         self.block_type = EPB_MAGIC;
-        self.if_id = 0;
         fix_options(&mut self.options);
         // fix length
         let length = (32 + self.data.len() + options_length(&self.options)) as u32;
@@ -501,7 +500,6 @@ mod tests {
         frame_should_not_be_fixed(FRAME_PCAPNG_DSB);
     }
     #[test]
-    #[ignore = "broken"]
     fn test_epb_not_fixed() {
         frame_should_not_be_fixed(FRAME_PCAPNG_EPB);
     }
