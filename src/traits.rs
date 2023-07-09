@@ -42,7 +42,7 @@ pub trait PcapNGBlock {
     /// *Warning: the offset can be out of bounds, caller must test value before accessing data*
     #[inline]
     fn offset_options(&self) -> usize {
-        let len = self.data_len() as usize;
+        let len = self.data_len();
         self.header_len() + align32!(len)
     }
     /// Network packet options.
