@@ -46,7 +46,7 @@ nom = "7.0"
 rusticata-macros = "4.0"
 
 [dev-dependencies]
-hex-literal = "0.3"
+hex-literal = "0.4"
 
 [badges]
 travis-ci = { repository = "rusticata/pcap-parser" }
