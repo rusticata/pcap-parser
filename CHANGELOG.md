@@ -6,6 +6,19 @@
 
 ### Changed/Fixed
 
+## 0.14.1
+
+### Changed/Fixed
+
+- Fix serialization of some options (#23, #25, #26)
+- Fix broken internal links (#19)
+- Fix returned value for Incomplete to be number of missing bytes, not total (#22)
+- NG Reader: fix documentation and example to correctly refill buffer (#18, #20)
+
+### Thanks
+
+- vrbhartiya, Clint White, Jade Lovelace
+
 ## 0.14.0
 
 ### Changed/Fixed
