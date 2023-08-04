@@ -47,6 +47,7 @@ use std::io::Read;
 /// let mut num_blocks = 0;
 /// let mut reader = PcapNGReader::new(65536, file).expect("PcapNGReader");
 /// let mut if_linktypes = Vec::new();
+/// let mut last_incomplete_index = 0;
 /// loop {
 ///     match reader.next() {
 ///         Ok((offset, block)) => {
@@ -84,9 +85,14 @@ use std::io::Read;
 ///         },
 ///         Err(PcapError::Eof) => break,
 ///         Err(PcapError::Incomplete) => {
-///             eprintln!("Could not read complete data block.");
-///             eprintln!("Hint: the reader buffer size may be too small, or the input file nay be truncated.");
-///             break;
+///             if last_incomplete_index == num_blocks {
+///                 eprintln!("Could not read complete data block.");
+///                 eprintln!("Hint: the reader buffer size may be too small, or the input file nay be truncated.");
+///                 break;
+///             }
+///             last_incomplete_index = num_blocks;
+///             reader.refill().expect("Could not refill reader");
+///             continue;
 ///         },
 ///         Err(e) => panic!("error while reading: {:?}", e),
 ///     }

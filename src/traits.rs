@@ -86,7 +86,7 @@ pub trait PcapNGPacketBlock {
 ///
 /// Each call to `next` will return the next block,
 /// and must be followed by call to `consume` to avoid reading the same data.
-/// `consume` takes care of refilling the buffer if required.
+/// `consume` takes care of shifting data in the buffer if required, but does not refill it.
 ///
 /// It is possible to read multiple blocks before consuming data.
 /// Call `consume_noshift` instead of `consume`. To refill the buffer, first ensures that you do
