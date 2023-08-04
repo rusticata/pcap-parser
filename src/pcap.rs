@@ -91,7 +91,7 @@ pub struct LegacyPcapBlock<'a> {
 /// The packet data format depends on the LinkType.
 pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
     if i.len() < 16 {
-        return Err(nom::Err::Incomplete(nom::Needed::new(16)));
+        return Err(nom::Err::Incomplete(nom::Needed::new(16 - i.len())));
     }
     let ts_sec = u32::from_le_bytes(*array_ref4(i, 0));
     let ts_usec = u32::from_le_bytes(*array_ref4(i, 4));
@@ -114,7 +114,7 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&
 /// The packet data format depends on the LinkType.
 pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
     if i.len() < 16 {
-        return Err(nom::Err::Incomplete(nom::Needed::new(16)));
+        return Err(nom::Err::Incomplete(nom::Needed::new(16 - i.len())));
     }
     let ts_sec = u32::from_be_bytes(*array_ref4(i, 0));
     let ts_usec = u32::from_be_bytes(*array_ref4(i, 4));

@@ -960,7 +960,7 @@ where
         // read generic block layout
         //
         if i.len() < P::HDR_SZ {
-            return Err(nom::Err::Incomplete(nom::Needed::new(P::HDR_SZ)));
+            return Err(nom::Err::Incomplete(nom::Needed::new(P::HDR_SZ - i.len())));
         }
         let (i, block_type) = le_u32(i)?;
         let (i, block_len1) = En::parse_u32(i)?;
@@ -1038,7 +1038,7 @@ pub fn parse_sectionheaderblock_be(
 /// Parse a SectionHeaderBlock (little or big endian)
 pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
     if i.len() < 12 {
-        return Err(nom::Err::Incomplete(nom::Needed::new(12)));
+        return Err(nom::Err::Incomplete(nom::Needed::new(12 - i.len())));
     }
     let bom = u32::from_le_bytes(*array_ref4(i, 8));
     if bom == BOM_MAGIC {
