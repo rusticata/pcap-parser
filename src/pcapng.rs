@@ -91,6 +91,10 @@ pub const DCB_MAGIC: u32 = 0x4000_0BAD;
 /// Byte Order magic
 pub const BOM_MAGIC: u32 = 0x1A2B_3C4D;
 
+/// Process Information Block magic
+/// (Apple addition, non standardized)
+pub const PIB_MAGIC: u32 = 0x8000_0001;
+
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct OptionCode(pub u16);
 
@@ -121,6 +125,7 @@ pub enum Block<'a> {
     InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     SystemdJournalExport(SystemdJournalExportBlock<'a>),
     DecryptionSecrets(DecryptionSecretsBlock<'a>),
+    ProcessInformation(ProcessInformationBlock<'a>),
     Custom(CustomBlock<'a>),
     Unknown(UnknownBlock<'a>),
 }
@@ -142,6 +147,7 @@ impl<'a> Block<'a> {
             Block::InterfaceStatistics(_) => ISB_MAGIC,
             Block::SystemdJournalExport(_) => SJE_MAGIC,
             Block::DecryptionSecrets(_) => DSB_MAGIC,
+            Block::ProcessInformation(_) => PIB_MAGIC,
             Block::Custom(cb) => cb.block_type,
             Block::Unknown(ub) => ub.block_type,
         }
@@ -898,6 +904,42 @@ impl<'a> CustomBlock<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct ProcessInformationBlock<'a> {
+    pub block_type: u32,
+    pub block_len1: u32,
+    pub options: Vec<PcapNGOption<'a>>,
+    pub block_len2: u32,
+}
+
+impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, ProcessInformationBlock<'a>>
+    for ProcessInformationBlock<'a>
+{
+    const MAGIC: u32 = PIB_MAGIC;
+    const HDR_SZ: usize = 4;
+
+    fn inner_parse<E: ParseError<&'a [u8]>>(
+        block_type: u32,
+        block_len1: u32,
+        i: &'a [u8],
+        block_len2: u32,
+    ) -> IResult<&'a [u8], ProcessInformationBlock<'a>, E> {
+        // caller function already tested header type(magic) and length
+        // read options
+        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 12)?;
+        if block_len2 != block_len1 {
+            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        }
+        let block = ProcessInformationBlock {
+            block_type,
+            block_len1,
+            options,
+            block_len2,
+        };
+        Ok((i, block))
+    }
+}
+
 /// Unknown block (magic not recognized, or not yet implemented)
 #[derive(Debug)]
 pub struct UnknownBlock<'a> {
@@ -1216,6 +1258,20 @@ pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
     ng_block_parser::<DCBParser, PcapBE, _, _>()(i)
 }
 
+#[inline]
+pub fn parse_processinformationblock_le(
+    i: &[u8],
+) -> IResult<&[u8], ProcessInformationBlock, PcapError<&[u8]>> {
+    ng_block_parser::<ProcessInformationBlock, PcapLE, _, _>()(i)
+}
+
+#[inline]
+pub fn parse_processinformationblock_be(
+    i: &[u8],
+) -> IResult<&[u8], ProcessInformationBlock, PcapError<&[u8]>> {
+    ng_block_parser::<ProcessInformationBlock, PcapBE, _, _>()(i)
+}
+
 /// Parse an unknown block (little-endian)
 pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
     ng_block_parser::<UnknownBlock, PcapLE, _, _>()(i)
@@ -1252,6 +1308,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
             DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(i),
             CB_MAGIC => map(parse_customblock_le, Block::Custom)(i),
             DCB_MAGIC => map(parse_dcb_le, Block::Custom)(i),
+            PIB_MAGIC => map(parse_processinformationblock_le, Block::ProcessInformation)(i),
             _ => map(parse_unknownblock_le, Block::Unknown)(i),
         },
         Err(e) => Err(e),
@@ -1284,6 +1341,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
             DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(i),
             CB_MAGIC => map(parse_customblock_be, Block::Custom)(i),
             DCB_MAGIC => map(parse_dcb_be, Block::Custom)(i),
+            PIB_MAGIC => map(parse_processinformationblock_be, Block::ProcessInformation)(i),
             _ => map(parse_unknownblock_be, Block::Unknown)(i),
         },
         Err(e) => Err(e),
