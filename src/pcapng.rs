@@ -908,6 +908,7 @@ impl<'a> CustomBlock<'a> {
 pub struct ProcessInformationBlock<'a> {
     pub block_type: u32,
     pub block_len1: u32,
+    pub process_id: u32,
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
 }
@@ -926,13 +927,15 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, ProcessInformationBlock<'
     ) -> IResult<&'a [u8], ProcessInformationBlock<'a>, E> {
         // caller function already tested header type(magic) and length
         // read options
-        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 12)?;
+        let (i, process_id) = En::parse_u32(i)?;
+        let (i, options) = opt_parse_options::<En, E>(i, (block_len1 - 4) as usize, 12)?;
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = ProcessInformationBlock {
             block_type,
             block_len1,
+            process_id,
             options,
             block_len2,
         };
