@@ -6,6 +6,8 @@ use std::fmt;
 pub enum PcapError<I: Sized> {
     /// No more data available
     Eof,
+    /// Expected more data but got EOF
+    UnexpectedEof,
     /// An error happened during a `read` operation
     ReadError,
     /// Last block is incomplete, and no more data available
@@ -36,6 +38,7 @@ where
     pub fn to_owned_vec(&self) -> PcapError<&'static [u8]> {
         match self {
             PcapError::Eof => PcapError::Eof,
+            PcapError::UnexpectedEof => PcapError::UnexpectedEof,
             PcapError::ReadError => PcapError::ReadError,
             PcapError::Incomplete => PcapError::Incomplete,
             PcapError::HeaderNotRecognized => PcapError::HeaderNotRecognized,
@@ -63,6 +66,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PcapError::Eof => write!(f, "End of file"),
+            PcapError::UnexpectedEof => write!(f, "Unexpected end of file"),
             PcapError::ReadError => write!(f, "Read error"),
             PcapError::Incomplete => write!(f, "Incomplete read"),
             PcapError::HeaderNotRecognized => write!(f, "Header not recognized as PCAP or PCAPNG"),
