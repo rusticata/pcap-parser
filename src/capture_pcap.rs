@@ -152,7 +152,14 @@ where
                 Ok((offset, PcapBlockOwned::from(b)))
             }
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(_) => Err(PcapError::Incomplete),
+            Err(nom::Err::Incomplete(_)) => {
+                if self.reader_exhausted {
+                    // expected more bytes but reader is EOF, truncated pcap?
+                    Err(PcapError::UnexpectedEof)
+                } else {
+                    Err(PcapError::Incomplete)
+                }
+            },
         }
     }
     fn consume(&mut self, offset: usize) {
