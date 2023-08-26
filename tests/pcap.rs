@@ -1,7 +1,7 @@
 use pcap_parser::traits::PcapReaderIterator;
 use pcap_parser::*;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 
 static TEST_NTP: &[u8] = include_bytes!("../assets/ntp.pcap");
 
@@ -47,4 +47,32 @@ fn test_pcap_reader() {
         }
     }
     assert_eq!(num_blocks, 13); /* 1 (header) + 12 (data blocks) */
+}
+
+#[test]
+fn test_truncated_pcap() {
+    let path = "assets/ntp.pcap";
+    let mut file = File::open(path).unwrap();
+    // truncate pcap
+    let mut buf = vec![0; 981];
+    file.read_exact(&mut buf).unwrap();
+    let mut reader = LegacyPcapReader::new(65536, &buf[..]).expect("LegacyPcapReader");
+    let mut incomplete_count: u32 = 0;
+    loop {
+        match reader.next() {
+            Ok((offset, _block)) => {
+                reader.consume(offset);
+            }
+            Err(PcapError::Eof) => unreachable!("should not parse without error"),
+            Err(PcapError::Incomplete(_)) => {
+                reader.refill().unwrap();
+                incomplete_count += 1;
+                if incomplete_count > 1 << 20 {
+                    panic!("reader stuck in infinite loop");
+                }
+            },
+            Err(PcapError::UnexpectedEof) => return,
+            Err(e) => panic!("error while reading: {:?}", e),
+        }
+    }
 }
