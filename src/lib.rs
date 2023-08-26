@@ -77,7 +77,7 @@
 //!             reader.consume(offset);
 //!         },
 //!         Err(PcapError::Eof) => break,
-//!         Err(PcapError::Incomplete) => {
+//!         Err(PcapError::Incomplete(_)) => {
 //!             reader.refill().unwrap();
 //!         },
 //!         Err(e) => panic!("error while reading: {:?}", e),
@@ -118,7 +118,7 @@
 #![deny(unsafe_code)]
 #![allow(clippy::upper_case_acronyms)]
 // pragmas for doc
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc(test(
     no_crate_inject,

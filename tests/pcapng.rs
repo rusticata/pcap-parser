@@ -387,7 +387,7 @@ fn test_pcapng_reader_be() {
                 reader.consume(offset);
             }
             Err(PcapError::Eof) => break,
-            Err(PcapError::Incomplete) => {
+            Err(PcapError::Incomplete(_)) => {
                 reader.refill().unwrap();
             }
             Err(e) => panic!("error while reading: {:?}", e),

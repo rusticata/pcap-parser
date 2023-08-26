@@ -7,6 +7,7 @@ use crate::pcap::parse_pcap_header;
 use crate::pcapng::parse_sectionheaderblock;
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
+use nom::Needed;
 use std::io::Read;
 
 /// Generic interface for PCAP or PCAPNG file access
@@ -51,7 +52,8 @@ where
     match parse_pcap_header(buffer.data()) {
         Ok(_) => LegacyPcapReader::from_buffer(buffer, reader)
             .map(|r| Box::new(r) as Box<dyn PcapReaderIterator>),
-        Err(nom::Err::Incomplete(_)) => Err(PcapError::Incomplete),
+        Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+        Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         _ => Err(PcapError::HeaderNotRecognized),
     }
 }
