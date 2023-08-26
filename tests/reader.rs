@@ -18,7 +18,7 @@ fn test_empty_reader_incomplete() {
     let res = create_reader(1024, empty);
     assert!(res.is_err());
     if let Err(err) = res {
-        assert_eq!(err, PcapError::Incomplete);
+        assert!(matches!(err, PcapError::Incomplete(_)));
     } else {
         unreachable!();
     }

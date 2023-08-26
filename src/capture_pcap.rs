@@ -9,7 +9,7 @@ use crate::traits::PcapReaderIterator;
 use circular::Buffer;
 use nom::combinator::complete;
 use nom::multi::many0;
-use nom::{self, IResult, Offset};
+use nom::{self, IResult, Needed, Offset};
 use std::fmt;
 use std::io::Read;
 
@@ -60,7 +60,7 @@ use std::io::Read;
 ///             reader.consume(offset);
 ///         },
 ///         Err(PcapError::Eof) => break,
-///         Err(PcapError::Incomplete) => {
+///         Err(PcapError::Incomplete(_)) => {
 ///             reader.refill().unwrap();
 ///         },
 ///         Err(e) => panic!("error while reading: {:?}", e),
@@ -105,7 +105,8 @@ where
         let (_rem, header) = match parse_pcap_header(buffer.data()) {
             Ok((r, h)) => Ok((r, h)),
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
-            Err(_) => Err(PcapError::Incomplete),
+            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }?;
         let parse = if header.is_bigendian() {
             parse_pcap_frame_be
@@ -152,14 +153,17 @@ where
                 Ok((offset, PcapBlockOwned::from(b)))
             }
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(nom::Err::Incomplete(_)) => {
+            Err(nom::Err::Incomplete(n)) => {
                 if self.reader_exhausted {
                     // expected more bytes but reader is EOF, truncated pcap?
                     Err(PcapError::UnexpectedEof)
                 } else {
-                    Err(PcapError::Incomplete)
+                    match n {
+                        Needed::Size(n) => Err(PcapError::Incomplete(n.into())),
+                        Needed::Unknown => Err(PcapError::Incomplete(0)),
+                    }
                 }
-            },
+            }
         }
     }
     fn consume(&mut self, offset: usize) {
@@ -265,7 +269,8 @@ impl<'a> PcapCapture<'a> {
         match parse_pcap(i) {
             Ok((_, pcap)) => Ok(pcap),
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(_) => Err(PcapError::Incomplete),
+            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }
     }
 }

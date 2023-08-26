@@ -11,7 +11,7 @@ pub enum PcapError<I: Sized> {
     /// An error happened during a `read` operation
     ReadError,
     /// Last block is incomplete, and no more data available
-    Incomplete,
+    Incomplete(usize),
 
     /// File could not be recognized as Pcap nor Pcap-NG
     HeaderNotRecognized,
@@ -40,7 +40,7 @@ where
             PcapError::Eof => PcapError::Eof,
             PcapError::UnexpectedEof => PcapError::UnexpectedEof,
             PcapError::ReadError => PcapError::ReadError,
-            PcapError::Incomplete => PcapError::Incomplete,
+            PcapError::Incomplete(n) => PcapError::Incomplete(*n),
             PcapError::HeaderNotRecognized => PcapError::HeaderNotRecognized,
             PcapError::NomError(i, errorkind) => {
                 PcapError::OwnedNomError(i.as_ref().to_vec(), *errorkind)
@@ -68,7 +68,7 @@ where
             PcapError::Eof => write!(f, "End of file"),
             PcapError::UnexpectedEof => write!(f, "Unexpected end of file"),
             PcapError::ReadError => write!(f, "Read error"),
-            PcapError::Incomplete => write!(f, "Incomplete read"),
+            PcapError::Incomplete(n) => write!(f, "Incomplete read: {n}"),
             PcapError::HeaderNotRecognized => write!(f, "Header not recognized as PCAP or PCAPNG"),
             PcapError::NomError(i, e) => write!(f, "Internal parser error {:?}, input {:?}", e, i),
             PcapError::OwnedNomError(i, e) => {
