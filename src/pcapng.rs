@@ -159,7 +159,7 @@ pub struct Section<'a> {
 impl<'a> Section<'a> {
     /// Returns the section header
     pub fn header(&self) -> Option<&SectionHeaderBlock> {
-        if let Some(Block::SectionHeader(ref b)) = self.blocks.get(0) {
+        if let Some(Block::SectionHeader(ref b)) = self.blocks.first() {
             Some(b)
         } else {
             None
