@@ -4,6 +4,7 @@ use pcap_parser::traits::*;
 use pcap_parser::*;
 use std::fs::File;
 use std::io::BufReader;
+use std::io::Read;
 
 static TEST001_BE: &[u8] = include_bytes!("../assets/test001-be.pcapng");
 static TEST001_LE: &[u8] = include_bytes!("../assets/test001-le.pcapng");
@@ -451,4 +452,29 @@ fn test_pcapng_earlyeofandnotexhausted() {
     assert!(!matches!(res, Err(PcapError::Eof)));
     // res should be Incomplete(4) (attempt to read magic)
     assert!(matches!(res, Err(PcapError::Incomplete(4))));
+}
+
+#[test]
+fn test_pcapng_reader_eof() {
+    let path = "assets/test001-le.pcapng";
+    let mut file = File::open(path).unwrap();
+    let mut buf = vec![0; 96];
+    file.read_exact(&mut buf).unwrap();
+
+    // 96 is exactly the size of the first SHB, so the first consume will empty the buffer
+    let mut reader = PcapNGReader::new(250, buf.as_slice()).expect("PcapNGReader");
+    let (offset, _block) = reader.next().expect("could not read first block");
+    reader.consume(offset);
+
+    // first read should return Incomplete, buf does not know if underlying reader has reached Eof
+    let res = reader.next();
+    assert!(matches!(res, Err(PcapError::Incomplete(_))));
+
+    reader.refill().unwrap();
+
+    match reader.next() {
+        Err(PcapError::Eof) => (),
+        Err(e) => panic!("unexpected error {:?}", e),
+        Ok(_) => unreachable!(),
+    }
 }
