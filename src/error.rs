@@ -72,7 +72,7 @@ where
             PcapError::BufferTooSmall => write!(f, "Buffer is too small"),
             PcapError::UnexpectedEof => write!(f, "Unexpected end of file"),
             PcapError::ReadError => write!(f, "Read error"),
-            PcapError::Incomplete(n) => write!(f, "Incomplete read: {n}"),
+            PcapError::Incomplete(n) => write!(f, "Incomplete read: {}", n),
             PcapError::HeaderNotRecognized => write!(f, "Header not recognized as PCAP or PCAPNG"),
             PcapError::NomError(i, e) => write!(f, "Internal parser error {:?}, input {:?}", e, i),
             PcapError::OwnedNomError(i, e) => {
