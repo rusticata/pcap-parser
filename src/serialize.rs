@@ -369,6 +369,33 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
     }
 }
 
+impl<'a> ToVec for ProcessInformationBlock<'a> {
+    /// Check and correct all fields: use magic, version and fix lengths fields
+    fn fix(&mut self) {
+        self.block_type = PIB_MAGIC;
+        fix_options(&mut self.options);
+        // fix length
+        let length = (16 + options_length(&self.options)) as u32;
+        self.block_len1 = align32!(length);
+        self.block_len2 = self.block_len1;
+    }
+
+    fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
+        let mut v = Vec::with_capacity(64);
+        gen(
+            tuple((
+                le_u32(self.block_type),
+                le_u32(self.block_len1),
+                le_u32(self.process_id),
+                many_ref(&self.options, pcapngoption_le),
+                le_u32(self.block_len2),
+            )),
+            &mut v,
+        )
+        .map(|res| res.0.to_vec())
+    }
+}
+
 impl<'a> ToVec for CustomBlock<'a> {
     fn fix(&mut self) {
         if self.block_type != DCB_MAGIC && self.block_type != CB_MAGIC {
@@ -431,6 +458,7 @@ impl<'a> ToVec for Block<'a> {
             Block::InterfaceStatistics(b) => b.fix(),
             Block::SystemdJournalExport(b) => b.fix(),
             Block::DecryptionSecrets(b) => b.fix(),
+            Block::ProcessInformation(b) => b.fix(),
             Block::Custom(b) => b.fix(),
             Block::Unknown(b) => b.fix(),
         }
@@ -446,6 +474,7 @@ impl<'a> ToVec for Block<'a> {
             Block::InterfaceStatistics(b) => b.to_vec_raw(),
             Block::SystemdJournalExport(b) => b.to_vec_raw(),
             Block::DecryptionSecrets(b) => b.to_vec_raw(),
+            Block::ProcessInformation(b) => b.to_vec_raw(),
             Block::Custom(b) => b.to_vec_raw(),
             Block::Unknown(b) => b.to_vec_raw(),
         }
