@@ -366,7 +366,7 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub options: Vec<PcapNGOption<'a>>,
     pub block_len2: u32,
     pub if_tsresol: u8,
-    pub if_tsoffset: u64,
+    pub if_tsoffset: i64,
 }
 
 impl<'a> InterfaceDescriptionBlock<'a> {
@@ -380,7 +380,7 @@ impl<'a> InterfaceDescriptionBlock<'a> {
 
     /// Return the interface timestamp offset
     #[inline]
-    pub fn ts_offset(&self) -> u64 {
+    pub fn ts_offset(&self) -> i64 {
         self.if_tsoffset
     }
 }
@@ -1050,9 +1050,9 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, 
     }
 }
 
-fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
+fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, i64) {
     let mut if_tsresol: u8 = 6;
-    let mut if_tsoffset: u64 = 0;
+    let mut if_tsoffset: i64 = 0;
     for opt in options {
         match opt.code {
             OptionCode::IfTsresol => {
@@ -1063,8 +1063,8 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, u64) {
             OptionCode::IfTsoffset => {
                 if opt.value.len() >= 8 {
                     let int_bytes =
-                        <[u8; 8]>::try_from(&opt.value[..8]).expect("Convert bytes to u64");
-                    if_tsoffset = u64::from_le_bytes(int_bytes);
+                        <[u8; 8]>::try_from(&opt.value[..8]).expect("Convert bytes to i64");
+                    if_tsoffset = i64::from_le_bytes(int_bytes);
                 }
             }
             _ => (),
