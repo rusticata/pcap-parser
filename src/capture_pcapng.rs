@@ -154,7 +154,7 @@ where
         // 1) all bytes have been read
         // 2) no more data is available
         if self.buffer.available_data() == 0
-            && (self.buffer.position() == 0 || self.reader_exhausted)
+            && (self.buffer.position() == 0 && self.reader_exhausted)
         {
             return Err(PcapError::Eof);
         }

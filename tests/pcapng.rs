@@ -431,3 +431,24 @@ fn test_reader_buffer_too_small() {
     }
     assert_eq!(num_blocks, 9);
 }
+
+// related issue: https://github.com/rusticata/pcap-parser/issues/30
+#[test]
+fn test_pcapng_earlyeofandnotexhausted() {
+    let path = "assets/test001-le.pcapng";
+    let file = File::open(path).unwrap();
+    let buffered = BufReader::new(file);
+
+    // 96 is exactly the size of the first SHB, so the first consume will empty the buffer
+    let mut reader = PcapNGReader::new(96, buffered).expect("PcapNGReader");
+    let (offset, _block) = reader.next().expect("could not read first block");
+    reader.consume(offset);
+    // the second read happens in the following situation: buf.available_data == 0 AND buf.position == 0
+    assert_eq!(reader.position(), 0);
+    assert!(reader.data().is_empty());
+    let res = reader.next();
+    // res should not be Eof
+    assert!(!matches!(res, Err(PcapError::Eof)));
+    // res should be Incomplete(4) (attempt to read magic)
+    assert!(matches!(res, Err(PcapError::Incomplete(4))));
+}
