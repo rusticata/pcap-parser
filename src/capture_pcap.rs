@@ -159,7 +159,15 @@ where
                     Err(PcapError::UnexpectedEof)
                 } else {
                     match n {
-                        Needed::Size(n) => Err(PcapError::Incomplete(n.into())),
+                        Needed::Size(n) => {
+                            if self.buffer.available_data() + usize::from(n)
+                                >= self.buffer.capacity()
+                            {
+                                Err(PcapError::BufferTooSmall)
+                            } else {
+                                Err(PcapError::Incomplete(n.into()))
+                            }
+                        }
                         Needed::Unknown => Err(PcapError::Incomplete(0)),
                     }
                 }

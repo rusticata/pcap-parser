@@ -5,7 +5,7 @@ use crate::traits::PcapReaderIterator;
 use circular::Buffer;
 use nom::combinator::{complete, map};
 use nom::multi::many1;
-use nom::{IResult, Offset, Needed};
+use nom::{IResult, Needed, Offset};
 use std::fmt;
 use std::io::Read;
 
@@ -179,11 +179,19 @@ where
                     Err(PcapError::UnexpectedEof)
                 } else {
                     match n {
-                        Needed::Size(n) => Err(PcapError::Incomplete(n.into())),
+                        Needed::Size(n) => {
+                            if self.buffer.available_data() + usize::from(n)
+                                >= self.buffer.capacity()
+                            {
+                                Err(PcapError::BufferTooSmall)
+                            } else {
+                                Err(PcapError::Incomplete(n.into()))
+                            }
+                        }
                         Needed::Unknown => Err(PcapError::Incomplete(0)),
                     }
                 }
-            },
+            }
         }
     }
     fn consume(&mut self, offset: usize) {

@@ -6,6 +6,8 @@ use std::fmt;
 pub enum PcapError<I: Sized> {
     /// No more data available
     Eof,
+    /// Buffer capacity is too small, and some full frame cannot be stored
+    BufferTooSmall,
     /// Expected more data but got EOF
     UnexpectedEof,
     /// An error happened during a `read` operation
@@ -38,6 +40,7 @@ where
     pub fn to_owned_vec(&self) -> PcapError<&'static [u8]> {
         match self {
             PcapError::Eof => PcapError::Eof,
+            PcapError::BufferTooSmall => PcapError::BufferTooSmall,
             PcapError::UnexpectedEof => PcapError::UnexpectedEof,
             PcapError::ReadError => PcapError::ReadError,
             PcapError::Incomplete(n) => PcapError::Incomplete(*n),
@@ -66,6 +69,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PcapError::Eof => write!(f, "End of file"),
+            PcapError::BufferTooSmall => write!(f, "Buffer is too small"),
             PcapError::UnexpectedEof => write!(f, "Unexpected end of file"),
             PcapError::ReadError => write!(f, "Read error"),
             PcapError::Incomplete(n) => write!(f, "Incomplete read: {n}"),

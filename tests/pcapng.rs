@@ -403,3 +403,31 @@ fn err_eof() {
     let res = parse_block_le(data).expect_err("expected incomplete");
     assert!(res.is_incomplete());
 }
+
+// related issue: https://github.com/rusticata/pcap-parser/issues/29
+#[test]
+fn test_reader_buffer_too_small() {
+    let file = File::open("assets/err-buffertoosmall.pcapng").unwrap();
+    let mut reader = create_reader(1024, file).expect("PcapNGReader");
+    let mut num_blocks = 0;
+    let mut num_refills = 0;
+    const MAX_REFILLS: usize = 20;
+    // the only expected way to exit this loop is to encounter BufferTooSmall
+    // check number of refills to detect infinite loops
+    loop {
+        match reader.next() {
+            Ok((offset, _block)) => {
+                num_blocks += 1;
+                reader.consume(offset)
+            }
+            Err(PcapError::Incomplete(_)) => {
+                num_refills += 1;
+                assert!(num_refills < MAX_REFILLS);
+                reader.refill().unwrap();
+            }
+            Err(PcapError::BufferTooSmall) => break,
+            Err(e) => panic!("Unexpected error {:?}", e),
+        }
+    }
+    assert_eq!(num_blocks, 9);
+}
