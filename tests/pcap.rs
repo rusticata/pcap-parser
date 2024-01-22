@@ -70,7 +70,7 @@ fn test_truncated_pcap() {
                 if incomplete_count > 1 << 20 {
                     panic!("reader stuck in infinite loop");
                 }
-            },
+            }
             Err(PcapError::UnexpectedEof) => return,
             Err(e) => panic!("error while reading: {:?}", e),
         }
