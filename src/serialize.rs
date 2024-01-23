@@ -6,6 +6,7 @@ use cookie_factory::multi::many_ref;
 use cookie_factory::sequence::tuple;
 use cookie_factory::{gen, GenError, SerializeFn};
 use rusticata_macros::align32;
+use std::borrow::Cow;
 use std::io::Write;
 
 /// Common trait for all serialization functions
@@ -83,7 +84,7 @@ fn pcapngoption_le<'a, 'b: 'a, W: Write + 'a>(i: &'b PcapNGOption) -> impl Seria
     tuple((
         le_u16(i.code.0),
         le_u16(i.len),
-        slice(i.value),
+        slice(&i.value),
         padding_for(i.value.len() as u32),
     ))
 }
@@ -100,7 +101,7 @@ fn fix_options(options: &mut Vec<PcapNGOption>) {
         options.push(PcapNGOption {
             code: OptionCode::EndOfOpt,
             len: 0,
-            value: &[],
+            value: Cow::Borrowed(&[]),
         })
     }
 }
@@ -149,7 +150,7 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
             self.options.push(PcapNGOption {
                 code: OptionCode::IfTsresol,
                 len: 1,
-                value: &[6, 0, 0, 0],
+                value: Cow::Borrowed(&[6, 0, 0, 0]),
             });
         }
         if !self
@@ -160,7 +161,7 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
             self.options.push(PcapNGOption {
                 code: OptionCode::IfTsoffset,
                 len: 8,
-                value: &[0, 0, 0, 0, 0, 0, 0, 0],
+                value: Cow::Borrowed(&[0, 0, 0, 0, 0, 0, 0, 0]),
             });
         }
         fix_options(&mut self.options);
@@ -483,6 +484,8 @@ impl<'a> ToVec for Block<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow;
+
     use crate::pcap::tests::PCAP_HDR;
     use crate::pcap::{parse_pcap_frame, parse_pcap_header};
     use crate::pcapng::*;
@@ -572,7 +575,7 @@ mod tests {
                 PcapNGOption {
                     code: OptionCode::ShbUserAppl,
                     len: 5,
-                    value: b"meows",
+                    value: Cow::Borrowed(b"meows"),
                 },
                 // Missing endofopt
             ],
@@ -597,7 +600,7 @@ mod tests {
             options: vec![PcapNGOption {
                 code: OptionCode(0),
                 len: 3,
-                value: &[0, 0, 0, 0],
+                value: Cow::Borrowed(&[0, 0, 0, 0]),
             }],
             block_len2: 28 + 8,
         };

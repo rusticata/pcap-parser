@@ -46,6 +46,7 @@ use nom::multi::{many0, many1, many_till};
 use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
 use nom::{Err, IResult};
 use rusticata_macros::{align32, newtype_enum};
+use std::borrow::Cow;
 use std::convert::TryFrom;
 
 trait PcapNGBlockParser<'a, En: PcapEndianness, O: 'a> {
@@ -977,7 +978,14 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, UnknownBlock<'a>> for Unk
 pub struct PcapNGOption<'a> {
     pub code: OptionCode,
     pub len: u16,
-    pub value: &'a [u8],
+    pub value: Cow<'a, [u8]>,
+}
+
+impl<'a> PcapNGOption<'a> {
+    /// Return a reference to the option value, as raw bytes
+    pub fn value(&self) -> &[u8] {
+        self.value.as_ref()
+    }
 }
 
 #[derive(Debug)]
@@ -1048,7 +1056,7 @@ pub(crate) fn parse_option<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>(
     let option = PcapNGOption {
         code: OptionCode(code),
         len,
-        value,
+        value: Cow::Borrowed(value),
     };
     Ok((i, option))
 }
