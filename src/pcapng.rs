@@ -982,9 +982,72 @@ pub struct PcapNGOption<'a> {
 }
 
 impl<'a> PcapNGOption<'a> {
-    /// Return a reference to the option value, as raw bytes
+    /// Return a reference to the option value, as raw bytes (not related to the `len` field)
+    #[inline]
     pub fn value(&self) -> &[u8] {
         self.value.as_ref()
+    }
+
+    /// Return a reference to the option value, using the `len` field to limit it, or None if length is invalid
+    pub fn as_bytes(&self) -> Option<&[u8]> {
+        let len = usize::from(self.len);
+        if len <= self.value.len() {
+            Some(&self.value[..len])
+        } else {
+            None
+        }
+    }
+
+    /// Return the option value interpreted as i32, or None
+    ///
+    /// Option data length and declared must be exactly 4 bytes
+    pub fn as_i32_le(&self) -> Option<i32> {
+        if self.len == 8 && self.value.len() == 8 {
+            <[u8; 4]>::try_from(self.value())
+                .ok()
+                .map(i32::from_le_bytes)
+        } else {
+            None
+        }
+    }
+
+    /// Return the option value interpreted as u32, or None
+    ///
+    /// Option data length and declared must be exactly 4 bytes
+    pub fn as_u32_le(&self) -> Option<u32> {
+        if self.len == 8 && self.value.len() == 8 {
+            <[u8; 4]>::try_from(self.value())
+                .ok()
+                .map(u32::from_le_bytes)
+        } else {
+            None
+        }
+    }
+
+    /// Return the option value interpreted as i64, or None
+    ///
+    /// Option data length and declared must be exactly 8 bytes
+    pub fn as_i64_le(&self) -> Option<i64> {
+        if self.len == 8 && self.value.len() == 8 {
+            <[u8; 8]>::try_from(self.value())
+                .ok()
+                .map(i64::from_le_bytes)
+        } else {
+            None
+        }
+    }
+
+    /// Return the option value interpreted as u64, or None
+    ///
+    /// Option data length and declared must be exactly 8 bytes
+    pub fn as_u64_le(&self) -> Option<u64> {
+        if self.len == 8 && self.value.len() == 8 {
+            <[u8; 8]>::try_from(self.value())
+                .ok()
+                .map(u64::from_le_bytes)
+        } else {
+            None
+        }
     }
 }
 
