@@ -147,10 +147,11 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
         self.reserved = 0;
         // check time resolutopn
         if !self.options.iter().any(|o| o.code == OptionCode::IfTsresol) {
+            let tsresol_bytes = vec![self.if_tsresol, 0, 0, 0];
             self.options.push(PcapNGOption {
                 code: OptionCode::IfTsresol,
                 len: 1,
-                value: Cow::Borrowed(&[6, 0, 0, 0]),
+                value: Cow::Owned(tsresol_bytes),
             });
         }
         if !self
@@ -158,10 +159,11 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
             .iter()
             .any(|o| o.code == OptionCode::IfTsoffset)
         {
+            let tsoffset_bytes = self.if_tsoffset.to_le_bytes();
             self.options.push(PcapNGOption {
                 code: OptionCode::IfTsoffset,
                 len: 8,
-                value: Cow::Borrowed(&[0, 0, 0, 0, 0, 0, 0, 0]),
+                value: Cow::Owned(tsoffset_bytes.to_vec()),
             });
         }
         fix_options(&mut self.options);
