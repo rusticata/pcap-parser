@@ -20,6 +20,7 @@ impl display Linktype {
 
     LOOP = 108,
     LINUX_SLL = 113,
+    LINUX_SLL2 = 276,
 
     // Raw IPv4; the packet begins with an IPv4 header.
     IPV4 = 228,
