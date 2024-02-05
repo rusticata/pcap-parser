@@ -6,6 +6,41 @@
 
 ### Changed/Fixed
 
+## 0.15.0
+
+### Upgrade notes and breaking changes
+
+The PcapNGOption type now uses a `Cow<[u8]>` instead of `&[u8]`. To access raw value,
+use `option.value()` or `&option.value` instead of `option.value`.
+This allow changing the options when serializing blocks.
+
+The new error types may require to match more variants when handling errors.
+
+The `PcapError::Incomplete` variant now contains a value: the number of missing
+bytes, or 0 if unknown.
+
+The `InterfaceDescriptionBlock::if_tsoffset` field is now a i64 (signed).
+
+### Changed/Fixed
+
+- Set MSRV to 1.53.0
+- Fix if_tsoffset to be a signed value (#21)
+- Add support for Apple-specific process information block (#27)
+- Added const for LINUX_SLL2 (#31)
+- PcapNGOption:
+  - Allow PcapNGOption to own data (using a Cow<[u8]>)
+  - Serialize: use provided if_tsresol and if_tsoffset (#24)
+  - Add helper methods to allow extracting value from PcapNGOption
+- Error handling:
+  - Add PcapError::UnexpectedEof error type (#28)
+  - Reader: report how many additional bytes are needed when returning `Incomplete`
+  - Add new error kind BufferTooSmall, and raise error if buffer capacity is too small (#29)
+  - Return Eof if reader is exhausted AND bytes have been consumed (#30)
+
+### Thanks
+
+- iczero, Julien Gamba, Bobby Richter
+
 ## 0.14.1
 
 ### Changed/Fixed
