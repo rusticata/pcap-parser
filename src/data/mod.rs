@@ -29,7 +29,8 @@ pub use crate::data::exported_pdu::*;
 pub use crate::data::pcap_nflog::*;
 use crate::linktype::Linktype;
 use crate::read_u32_e;
-use nom::number::streaming::{be_u16, be_u64};
+use nom::number::complete::be_u32;
+use nom::number::streaming::{be_u8, be_u16, be_u64};
 use nom::IResult;
 
 pub const ETHERTYPE_IPV4: u16 = 0x0800;
@@ -145,6 +146,57 @@ fn parse_sll_header(i: &[u8]) -> IResult<&[u8], SLLHeader> {
     Ok((i, header))
 }
 
+/// Get packet data for LINKTYPE_LINUX_SLL2 (276)
+///
+/// See <https://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL2.html>
+pub fn get_packetdata_linux_sll2(i: &[u8], caplen: usize) -> Option<PacketData> {
+    if i.len() < caplen || caplen == 0 {
+        None
+    } else {
+        match parse_sll2_header(i) {
+            Err(_) => None,
+            Ok((rem, sll)) => {
+                match sll.arphrd_type {
+                    778 /* ARPHRD_IPGRE */ => Some(PacketData::L4(47, rem)),
+                    803 /* ARPHRD_IEEE80211_RADIOTAP */ |
+                    824 /* ARPHRD_NETLINK */ => None,
+                    _ => Some(PacketData::L3(sll.protocol_type, rem)),
+                }
+            }
+        }
+    }
+}
+
+struct SLL2Header {
+    protocol_type: u16,
+    _reserved: u16,
+    _interface_index: u32,
+    arphrd_type: u16,
+    _packet_type: u8,
+    _ll_addr_len: u8,
+    _ll_addr: u64,
+}
+
+fn parse_sll2_header(i: &[u8]) -> IResult<&[u8], SLL2Header> {
+    let (i, protocol_type) = be_u16(i)?;
+    let (i, _reserved) = be_u16(i)?;
+    let (i, _interface_index) = be_u32(i)?;
+    let (i, arphrd_type) = be_u16(i)?;
+    let (i, _packet_type) = be_u8(i)?;
+    let (i, _ll_addr_len) = be_u8(i)?;
+    let (i, _ll_addr) = be_u64(i)?;
+    let header = SLL2Header {
+        protocol_type,
+        _reserved,
+        _interface_index,
+        arphrd_type,
+        _packet_type,
+        _ll_addr_len,
+        _ll_addr,
+    };
+    Ok((i, header))
+}
+
 /// Get packet data for LINKTYPE_IPV4 (228)
 ///
 /// Raw IPv4; the packet begins with an IPv4 header.
@@ -169,6 +221,7 @@ pub fn get_packetdata(i: &[u8], linktype: Linktype, caplen: usize) -> Option<Pac
         Linktype::ETHERNET => get_packetdata_ethernet(i, caplen),
         Linktype::RAW => get_packetdata_raw(i, caplen),
         Linktype::LINUX_SLL => get_packetdata_linux_sll(i, caplen),
+        Linktype::LINUX_SLL2 => get_packetdata_linux_sll2(i, caplen),
         Linktype::IPV4 => get_packetdata_ipv4(i, caplen),
         Linktype::IPV6 => get_packetdata_ipv6(i, caplen),
         Linktype::NFLOG => get_packetdata_nflog(i, caplen),
