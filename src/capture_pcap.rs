@@ -9,7 +9,7 @@ use crate::traits::PcapReaderIterator;
 use circular::Buffer;
 use nom::combinator::complete;
 use nom::multi::many0;
-use nom::{self, IResult, Needed, Offset};
+use nom::{IResult, Needed, Offset};
 use std::fmt;
 use std::io::Read;
 
