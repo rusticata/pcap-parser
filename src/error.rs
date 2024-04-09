@@ -64,7 +64,7 @@ impl<I> ParseError<I> for PcapError<I> {
 
 impl<I> fmt::Display for PcapError<I>
 where
-    I: std::fmt::Debug,
+    I: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -82,4 +82,4 @@ where
     }
 }
 
-impl<I> std::error::Error for PcapError<I> where I: std::fmt::Debug {}
+impl<I> std::error::Error for PcapError<I> where I: fmt::Debug {}

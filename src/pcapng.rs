@@ -541,7 +541,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
         let origlen = En::u32_from_bytes(*array_ref4(b_hdr, 16));
         // read packet data
         // align32 can overflow
-        if caplen >= ::std::u32::MAX - 4 {
+        if caplen >= std::u32::MAX - 4 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let padded_length = align32!(caplen);
@@ -817,7 +817,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a
         let (i, secrets_len) = En::parse_u32(i)?;
         // read packet data
         // align32 can overflow
-        if secrets_len >= ::std::u32::MAX - 4 {
+        if secrets_len >= std::u32::MAX - 4 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let padded_length = align32!(secrets_len);
@@ -1076,7 +1076,7 @@ where
         // read generic block layout
         //
         if i.len() < P::HDR_SZ {
-            return Err(nom::Err::Incomplete(nom::Needed::new(P::HDR_SZ - i.len())));
+            return Err(Err::Incomplete(nom::Needed::new(P::HDR_SZ - i.len())));
         }
         let (i, block_type) = le_u32(i)?;
         let (i, block_len1) = En::parse_u32(i)?;
@@ -1154,7 +1154,7 @@ pub fn parse_sectionheaderblock_be(
 /// Parse a SectionHeaderBlock (little or big endian)
 pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
     if i.len() < 12 {
-        return Err(nom::Err::Incomplete(nom::Needed::new(12 - i.len())));
+        return Err(Err::Incomplete(nom::Needed::new(12 - i.len())));
     }
     let bom = u32::from_le_bytes(*array_ref4(i, 8));
     if bom == BOM_MAGIC {
