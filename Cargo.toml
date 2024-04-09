@@ -49,9 +49,6 @@ rusticata-macros = "4.0"
 [dev-dependencies]
 hex-literal = "0.4"
 
-[badges]
-travis-ci = { repository = "rusticata/pcap-parser" }
-
 [package.metadata.cargo_check_external_types]
 allowed_external_types = [
   "nom",
