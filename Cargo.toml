@@ -51,3 +51,10 @@ hex-literal = "0.4"
 
 [badges]
 travis-ci = { repository = "rusticata/pcap-parser" }
+
+[package.metadata.cargo_check_external_types]
+allowed_external_types = [
+  "nom",
+  "nom::*",
+  "circular::Buffer",
+]
