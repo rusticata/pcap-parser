@@ -1,6 +1,5 @@
 use crate::pcap::{LegacyPcapBlock, PcapHeader};
 use crate::pcapng::Block;
-use std::convert::From;
 
 /// A block from a Pcap or PcapNG file
 pub enum PcapBlockOwned<'a> {
