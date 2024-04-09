@@ -24,7 +24,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - name: Cargo update
         run: cargo update
-      - run: cargo check
+      - run: RUSTFLAGS="-D warnings" cargo check
 
   test:
     name: Test Suite
