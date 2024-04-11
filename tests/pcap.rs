@@ -76,3 +76,33 @@ fn test_truncated_pcap() {
         }
     }
 }
+
+#[test]
+fn test_modified_format() {
+    let path = "assets/modified-format.pcap";
+    let file = File::open(path).unwrap();
+    let buffered = BufReader::new(file);
+    let mut num_blocks = 0;
+    let mut reader = LegacyPcapReader::new(65536, buffered).expect("LegacyPcapReader");
+    loop {
+        match reader.next() {
+            Ok((offset, block)) => {
+                num_blocks += 1;
+                match block {
+                    PcapBlockOwned::LegacyHeader(_) => (),
+                    PcapBlockOwned::Legacy(b) => {
+                        assert_eq!(b.caplen, 98);
+                    }
+                    PcapBlockOwned::NG(_) => panic!("unexpected NG data"),
+                }
+                reader.consume(offset);
+            }
+            Err(PcapError::Eof) => break,
+            Err(PcapError::Incomplete(_)) => {
+                reader.refill().unwrap();
+            }
+            Err(e) => panic!("error while reading: {:?}", e),
+        }
+    }
+    assert_eq!(num_blocks, 2);
+}
