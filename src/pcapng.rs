@@ -47,6 +47,7 @@ use winnow::combinator::{complete, map, map_parser};
 use winnow::error::*;
 use winnow::multi::{many0, many1, many_till};
 use winnow::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
+use winnow::Parser;
 use winnow::{Err, IResult};
 
 trait PcapNGBlockParser<'a, En: PcapEndianness, O: 'a> {
@@ -1065,14 +1066,14 @@ pub struct PcapNGHeader {
 }
 
 /// Create a block parser function, given the parameters (block object and endianness)
-fn ng_block_parser<'a, P, En, O, E>() -> impl FnMut(&'a [u8]) -> IResult<&'a [u8], O, E>
+fn ng_block_parser<'a, P, En, O, E>() -> impl Parser<&'a [u8], O, E>
 where
     P: PcapNGBlockParser<'a, En, O>,
     En: PcapEndianness,
     O: 'a,
     E: ParseError<&'a [u8]>,
 {
-    move |i: &[u8]| {
+    move |i: &'a [u8]| {
         // read generic block layout
         //
         if i.len() < P::HDR_SZ {
@@ -1142,13 +1143,13 @@ pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>
 pub fn parse_sectionheaderblock_le(
     i: &[u8],
 ) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
-    ng_block_parser::<SectionHeaderBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<SectionHeaderBlock, PcapLE, _, _>().parse(i)
 }
 
 pub fn parse_sectionheaderblock_be(
     i: &[u8],
 ) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
-    ng_block_parser::<SectionHeaderBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<SectionHeaderBlock, PcapBE, _, _>().parse(i)
 }
 
 /// Parse a SectionHeaderBlock (little or big endian)
@@ -1193,14 +1194,14 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, i64) {
 pub fn parse_interfacedescriptionblock_le(
     i: &[u8],
 ) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError<&[u8]>> {
-    ng_block_parser::<InterfaceDescriptionBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<InterfaceDescriptionBlock, PcapLE, _, _>().parse(i)
 }
 
 /// Parse an Interface Packet Block (big-endian)
 pub fn parse_interfacedescriptionblock_be(
     i: &[u8],
 ) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError<&[u8]>> {
-    ng_block_parser::<InterfaceDescriptionBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<InterfaceDescriptionBlock, PcapBE, _, _>().parse(i)
 }
 
 /// Parse a Simple Packet Block (little-endian)
@@ -1208,28 +1209,28 @@ pub fn parse_interfacedescriptionblock_be(
 /// *Note: this function does not remove padding in the `data` field.
 /// Use `packet_data` to get field without padding.*
 pub fn parse_simplepacketblock_le(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError<&[u8]>> {
-    ng_block_parser::<SimplePacketBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<SimplePacketBlock, PcapLE, _, _>().parse(i)
 }
 
 /// Parse a Simple Packet Block (big-endian)
 ///
 /// *Note: this function does not remove padding*
 pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError<&[u8]>> {
-    ng_block_parser::<SimplePacketBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<SimplePacketBlock, PcapBE, _, _>().parse(i)
 }
 
 /// Parse an Enhanced Packet Block (little-endian)
 pub fn parse_enhancedpacketblock_le(
     i: &[u8],
 ) -> IResult<&[u8], EnhancedPacketBlock, PcapError<&[u8]>> {
-    ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>().parse(i)
 }
 
 /// Parse an Enhanced Packet Block (big-endian)
 pub fn parse_enhancedpacketblock_be(
     i: &[u8],
 ) -> IResult<&[u8], EnhancedPacketBlock, PcapError<&[u8]>> {
-    ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>().parse(i)
 }
 
 fn parse_name_record<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
@@ -1262,98 +1263,98 @@ fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
 pub fn parse_nameresolutionblock_le(
     i: &[u8],
 ) -> IResult<&[u8], NameResolutionBlock, PcapError<&[u8]>> {
-    ng_block_parser::<NameResolutionBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<NameResolutionBlock, PcapLE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_nameresolutionblock_be(
     i: &[u8],
 ) -> IResult<&[u8], NameResolutionBlock, PcapError<&[u8]>> {
-    ng_block_parser::<NameResolutionBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<NameResolutionBlock, PcapBE, _, _>().parse(i)
 }
 
 pub fn parse_interfacestatisticsblock_le(
     i: &[u8],
 ) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
-    ng_block_parser::<InterfaceStatisticsBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<InterfaceStatisticsBlock, PcapLE, _, _>().parse(i)
 }
 
 pub fn parse_interfacestatisticsblock_be(
     i: &[u8],
 ) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
-    ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_systemdjournalexportblock_le(
     i: &[u8],
 ) -> IResult<&[u8], SystemdJournalExportBlock, PcapError<&[u8]>> {
-    ng_block_parser::<SystemdJournalExportBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<SystemdJournalExportBlock, PcapLE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_systemdjournalexportblock_be(
     i: &[u8],
 ) -> IResult<&[u8], SystemdJournalExportBlock, PcapError<&[u8]>> {
-    ng_block_parser::<SystemdJournalExportBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<SystemdJournalExportBlock, PcapBE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_decryptionsecretsblock_le(
     i: &[u8],
 ) -> IResult<&[u8], DecryptionSecretsBlock, PcapError<&[u8]>> {
-    ng_block_parser::<DecryptionSecretsBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<DecryptionSecretsBlock, PcapLE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_decryptionsecretsblock_be(
     i: &[u8],
 ) -> IResult<&[u8], DecryptionSecretsBlock, PcapError<&[u8]>> {
-    ng_block_parser::<DecryptionSecretsBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<DecryptionSecretsBlock, PcapBE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_customblock_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
-    ng_block_parser::<CustomBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<CustomBlock, PcapLE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
-    ng_block_parser::<CustomBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<CustomBlock, PcapBE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_dcb_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
-    ng_block_parser::<DCBParser, PcapLE, _, _>()(i)
+    ng_block_parser::<DCBParser, PcapLE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
-    ng_block_parser::<DCBParser, PcapBE, _, _>()(i)
+    ng_block_parser::<DCBParser, PcapBE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_processinformationblock_le(
     i: &[u8],
 ) -> IResult<&[u8], ProcessInformationBlock, PcapError<&[u8]>> {
-    ng_block_parser::<ProcessInformationBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<ProcessInformationBlock, PcapLE, _, _>().parse(i)
 }
 
 #[inline]
 pub fn parse_processinformationblock_be(
     i: &[u8],
 ) -> IResult<&[u8], ProcessInformationBlock, PcapError<&[u8]>> {
-    ng_block_parser::<ProcessInformationBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<ProcessInformationBlock, PcapBE, _, _>().parse(i)
 }
 
 /// Parse an unknown block (little-endian)
 pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
-    ng_block_parser::<UnknownBlock, PcapLE, _, _>()(i)
+    ng_block_parser::<UnknownBlock, PcapLE, _, _>().parse(i)
 }
 
 /// Parse an unknown block (big-endian)
 pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
-    ng_block_parser::<UnknownBlock, PcapBE, _, _>()(i)
+    ng_block_parser::<UnknownBlock, PcapBE, _, _>().parse(i)
 }
 
 /// Parse any block, as little-endian
