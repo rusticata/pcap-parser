@@ -3,7 +3,8 @@ use crate::capture::Capture;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::pcap::{
-    parse_pcap_frame, parse_pcap_frame_be, parse_pcap_header, LegacyPcapBlock, PcapHeader,
+    parse_pcap_frame, parse_pcap_frame_be, parse_pcap_frame_modified, parse_pcap_header,
+    LegacyPcapBlock, PcapHeader,
 };
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
@@ -108,10 +109,14 @@ where
             Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
             Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }?;
-        let parse = if header.is_bigendian() {
-            parse_pcap_frame_be
+        let parse = if !header.is_modified_format() {
+            if header.is_bigendian() {
+                parse_pcap_frame_be
+            } else {
+                parse_pcap_frame
+            }
         } else {
-            parse_pcap_frame
+            parse_pcap_frame_modified
         };
         // do not consume
         Ok(LegacyPcapReader {

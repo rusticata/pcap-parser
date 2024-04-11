@@ -64,6 +64,10 @@ impl PcapHeader {
         (self.magic_number & 0xFFFF) == 0xb2a1 // works for both nanosecond and microsecond resolution timestamps
     }
 
+    pub fn is_modified_format(&self) -> bool {
+        self.magic_number == 0xa1b2_cd34
+    }
+
     pub fn is_nanosecond_precision(&self) -> bool {
         self.magic_number == 0xa1b2_3c4d || self.magic_number == 0x4d3c_b2a1
     }
@@ -131,13 +135,36 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapErro
     Ok((i, block))
 }
 
+/// Read a PCAP record header and data ("modified" pcap format)
+///
+/// Each PCAP record starts with a small header, and is followed by packet data.
+/// The packet data format depends on the LinkType.
+pub fn parse_pcap_frame_modified(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
+    if i.len() < 24 {
+        return Err(nom::Err::Incomplete(nom::Needed::new(24 - i.len())));
+    }
+    let ts_sec = u32::from_le_bytes(*array_ref4(i, 0));
+    let ts_usec = u32::from_le_bytes(*array_ref4(i, 4));
+    let caplen = u32::from_le_bytes(*array_ref4(i, 8));
+    let origlen = u32::from_le_bytes(*array_ref4(i, 12));
+    let (i, data) = take(caplen as usize)(&i[24..])?;
+    let block = LegacyPcapBlock {
+        ts_sec,
+        ts_usec,
+        caplen,
+        origlen,
+        data,
+    };
+    Ok((i, block))
+}
+
 /// Read the PCAP global header
 ///
 /// The global header contains the PCAP description and options
 pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError<&[u8]>> {
     let (i, magic_number) = le_u32(i)?;
     match magic_number {
-        0xa1b2_c3d4 | 0xa1b2_3c4d => {
+        0xa1b2_c3d4 | 0xa1b2_3c4d | 0xa1b2_cd34 => {
             let (i, version_major) = le_u16(i)?;
             let (i, version_minor) = le_u16(i)?;
             let (i, thiszone) = le_i32(i)?;
