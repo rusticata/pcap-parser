@@ -1,6 +1,6 @@
-use nom::error::ParseError;
-use nom::number::streaming::{be_u16, be_u32, le_u16, le_u32};
-use nom::IResult;
+use winnow::error::ParseError;
+use winnow::number::streaming::{be_u16, be_u32, le_u16, le_u32};
+use winnow::IResult;
 
 pub(crate) struct PcapBE;
 pub(crate) struct PcapLE;

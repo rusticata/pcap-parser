@@ -43,8 +43,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 circular = "0.3"
 cookie-factory = { version="0.3.0", optional=true }
-nom = "7.0"
 rusticata-macros = "4.0"
+winnow = "0.3"
 
 [dev-dependencies]
 hex-literal = "0.4"

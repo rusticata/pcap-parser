@@ -7,11 +7,12 @@ use crate::pcap::{
 };
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
-use nom::combinator::complete;
-use nom::multi::many0;
-use nom::{IResult, Needed, Offset};
 use std::fmt;
 use std::io::Read;
+use winnow::combinator::complete;
+use winnow::error::{ErrMode, IResult, Needed};
+use winnow::multi::many0;
+use winnow::stream::Offset;
 
 /// Parsing iterator over legacy pcap data (streaming version)
 ///
@@ -104,9 +105,9 @@ where
         buffer.fill(sz);
         let (_rem, header) = match parse_pcap_header(buffer.data()) {
             Ok((r, h)) => Ok((r, h)),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
-            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
-            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
+            Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e.to_owned_vec()),
+            Err(ErrMode::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+            Err(ErrMode::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }?;
         let parse = if header.is_bigendian() {
             parse_pcap_frame_be
@@ -152,8 +153,8 @@ where
                 let offset = data.offset(rem);
                 Ok((offset, PcapBlockOwned::from(b)))
             }
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(nom::Err::Incomplete(n)) => {
+            Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e),
+            Err(ErrMode::Incomplete(n)) => {
                 if self.reader_exhausted {
                     // expected more bytes but reader is EOF, truncated pcap?
                     Err(PcapError::UnexpectedEof)
@@ -242,7 +243,7 @@ pub struct LegacyPcapSlice<'a> {
 }
 
 impl<'a> LegacyPcapSlice<'a> {
-    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, nom::Err<PcapError<&[u8]>>> {
+    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, ErrMode<PcapError<&[u8]>>> {
         let (rem, header) = parse_pcap_header(i)?;
         Ok(LegacyPcapSlice { header, rem })
     }
@@ -251,7 +252,7 @@ impl<'a> LegacyPcapSlice<'a> {
 /// Iterator for LegacyPcapSlice. Returns a result so parsing errors are not
 /// silently ignored
 impl<'a> Iterator for LegacyPcapSlice<'a> {
-    type Item = Result<PcapBlockOwned<'a>, nom::Err<PcapError<&'a [u8]>>>;
+    type Item = Result<PcapBlockOwned<'a>, ErrMode<PcapError<&'a [u8]>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.rem.is_empty() {
@@ -276,9 +277,9 @@ impl<'a> PcapCapture<'a> {
     pub fn from_file(i: &[u8]) -> Result<PcapCapture, PcapError<&[u8]>> {
         match parse_pcap(i) {
             Ok((_, pcap)) => Ok(pcap),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
-            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
+            Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e),
+            Err(ErrMode::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+            Err(ErrMode::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }
     }
 }

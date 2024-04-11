@@ -162,4 +162,4 @@ pub use serialize::ToVec;
 pub mod data;
 
 // re-exports
-pub use nom;
+pub use winnow;

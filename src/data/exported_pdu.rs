@@ -1,9 +1,9 @@
 use crate::data::PacketData;
-use nom::bytes::streaming::{tag, take};
-use nom::multi::many_till;
-use nom::number::streaming::be_u16;
-use nom::IResult;
 use std::convert::TryFrom;
+use winnow::bytes::streaming::{tag, take};
+use winnow::multi::many_till;
+use winnow::number::streaming::be_u16;
+use winnow::IResult;
 
 /* values from epan/exported_pdu.h */
 

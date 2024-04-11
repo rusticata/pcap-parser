@@ -18,9 +18,10 @@
 use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::utils::array_ref4;
-use nom::bytes::streaming::take;
-use nom::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
-use nom::IResult;
+use winnow::bytes::streaming::take;
+use winnow::error::{ErrMode, Needed};
+use winnow::number::streaming::{be_i32, be_u16, be_u32, le_i32, le_u16, le_u32};
+use winnow::IResult;
 
 /// PCAP global header
 #[derive(Clone, Debug)]
@@ -91,7 +92,7 @@ pub struct LegacyPcapBlock<'a> {
 /// The packet data format depends on the LinkType.
 pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
     if i.len() < 16 {
-        return Err(nom::Err::Incomplete(nom::Needed::new(16 - i.len())));
+        return Err(ErrMode::Incomplete(Needed::new(16 - i.len())));
     }
     let ts_sec = u32::from_le_bytes(*array_ref4(i, 0));
     let ts_usec = u32::from_le_bytes(*array_ref4(i, 4));
@@ -114,7 +115,7 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&
 /// The packet data format depends on the LinkType.
 pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
     if i.len() < 16 {
-        return Err(nom::Err::Incomplete(nom::Needed::new(16 - i.len())));
+        return Err(ErrMode::Incomplete(Needed::new(16 - i.len())));
     }
     let ts_sec = u32::from_be_bytes(*array_ref4(i, 0));
     let ts_usec = u32::from_be_bytes(*array_ref4(i, 4));
@@ -173,7 +174,7 @@ pub fn parse_pcap_header(i: &[u8]) -> IResult<&[u8], PcapHeader, PcapError<&[u8]
             };
             Ok((i, header))
         }
-        _ => Err(nom::Err::Error(PcapError::HeaderNotRecognized)),
+        _ => Err(ErrMode::Backtrack(PcapError::HeaderNotRecognized)),
     }
 }
 

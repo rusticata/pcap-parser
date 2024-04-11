@@ -3,11 +3,12 @@ use crate::error::PcapError;
 use crate::pcapng::*;
 use crate::traits::PcapReaderIterator;
 use circular::Buffer;
-use nom::combinator::{complete, map};
-use nom::multi::many1;
-use nom::{IResult, Needed, Offset};
 use std::fmt;
 use std::io::Read;
+use winnow::combinator::{complete, map};
+use winnow::error::{ErrMode, IResult, Needed};
+use winnow::multi::many1;
+use winnow::stream::Offset;
 
 /// Parsing iterator over pcap-ng data (streaming version)
 ///
@@ -129,9 +130,9 @@ where
         // just check that first block is a valid one
         let (_rem, _shb) = match parse_sectionheaderblock(buffer.data()) {
             Ok((r, h)) => Ok((r, h)),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
-            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
-            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
+            Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e.to_owned_vec()),
+            Err(ErrMode::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+            Err(ErrMode::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }?;
         let info = CurrentSectionInfo::default();
         // do not consume
@@ -172,8 +173,8 @@ where
                 }
                 Ok((offset, PcapBlockOwned::from(b)))
             }
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(nom::Err::Incomplete(n)) => {
+            Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e),
+            Err(ErrMode::Incomplete(n)) => {
                 if self.reader_exhausted {
                     // expected more bytes but reader is EOF, truncated pcap?
                     Err(PcapError::UnexpectedEof)
@@ -260,7 +261,7 @@ pub struct PcapNGSlice<'a> {
 }
 
 impl<'a> PcapNGSlice<'a> {
-    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, nom::Err<PcapError<&[u8]>>> {
+    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, ErrMode<PcapError<&[u8]>>> {
         // just check that first block is a valid one
         let (_rem, _shb) = parse_sectionheaderblock(i)?;
         let info = CurrentSectionInfo::default();
@@ -272,7 +273,7 @@ impl<'a> PcapNGSlice<'a> {
 /// Iterator for PcapNGSlice. Returns a result so parsing errors are not
 /// silently ignored
 impl<'a> Iterator for PcapNGSlice<'a> {
-    type Item = Result<PcapBlockOwned<'a>, nom::Err<PcapError<&'a [u8]>>>;
+    type Item = Result<PcapBlockOwned<'a>, ErrMode<PcapError<&'a [u8]>>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.rem.is_empty() {
@@ -331,9 +332,9 @@ impl<'a> PcapNGCapture<'a> {
         // XXX change return type to just an IResult
         match parse_pcapng(i) {
             Ok((_, pcap)) => Ok(pcap),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
-            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
-            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
+            Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e),
+            Err(ErrMode::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+            Err(ErrMode::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
         }
     }
 

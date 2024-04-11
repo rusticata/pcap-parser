@@ -6,11 +6,11 @@
 //! See <http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html> for details.
 
 use crate::data::{PacketData, ETHERTYPE_IPV4, ETHERTYPE_IPV6};
-use nom::bytes::streaming::take;
-use nom::combinator::{complete, cond, verify};
-use nom::multi::many0;
-use nom::number::streaming::{be_u16, le_u16, le_u8};
-use nom::IResult;
+use winnow::bytes::streaming::take;
+use winnow::combinator::{complete, cond, verify};
+use winnow::multi::many0;
+use winnow::number::streaming::{be_u16, le_u16, le_u8};
+use winnow::IResult;
 
 // Defined in linux/netfilter/nfnetlink_log.h
 #[derive(Copy, Clone)]

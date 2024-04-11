@@ -29,9 +29,9 @@ pub use crate::data::exported_pdu::*;
 pub use crate::data::pcap_nflog::*;
 use crate::linktype::Linktype;
 use crate::read_u32_e;
-use nom::number::complete::be_u32;
-use nom::number::streaming::{be_u16, be_u64, be_u8};
-use nom::IResult;
+use winnow::number::complete::be_u32;
+use winnow::number::streaming::{be_u16, be_u64, be_u8};
+use winnow::IResult;
 
 pub const ETHERTYPE_IPV4: u16 = 0x0800;
 pub const ETHERTYPE_IPV6: u16 = 0x86dd;

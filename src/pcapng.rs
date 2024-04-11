@@ -39,15 +39,15 @@ use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::traits::*;
 use crate::utils::*;
-use nom::bytes::streaming::{tag, take};
-use nom::combinator::{complete, map, map_parser};
-use nom::error::*;
-use nom::multi::{many0, many1, many_till};
-use nom::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
-use nom::{Err, IResult};
 use rusticata_macros::{align32, newtype_enum};
 use std::borrow::Cow;
 use std::convert::TryFrom;
+use winnow::bytes::streaming::{tag, take};
+use winnow::combinator::{complete, map, map_parser};
+use winnow::error::*;
+use winnow::multi::{many0, many1, many_till};
+use winnow::number::streaming::{be_i64, be_u16, be_u32, le_i64, le_u16, le_u32};
+use winnow::{Err, IResult};
 
 trait PcapNGBlockParser<'a, En: PcapEndianness, O: 'a> {
     /// Minimum header size, in bytes
@@ -412,7 +412,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock
         // read options
         let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 20)?;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
         let block = InterfaceDescriptionBlock {
@@ -541,8 +541,8 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
         let origlen = En::u32_from_bytes(*array_ref4(b_hdr, 16));
         // read packet data
         // align32 can overflow
-        if caplen >= u32::MAX - 4 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        if caplen >= ::std::u32::MAX - 4 {
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let padded_length = align32!(caplen);
         let (i, data) = take(padded_length)(packet_data)?;
@@ -550,7 +550,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
         let current_offset = (32 + padded_length) as usize;
         let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = EnhancedPacketBlock {
             block_type,
@@ -688,7 +688,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, NameResolutionBlock<'a>>
         let current_offset = 12 + (i.as_ptr() as usize) - (start_i.as_ptr() as usize);
         let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = NameResolutionBlock {
             block_type,
@@ -733,7 +733,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceStatisticsBlock<
         // read options
         let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 24)?;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = InterfaceStatisticsBlock {
             block_type,
@@ -817,8 +817,8 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a
         let (i, secrets_len) = En::parse_u32(i)?;
         // read packet data
         // align32 can overflow
-        if secrets_len >= u32::MAX - 4 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+        if secrets_len >= ::std::u32::MAX - 4 {
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let padded_length = align32!(secrets_len);
         let (i, data) = take(padded_length)(i)?;
@@ -826,7 +826,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a
         let current_offset = (20 + padded_length) as usize;
         let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, current_offset)?;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = DecryptionSecretsBlock {
             block_type,
@@ -869,7 +869,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, CustomBlock<'a>> for Cust
         // since length of data is not provided
         let data = i;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = CustomBlock {
             block_type,
@@ -931,7 +931,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, ProcessInformationBlock<'
         let (i, process_id) = En::parse_u32(i)?;
         let (i, options) = opt_parse_options::<En, E>(i, (block_len1 - 4) as usize, 12)?;
         if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         let block = ProcessInformationBlock {
             block_type,
@@ -1076,15 +1076,15 @@ where
         // read generic block layout
         //
         if i.len() < P::HDR_SZ {
-            return Err(Err::Incomplete(nom::Needed::new(P::HDR_SZ - i.len())));
+            return Err(ErrMode::Incomplete(Needed::new(P::HDR_SZ - i.len())));
         }
         let (i, block_type) = le_u32(i)?;
         let (i, block_len1) = En::parse_u32(i)?;
         if block_len1 < P::HDR_SZ as u32 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         if P::MAGIC != 0 && En::native_u32(block_type) != P::MAGIC {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
+            return Err(ErrMode::Backtrack(E::from_error_kind(i, ErrorKind::Verify)));
         }
         // 12 is block_type (4) + block_len1 (4) + block_len2 (4)
         let (i, block_content) = take(block_len1 - 12)(i)?;
@@ -1154,7 +1154,7 @@ pub fn parse_sectionheaderblock_be(
 /// Parse a SectionHeaderBlock (little or big endian)
 pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
     if i.len() < 12 {
-        return Err(Err::Incomplete(nom::Needed::new(12 - i.len())));
+        return Err(ErrMode::Incomplete(Needed::new(12 - i.len())));
     }
     let bom = u32::from_le_bytes(*array_ref4(i, 8));
     if bom == BOM_MAGIC {
@@ -1162,7 +1162,7 @@ pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, 
     } else if bom == u32::from_be(BOM_MAGIC) {
         parse_sectionheaderblock_be(i)
     } else {
-        Err(Err::Error(PcapError::HeaderNotRecognized))
+        Err(ErrMode::Backtrack(PcapError::HeaderNotRecognized))
     }
 }
 
@@ -1251,7 +1251,7 @@ fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
 ) -> IResult<&'a [u8], Vec<NameRecord>, E> {
     map(
         many_till(parse_name_record::<En, E>, tag(b"\x00\x00\x00\x00")),
-        |(mut v, _)| {
+        |(mut v, _): (Vec<_>, _)| {
             v.push(NameRecord::END);
             v
         },
@@ -1426,7 +1426,7 @@ pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
 pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     let (rem, block) = parse_block_le(i)?;
     match block {
-        Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
+        Block::SectionHeader(_) => Err(ErrMode::Backtrack(make_error(i, ErrorKind::Tag))),
         _ => Ok((rem, block)),
     }
 }
@@ -1435,7 +1435,7 @@ pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
     let (rem, block) = parse_block_be(i)?;
     match block {
-        Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
+        Block::SectionHeader(_) => Err(ErrMode::Backtrack(make_error(i, ErrorKind::Tag))),
         _ => Ok((rem, block)),
     }
 }
@@ -1444,7 +1444,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError<&[u8]>> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.big_endian();
-    let (rem, mut b) = if big_endian {
+    let (rem, mut b): (_, Vec<_>) = if big_endian {
         many0(complete(parse_section_content_block_be))(rem)?
     } else {
         many0(complete(parse_section_content_block_le))(rem)?

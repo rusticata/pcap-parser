@@ -1,5 +1,5 @@
-use nom::error::{ErrorKind, ParseError};
 use std::fmt;
+use winnow::error::{ErrorKind, ParseError};
 
 /// The error type which is returned when reading a pcap file
 #[derive(Debug, PartialEq)]
@@ -57,7 +57,8 @@ impl<I> ParseError<I> for PcapError<I> {
     fn from_error_kind(input: I, kind: ErrorKind) -> Self {
         PcapError::NomError(input, kind)
     }
-    fn append(input: I, kind: ErrorKind, _other: Self) -> Self {
+
+    fn append(self, input: I, kind: ErrorKind) -> Self {
         PcapError::NomError(input, kind)
     }
 }
