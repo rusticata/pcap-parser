@@ -6,6 +6,7 @@ mod interface_description;
 mod option;
 mod reader;
 mod section_header;
+mod simple_packet;
 mod unknown;
 
 pub use block::*;
@@ -13,6 +14,7 @@ pub use interface_description::*;
 pub use option::*;
 pub use reader::*;
 pub use section_header::*;
+pub use simple_packet::*;
 pub use unknown::*;
 
 /// Section Header Block magic

@@ -11,8 +11,8 @@ use crate::PcapError;
 pub enum Block<I: AsBytes> {
     SectionHeader(SectionHeaderBlock<I>),
     InterfaceDescription(InterfaceDescriptionBlock<I>),
+    SimplePacket(SimplePacketBlock<I>),
     // EnhancedPacket(EnhancedPacketBlock<'a>),
-    // SimplePacket(SimplePacketBlock<'a>),
     // NameResolution(NameResolutionBlock<'a>),
     // InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     // SystemdJournalExport(SystemdJournalExportBlock<'a>),
@@ -33,8 +33,8 @@ impl<I: AsBytes> Block<I> {
         match self {
             Block::SectionHeader(_) => SHB_MAGIC,
             Block::InterfaceDescription(_) => IDB_MAGIC,
+            Block::SimplePacket(_) => SPB_MAGIC,
             // Block::EnhancedPacket(_) => EPB_MAGIC,
-            // Block::SimplePacket(_) => SPB_MAGIC,
             // Block::NameResolution(_) => NRB_MAGIC,
             // Block::InterfaceStatistics(_) => ISB_MAGIC,
             // Block::SystemdJournalExport(_) => SJE_MAGIC,
@@ -63,7 +63,9 @@ where
             IDB_MAGIC => parse_interfacedescriptionblock_le
                 .map(Block::InterfaceDescription)
                 .parse_next(i),
-            // SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(i),
+            SPB_MAGIC => parse_simplepacketblock_le
+                .map(Block::SimplePacket)
+                .parse_next(i),
             // EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(i),
             // NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(i),
             // ISB_MAGIC => map(
@@ -101,7 +103,9 @@ where
             IDB_MAGIC => parse_interfacedescriptionblock_be
                 .map(Block::InterfaceDescription)
                 .parse_next(i),
-            // SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(i),
+            SPB_MAGIC => parse_simplepacketblock_be
+                .map(Block::SimplePacket)
+                .parse_next(i),
             // EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(i),
             // NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(i),
             // ISB_MAGIC => map(
