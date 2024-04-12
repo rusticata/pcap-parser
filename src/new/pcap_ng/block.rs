@@ -16,7 +16,7 @@ pub enum Block<I: AsBytes> {
     NameResolution(NameResolutionBlock<I>),
     InterfaceStatistics(InterfaceStatisticsBlock<I>),
     SystemdJournalExport(SystemdJournalExportBlock<I>),
-    // DecryptionSecrets(DecryptionSecretsBlock<'a>),
+    DecryptionSecrets(DecryptionSecretsBlock<I>),
     // ProcessInformation(ProcessInformationBlock<'a>),
     // Custom(CustomBlock<'a>),
     Unknown(UnknownBlock<I>),
@@ -38,7 +38,7 @@ impl<I: AsBytes> Block<I> {
             Block::NameResolution(_) => NRB_MAGIC,
             Block::InterfaceStatistics(_) => ISB_MAGIC,
             Block::SystemdJournalExport(_) => SJE_MAGIC,
-            // Block::DecryptionSecrets(_) => DSB_MAGIC,
+            Block::DecryptionSecrets(_) => DSB_MAGIC,
             // Block::ProcessInformation(_) => PIB_MAGIC,
             // Block::Custom(cb) => cb.block_type,
             Block::Unknown(ub) => ub.block_type,
@@ -78,7 +78,9 @@ where
             SJE_MAGIC => parse_systemdjournalexportblock_le
                 .map(Block::SystemdJournalExport)
                 .parse_next(i),
-            // DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(i),
+            DSB_MAGIC => parse_decryptionsecretsblock_le
+                .map(Block::DecryptionSecrets)
+                .parse_next(i),
             // CB_MAGIC => map(parse_customblock_le, Block::Custom)(i),
             // DCB_MAGIC => map(parse_dcb_le, Block::Custom)(i),
             // PIB_MAGIC => map(parse_processinformationblock_le, Block::ProcessInformation)(i),
@@ -120,7 +122,9 @@ where
             SJE_MAGIC => parse_systemdjournalexportblock_le
                 .map(Block::SystemdJournalExport)
                 .parse_next(i),
-            // DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(i),
+            DSB_MAGIC => parse_decryptionsecretsblock_be
+                .map(Block::DecryptionSecrets)
+                .parse_next(i),
             // CB_MAGIC => map(parse_customblock_be, Block::Custom)(i),
             // DCB_MAGIC => map(parse_dcb_be, Block::Custom)(i),
             // PIB_MAGIC => map(parse_processinformationblock_be, Block::ProcessInformation)(i),
