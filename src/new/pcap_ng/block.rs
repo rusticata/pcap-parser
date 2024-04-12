@@ -15,7 +15,7 @@ pub enum Block<I: AsBytes> {
     EnhancedPacket(EnhancedPacketBlock<I>),
     NameResolution(NameResolutionBlock<I>),
     InterfaceStatistics(InterfaceStatisticsBlock<I>),
-    // SystemdJournalExport(SystemdJournalExportBlock<'a>),
+    SystemdJournalExport(SystemdJournalExportBlock<I>),
     // DecryptionSecrets(DecryptionSecretsBlock<'a>),
     // ProcessInformation(ProcessInformationBlock<'a>),
     // Custom(CustomBlock<'a>),
@@ -37,7 +37,7 @@ impl<I: AsBytes> Block<I> {
             Block::EnhancedPacket(_) => EPB_MAGIC,
             Block::NameResolution(_) => NRB_MAGIC,
             Block::InterfaceStatistics(_) => ISB_MAGIC,
-            // Block::SystemdJournalExport(_) => SJE_MAGIC,
+            Block::SystemdJournalExport(_) => SJE_MAGIC,
             // Block::DecryptionSecrets(_) => DSB_MAGIC,
             // Block::ProcessInformation(_) => PIB_MAGIC,
             // Block::Custom(cb) => cb.block_type,
@@ -75,10 +75,9 @@ where
             ISB_MAGIC => parse_interfacestatisticsblock_le
                 .map(Block::InterfaceStatistics)
                 .parse_next(i),
-            // SJE_MAGIC => map(
-            //     parse_systemdjournalexportblock_le,
-            //     Block::SystemdJournalExport,
-            // )(i),
+            SJE_MAGIC => parse_systemdjournalexportblock_le
+                .map(Block::SystemdJournalExport)
+                .parse_next(i),
             // DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(i),
             // CB_MAGIC => map(parse_customblock_le, Block::Custom)(i),
             // DCB_MAGIC => map(parse_dcb_le, Block::Custom)(i),
@@ -118,10 +117,9 @@ where
             ISB_MAGIC => parse_interfacestatisticsblock_be
                 .map(Block::InterfaceStatistics)
                 .parse_next(i),
-            // SJE_MAGIC => map(
-            //     parse_systemdjournalexportblock_be,
-            //     Block::SystemdJournalExport,
-            // )(i),
+            SJE_MAGIC => parse_systemdjournalexportblock_le
+                .map(Block::SystemdJournalExport)
+                .parse_next(i),
             // DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(i),
             // CB_MAGIC => map(parse_customblock_be, Block::Custom)(i),
             // DCB_MAGIC => map(parse_dcb_be, Block::Custom)(i),

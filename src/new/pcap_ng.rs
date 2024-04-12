@@ -10,6 +10,7 @@ mod option;
 mod reader;
 mod section_header;
 mod simple_packet;
+mod systemd_journal_export;
 mod ts;
 mod unknown;
 
@@ -22,6 +23,7 @@ pub use option::*;
 pub use reader::*;
 pub use section_header::*;
 pub use simple_packet::*;
+pub use systemd_journal_export::*;
 pub use ts::*;
 pub use unknown::*;
 
