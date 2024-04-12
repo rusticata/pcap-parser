@@ -18,7 +18,7 @@ pub enum Block<I: AsBytes> {
     SystemdJournalExport(SystemdJournalExportBlock<I>),
     DecryptionSecrets(DecryptionSecretsBlock<I>),
     // ProcessInformation(ProcessInformationBlock<'a>),
-    // Custom(CustomBlock<'a>),
+    Custom(CustomBlock<I>),
     Unknown(UnknownBlock<I>),
 }
 
@@ -40,7 +40,7 @@ impl<I: AsBytes> Block<I> {
             Block::SystemdJournalExport(_) => SJE_MAGIC,
             Block::DecryptionSecrets(_) => DSB_MAGIC,
             // Block::ProcessInformation(_) => PIB_MAGIC,
-            // Block::Custom(cb) => cb.block_type,
+            Block::Custom(cb) => cb.block_type,
             Block::Unknown(ub) => ub.block_type,
         }
     }
@@ -81,8 +81,8 @@ where
             DSB_MAGIC => parse_decryptionsecretsblock_le
                 .map(Block::DecryptionSecrets)
                 .parse_next(i),
-            // CB_MAGIC => map(parse_customblock_le, Block::Custom)(i),
-            // DCB_MAGIC => map(parse_dcb_le, Block::Custom)(i),
+            CB_MAGIC => parse_customblock_le.map(Block::Custom).parse_next(i),
+            DCB_MAGIC => parse_dcb_le.map(Block::Custom).parse_next(i),
             // PIB_MAGIC => map(parse_processinformationblock_le, Block::ProcessInformation)(i),
             _ => parse_unknownblock_le.map(Block::Unknown).parse_next(i),
         },
@@ -125,8 +125,8 @@ where
             DSB_MAGIC => parse_decryptionsecretsblock_be
                 .map(Block::DecryptionSecrets)
                 .parse_next(i),
-            // CB_MAGIC => map(parse_customblock_be, Block::Custom)(i),
-            // DCB_MAGIC => map(parse_dcb_be, Block::Custom)(i),
+            CB_MAGIC => parse_customblock_be.map(Block::Custom).parse_next(i),
+            DCB_MAGIC => parse_dcb_be.map(Block::Custom).parse_next(i),
             // PIB_MAGIC => map(parse_processinformationblock_be, Block::ProcessInformation)(i),
             _ => parse_unknownblock_be.map(Block::Unknown).parse_next(i),
         },

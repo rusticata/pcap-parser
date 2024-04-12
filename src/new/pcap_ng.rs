@@ -2,6 +2,7 @@ use rusticata_macros::newtype_enum;
 
 mod block;
 mod blockparser;
+mod custom;
 mod decryption_secrets;
 mod enhanced_packet;
 mod interface_description;
@@ -16,6 +17,7 @@ mod ts;
 mod unknown;
 
 pub use block::*;
+pub use custom::*;
 pub use decryption_secrets::*;
 pub use enhanced_packet::*;
 pub use interface_description::*;
