@@ -17,7 +17,7 @@ pub enum Block<I: AsBytes> {
     InterfaceStatistics(InterfaceStatisticsBlock<I>),
     SystemdJournalExport(SystemdJournalExportBlock<I>),
     DecryptionSecrets(DecryptionSecretsBlock<I>),
-    // ProcessInformation(ProcessInformationBlock<'a>),
+    ProcessInformation(ProcessInformationBlock<I>),
     Custom(CustomBlock<I>),
     Unknown(UnknownBlock<I>),
 }
@@ -39,7 +39,7 @@ impl<I: AsBytes> Block<I> {
             Block::InterfaceStatistics(_) => ISB_MAGIC,
             Block::SystemdJournalExport(_) => SJE_MAGIC,
             Block::DecryptionSecrets(_) => DSB_MAGIC,
-            // Block::ProcessInformation(_) => PIB_MAGIC,
+            Block::ProcessInformation(_) => PIB_MAGIC,
             Block::Custom(cb) => cb.block_type,
             Block::Unknown(ub) => ub.block_type,
         }
@@ -83,7 +83,9 @@ where
                 .parse_next(i),
             CB_MAGIC => parse_customblock_le.map(Block::Custom).parse_next(i),
             DCB_MAGIC => parse_dcb_le.map(Block::Custom).parse_next(i),
-            // PIB_MAGIC => map(parse_processinformationblock_le, Block::ProcessInformation)(i),
+            PIB_MAGIC => parse_processinformationblock_le
+                .map(Block::ProcessInformation)
+                .parse_next(i),
             _ => parse_unknownblock_le.map(Block::Unknown).parse_next(i),
         },
         Err(e) => Err(e),
@@ -127,7 +129,9 @@ where
                 .parse_next(i),
             CB_MAGIC => parse_customblock_be.map(Block::Custom).parse_next(i),
             DCB_MAGIC => parse_dcb_be.map(Block::Custom).parse_next(i),
-            // PIB_MAGIC => map(parse_processinformationblock_be, Block::ProcessInformation)(i),
+            PIB_MAGIC => parse_processinformationblock_be
+                .map(Block::ProcessInformation)
+                .parse_next(i),
             _ => parse_unknownblock_be.map(Block::Unknown).parse_next(i),
         },
         Err(e) => Err(e),
