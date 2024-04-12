@@ -1,9 +1,9 @@
 use crate::data::PacketData;
 use std::convert::TryFrom;
-use winnow::bytes::streaming::{tag, take};
-use winnow::multi::many_till;
-use winnow::number::streaming::be_u16;
-use winnow::IResult;
+use winnow::bytes::{tag, take};
+use winnow::multi::many_till0;
+use winnow::number::be_u16;
+use winnow::{IResult, Partial};
 
 /* values from epan/exported_pdu.h */
 
@@ -19,15 +19,22 @@ pub struct ExportedTlv<'a> {
     pub v: &'a [u8],
 }
 
-pub fn parse_exported_tlv(i: &[u8]) -> IResult<&[u8], ExportedTlv> {
+pub fn parse_exported_tlv(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, ExportedTlv> {
     let (i, t) = be_u16(i)?;
     let (i, l) = be_u16(i)?;
     let (i, v) = take(l)(i)?;
     Ok((i, ExportedTlv { t, l, v }))
 }
 
-pub fn parse_many_exported_tlv(i: &[u8]) -> IResult<&[u8], Vec<ExportedTlv>> {
-    many_till(parse_exported_tlv, tag(b"\x00\x00\x00\x00"))(i).map(|(rem, (v, _))| (rem, v))
+pub fn parse_exported_tlv_complete(i: &[u8]) -> IResult<&[u8], ExportedTlv> {
+    let (i, t) = be_u16(i)?;
+    let (i, l) = be_u16(i)?;
+    let (i, v) = take(l)(i)?;
+    Ok((i, ExportedTlv { t, l, v }))
+}
+
+pub fn parse_many_exported_tlv(i: Partial<&[u8]>) -> IResult<Partial<&[u8]>, Vec<ExportedTlv>> {
+    many_till0(parse_exported_tlv, tag(b"\x00\x00\x00\x00"))(i).map(|(rem, (v, _))| (rem, v))
 }
 
 /// Get packet data for WIRESHARK_UPPER_PDU (252)
@@ -37,7 +44,7 @@ pub fn get_packetdata_wireshark_upper_pdu(i: &[u8], caplen: usize) -> Option<Pac
     if i.len() < caplen || caplen == 0 {
         None
     } else {
-        match parse_many_exported_tlv(i) {
+        match parse_many_exported_tlv(Partial::new(i)) {
             Ok((rem, v)) => {
                 // get protocol name (or return None)
                 let proto_name = v
@@ -53,7 +60,7 @@ pub fn get_packetdata_wireshark_upper_pdu(i: &[u8], caplen: usize) -> Option<Pac
                         u32::from_be_bytes(int_bytes)
                     })?;
                 match proto_name {
-                    b"ip.proto" => Some(PacketData::L4(ip_proto as u8, rem)),
+                    b"ip.proto" => Some(PacketData::L4(ip_proto as u8, rem.into_inner())),
                     _ => {
                         // XXX unknown protocol name
                         None

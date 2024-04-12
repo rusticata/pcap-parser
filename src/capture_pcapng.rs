@@ -5,10 +5,10 @@ use crate::traits::PcapReaderIterator;
 use circular::Buffer;
 use std::fmt;
 use std::io::Read;
-use winnow::combinator::{complete, map};
 use winnow::error::{ErrMode, IResult, Needed};
 use winnow::multi::many1;
 use winnow::stream::Offset;
+use winnow::Parser;
 
 /// Parsing iterator over pcap-ng data (streaming version)
 ///
@@ -167,7 +167,7 @@ where
         };
         match parse(data) {
             Ok((rem, b)) => {
-                let offset = data.offset(rem);
+                let offset = data.offset_to(rem);
                 if let Block::SectionHeader(ref shb) = b {
                     self.info.big_endian = shb.big_endian();
                 }
@@ -347,7 +347,8 @@ impl<'a> PcapNGCapture<'a> {
 ///
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture, PcapError<&[u8]>> {
-    map(many1(complete(parse_section)), |sections| PcapNGCapture {
-        sections,
-    })(i)
+    let parser = parse_section.complete_err();
+    many1(parser)
+        .map(|sections| PcapNGCapture { sections })
+        .parse_next(i)
 }

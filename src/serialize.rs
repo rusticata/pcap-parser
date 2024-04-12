@@ -45,7 +45,7 @@ impl ToVec for PcapHeader {
     }
 }
 
-impl<'a> ToVec for LegacyPcapBlock<'a> {
+impl<'a> ToVec for LegacyPcapBlock<&'a [u8]> {
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(self.data.len() + 16);
 

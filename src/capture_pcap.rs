@@ -9,10 +9,10 @@ use crate::traits::PcapReaderIterator;
 use circular::Buffer;
 use std::fmt;
 use std::io::Read;
-use winnow::combinator::complete;
 use winnow::error::{ErrMode, IResult, Needed};
 use winnow::multi::many0;
 use winnow::stream::Offset;
+use winnow::Parser;
 
 /// Parsing iterator over legacy pcap data (streaming version)
 ///
@@ -82,7 +82,7 @@ where
     parse: LegacyParseFn,
 }
 
-type LegacyParseFn = fn(&[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>>;
+type LegacyParseFn = fn(&[u8]) -> IResult<&[u8], LegacyPcapBlock<&[u8]>, PcapError<&[u8]>>;
 
 impl<R> LegacyPcapReader<R>
 where
@@ -150,7 +150,7 @@ where
         let data = self.buffer.data();
         match (self.parse)(data) {
             Ok((rem, b)) => {
-                let offset = data.offset(rem);
+                let offset = data.offset_to(rem);
                 Ok((offset, PcapBlockOwned::from(b)))
             }
             Err(ErrMode::Backtrack(e)) | Err(ErrMode::Cut(e)) => Err(e),
@@ -270,7 +270,7 @@ impl<'a> Iterator for LegacyPcapSlice<'a> {
 pub struct PcapCapture<'a> {
     pub header: PcapHeader,
 
-    pub blocks: Vec<LegacyPcapBlock<'a>>,
+    pub blocks: Vec<LegacyPcapBlock<&'a [u8]>>,
 }
 
 impl<'a> PcapCapture<'a> {
@@ -326,6 +326,7 @@ impl<'a> Capture for PcapCapture<'a> {
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture, PcapError<&[u8]>> {
     let (i, header) = parse_pcap_header(i)?;
-    let (i, blocks) = many0(complete(parse_pcap_frame))(i)?;
+    let parser = parse_pcap_frame.complete_err();
+    let (i, blocks) = many0(parser)(i)?;
     Ok((i, PcapCapture { header, blocks }))
 }

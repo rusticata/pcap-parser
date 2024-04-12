@@ -3,20 +3,20 @@ use crate::pcapng::Block;
 
 /// A block from a Pcap or PcapNG file
 pub enum PcapBlockOwned<'a> {
-    Legacy(LegacyPcapBlock<'a>),
+    Legacy(LegacyPcapBlock<&'a [u8]>),
     LegacyHeader(PcapHeader),
     NG(Block<'a>),
 }
 
 /// A block from a Pcap or PcapNG file
 pub enum PcapBlock<'a> {
-    Legacy(&'a LegacyPcapBlock<'a>),
+    Legacy(&'a LegacyPcapBlock<&'a [u8]>),
     LegacyHeader(&'a PcapHeader),
     NG(&'a Block<'a>),
 }
 
-impl<'a> From<LegacyPcapBlock<'a>> for PcapBlockOwned<'a> {
-    fn from(b: LegacyPcapBlock<'a>) -> PcapBlockOwned<'a> {
+impl<'a> From<LegacyPcapBlock<&'a [u8]>> for PcapBlockOwned<'a> {
+    fn from(b: LegacyPcapBlock<&'a [u8]>) -> PcapBlockOwned<'a> {
         PcapBlockOwned::Legacy(b)
     }
 }
@@ -33,8 +33,8 @@ impl<'a> From<Block<'a>> for PcapBlockOwned<'a> {
     }
 }
 
-impl<'a> From<&'a LegacyPcapBlock<'a>> for PcapBlock<'a> {
-    fn from(b: &'a LegacyPcapBlock) -> PcapBlock<'a> {
+impl<'a, 'b> From<&'a LegacyPcapBlock<&'b [u8]>> for PcapBlock<'a> {
+    fn from(b: &'a LegacyPcapBlock<&'b [u8]>) -> PcapBlock<'a> {
         PcapBlock::Legacy(b)
     }
 }

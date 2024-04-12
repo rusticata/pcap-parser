@@ -1,5 +1,5 @@
 use std::fmt;
-use winnow::error::{ErrorKind, ParseError};
+use winnow::error::{ErrorConvert, ErrorKind, ParseError};
 
 /// The error type which is returned when reading a pcap file
 #[derive(Debug, PartialEq)]
@@ -28,6 +28,12 @@ impl<I> PcapError<I> {
     /// Creates a `PcapError` from input and error kind.
     pub fn from_data(input: I, errorkind: ErrorKind) -> Self {
         Self::NomError(input, errorkind)
+    }
+}
+
+impl <'a, I> ErrorConvert<PcapError<&'a [u8]>> for PcapError<I> {
+    fn convert(self) -> PcapError<&'a [u8]> {
+        todo!()
     }
 }
 

@@ -51,6 +51,34 @@ const NG_BLOCK_UNK_BE: &[u8] = &hex!("12 34 56 78 00 00 00 10 12 34 56 78 00 00 
 const NG_BLOCK_UNK_LE: &[u8] = &hex!("12 34 56 78 10 00 00 00 12 34 56 78 10 00 00 00");
 
 #[test]
+fn new_pcapng_block_shb_be() {
+    let input = &TEST016_BE[0..=95];
+    let parser = pcap_parser::new::pcap_ng::parse_sectionheaderblock_be;
+    let (i, block) = parser(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, SHB_MAGIC.swap_bytes());
+    assert!(block.big_endian());
+    assert_eq!(block.major_version, 1);
+    assert_eq!(block.minor_version, 0);
+    assert_eq!(block.section_len, -1);
+    assert_eq!(block.options.len(), 5);
+}
+
+#[test]
+fn new_pcapng_block_shb_le() {
+    let input = &TEST016_LE[0..=95];
+    let parser = pcap_parser::new::pcap_ng::parse_sectionheaderblock_le;
+    let (i, block) = parser(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, SHB_MAGIC);
+    assert!(!block.big_endian());
+    assert_eq!(block.major_version, 1);
+    assert_eq!(block.minor_version, 0);
+    assert_eq!(block.section_len, -1);
+    assert_eq!(block.options.len(), 5);
+}
+
+#[test]
 fn ng_block_shb_be() {
     let input = &TEST016_BE[0..=95];
     let (i, block) = parse_sectionheaderblock_be(input).unwrap();

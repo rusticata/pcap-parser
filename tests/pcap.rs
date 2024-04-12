@@ -6,6 +6,13 @@ use std::io::{BufReader, Read};
 static TEST_NTP: &[u8] = include_bytes!("../assets/ntp.pcap");
 
 #[test]
+fn test_parse_pcap() {
+    let (rem, cap) = parse_pcap(TEST_NTP).expect("could not parse file");
+    assert!(rem.is_empty());
+    assert_eq!(cap.iter().count(), 12);
+}
+
+#[test]
 fn test_pcap_capture_from_file_and_iter_le() {
     let cap = PcapCapture::from_file(TEST_NTP).expect("could not parse file into PcapNGCapture");
     for block in cap.iter() {

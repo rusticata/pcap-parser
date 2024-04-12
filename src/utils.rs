@@ -1,5 +1,7 @@
 use std::ops;
 use std::ops::{Deref, DerefMut};
+use winnow::error::ErrorConvert;
+use winnow::{IResult, Partial};
 
 /// A container for owned or borrowed data
 pub enum Data<'a> {
@@ -211,5 +213,23 @@ pub(crate) fn array_ref4(s: &[u8], offset: usize) -> &[u8; 4] {
     #[allow(unused_unsafe)]
     unsafe {
         as_array(slice)
+    }
+}
+
+/// Wrap input of function `f` into `Partial`, and unwraps return value
+#[inline(always)]
+pub(crate) fn wrap_partial<'i, F, O, EInt, EExt>(
+    f: F,
+) -> impl Fn(&'i [u8]) -> IResult<&'i [u8], O, EExt>
+where
+    F: Fn(Partial<&'i [u8]>) -> IResult<Partial<&'i [u8]>, O, EInt>,
+    EInt: ErrorConvert<EExt>,
+{
+    move |i: &[u8]| {
+        let i = Partial::new(i);
+        match f(i) {
+            Ok((i, res)) => Ok((i.into_inner(), res)),
+            Err(e) => Err(e.convert()),
+        }
     }
 }

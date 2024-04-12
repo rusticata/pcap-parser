@@ -150,6 +150,8 @@ pub use capture::*;
 pub use capture_pcap::*;
 pub use capture_pcapng::*;
 
+pub mod new;
+
 #[cfg(feature = "serialize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialize")))]
 mod serialize;
@@ -163,3 +165,6 @@ pub mod data;
 
 // re-exports
 pub use winnow;
+use winnow::Partial;
+
+pub type Input<'i> = Partial<&'i [u8]>;
