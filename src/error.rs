@@ -31,7 +31,7 @@ impl<I> PcapError<I> {
     }
 }
 
-impl <'a, I> ErrorConvert<PcapError<&'a [u8]>> for PcapError<I> {
+impl<'a, I> ErrorConvert<PcapError<&'a [u8]>> for PcapError<I> {
     fn convert(self) -> PcapError<&'a [u8]> {
         todo!()
     }

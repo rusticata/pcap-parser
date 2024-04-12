@@ -12,7 +12,7 @@ pub enum Block<I: AsBytes> {
     SectionHeader(SectionHeaderBlock<I>),
     InterfaceDescription(InterfaceDescriptionBlock<I>),
     SimplePacket(SimplePacketBlock<I>),
-    // EnhancedPacket(EnhancedPacketBlock<'a>),
+    EnhancedPacket(EnhancedPacketBlock<I>),
     // NameResolution(NameResolutionBlock<'a>),
     // InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     // SystemdJournalExport(SystemdJournalExportBlock<'a>),
@@ -34,7 +34,7 @@ impl<I: AsBytes> Block<I> {
             Block::SectionHeader(_) => SHB_MAGIC,
             Block::InterfaceDescription(_) => IDB_MAGIC,
             Block::SimplePacket(_) => SPB_MAGIC,
-            // Block::EnhancedPacket(_) => EPB_MAGIC,
+            Block::EnhancedPacket(_) => EPB_MAGIC,
             // Block::NameResolution(_) => NRB_MAGIC,
             // Block::InterfaceStatistics(_) => ISB_MAGIC,
             // Block::SystemdJournalExport(_) => SJE_MAGIC,
@@ -66,7 +66,9 @@ where
             SPB_MAGIC => parse_simplepacketblock_le
                 .map(Block::SimplePacket)
                 .parse_next(i),
-            // EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(i),
+            EPB_MAGIC => parse_enhancedpacketblock_le
+                .map(Block::EnhancedPacket)
+                .parse_next(i),
             // NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(i),
             // ISB_MAGIC => map(
             //     parse_interfacestatisticsblock_le,
@@ -106,7 +108,9 @@ where
             SPB_MAGIC => parse_simplepacketblock_be
                 .map(Block::SimplePacket)
                 .parse_next(i),
-            // EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(i),
+            EPB_MAGIC => parse_enhancedpacketblock_be
+                .map(Block::EnhancedPacket)
+                .parse_next(i),
             // NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(i),
             // ISB_MAGIC => map(
             //     parse_interfacestatisticsblock_be,

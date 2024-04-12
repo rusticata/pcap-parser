@@ -2,19 +2,23 @@ use rusticata_macros::newtype_enum;
 
 mod block;
 mod blockparser;
+mod enhanced_packet;
 mod interface_description;
 mod option;
 mod reader;
 mod section_header;
 mod simple_packet;
+mod ts;
 mod unknown;
 
 pub use block::*;
+pub use enhanced_packet::*;
 pub use interface_description::*;
 pub use option::*;
 pub use reader::*;
 pub use section_header::*;
 pub use simple_packet::*;
+pub use ts::*;
 pub use unknown::*;
 
 /// Section Header Block magic

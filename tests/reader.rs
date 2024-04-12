@@ -74,9 +74,9 @@ fn new_test_pcapng_reader() {
     let expected_origlen = &[0, 0, 314, 342, 314, 342];
     while let Ok((offset, block)) = reader.next() {
         match block {
-            // PcapBlockOwned::NG(Block::EnhancedPacket(epb)) => {
-            //     assert_eq!(expected_origlen[num_blocks], epb.origlen);
-            // }
+            PcapBlockOwned::NG(Block::EnhancedPacket(epb)) => {
+                assert_eq!(expected_origlen[num_blocks], epb.origlen);
+            }
             PcapBlockOwned::NG(_) => (),
             PcapBlockOwned::LegacyHeader(_) | PcapBlockOwned::Legacy(_) => {
                 panic!("unexpected Legacy data")
