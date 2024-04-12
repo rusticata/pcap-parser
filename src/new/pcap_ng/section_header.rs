@@ -1,4 +1,6 @@
-use winnow::error::ParseError;
+use winnow::bytes::take;
+use winnow::combinator::peek;
+use winnow::error::{ErrMode, Needed, ParseError};
 use winnow::number::le_u32;
 use winnow::stream::{AsBytes, Stream, StreamIsPartial};
 use winnow::{IResult, Parser};
@@ -87,4 +89,23 @@ where
     <I as Stream>::Slice: AsBytes,
 {
     ng_block_parser::<I, SectionHeaderBlock<_>, PcapBE, _, _>().parse_next(i)
+}
+
+/// Parse a SectionHeaderBlock (little or big endian)
+pub fn parse_sectionheaderblock<I>(i: I) -> IResult<I, SectionHeaderBlock<I>, PcapError<I>>
+where
+    I: Stream<Token = u8, Slice = I> + StreamIsPartial,
+    <I as Stream>::Slice: AsBytes,
+{
+    if i.eof_offset() < 12 {
+        return Err(ErrMode::Incomplete(Needed::new(12 - i.eof_offset())));
+    }
+    let (i, (_, bom)) = peek((take(8u8), le_u32))(i)?; // FIXME: at offset 8!
+    if bom == BOM_MAGIC {
+        parse_sectionheaderblock_le(i)
+    } else if bom == u32::from_be(BOM_MAGIC) {
+        parse_sectionheaderblock_be(i)
+    } else {
+        Err(ErrMode::Backtrack(PcapError::HeaderNotRecognized))
+    }
 }

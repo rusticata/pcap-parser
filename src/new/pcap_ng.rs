@@ -3,11 +3,15 @@ use rusticata_macros::newtype_enum;
 mod block;
 mod blockparser;
 mod option;
+mod reader;
 mod section_header;
+mod unknown;
 
 pub use block::*;
 pub use option::*;
+pub use reader::*;
 pub use section_header::*;
+pub use unknown::*;
 
 /// Section Header Block magic
 pub const SHB_MAGIC: u32 = 0x0A0D_0D0A;

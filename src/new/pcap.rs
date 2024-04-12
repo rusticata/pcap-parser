@@ -2,7 +2,10 @@ use winnow::stream::AsBytes;
 
 use crate::Linktype;
 
+mod reader;
+
 pub mod parser;
+pub use reader::*;
 
 /// PCAP global header
 #[derive(Clone, Debug)]
