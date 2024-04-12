@@ -10,7 +10,7 @@ use crate::PcapError;
 #[derive(Debug)]
 pub enum Block<I: AsBytes> {
     SectionHeader(SectionHeaderBlock<I>),
-    // InterfaceDescription(InterfaceDescriptionBlock<'a>),
+    InterfaceDescription(InterfaceDescriptionBlock<I>),
     // EnhancedPacket(EnhancedPacketBlock<'a>),
     // SimplePacket(SimplePacketBlock<'a>),
     // NameResolution(NameResolutionBlock<'a>),
@@ -32,7 +32,7 @@ impl<I: AsBytes> Block<I> {
     pub fn magic(&self) -> u32 {
         match self {
             Block::SectionHeader(_) => SHB_MAGIC,
-            // Block::InterfaceDescription(_) => IDB_MAGIC,
+            Block::InterfaceDescription(_) => IDB_MAGIC,
             // Block::EnhancedPacket(_) => EPB_MAGIC,
             // Block::SimplePacket(_) => SPB_MAGIC,
             // Block::NameResolution(_) => NRB_MAGIC,
@@ -60,10 +60,9 @@ where
             SHB_MAGIC => parse_sectionheaderblock
                 .map(Block::SectionHeader)
                 .parse_next(i),
-            // IDB_MAGIC => map(
-            //     parse_interfacedescriptionblock_le,
-            //     Block::InterfaceDescription,
-            // )(i),
+            IDB_MAGIC => parse_interfacedescriptionblock_le
+                .map(Block::InterfaceDescription)
+                .parse_next(i),
             // SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(i),
             // EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(i),
             // NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(i),
@@ -99,10 +98,9 @@ where
             SHB_MAGIC => parse_sectionheaderblock_be
                 .map(Block::SectionHeader)
                 .parse_next(i),
-            // IDB_MAGIC => map(
-            //     parse_interfacedescriptionblock_be,
-            //     Block::InterfaceDescription,
-            // )(i),
+            IDB_MAGIC => parse_interfacedescriptionblock_be
+                .map(Block::InterfaceDescription)
+                .parse_next(i),
             // SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(i),
             // EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(i),
             // NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(i),

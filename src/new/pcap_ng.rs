@@ -2,12 +2,14 @@ use rusticata_macros::newtype_enum;
 
 mod block;
 mod blockparser;
+mod interface_description;
 mod option;
 mod reader;
 mod section_header;
 mod unknown;
 
 pub use block::*;
+pub use interface_description::*;
 pub use option::*;
 pub use reader::*;
 pub use section_header::*;
