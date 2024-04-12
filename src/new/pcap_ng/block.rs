@@ -14,7 +14,7 @@ pub enum Block<I: AsBytes> {
     SimplePacket(SimplePacketBlock<I>),
     EnhancedPacket(EnhancedPacketBlock<I>),
     NameResolution(NameResolutionBlock<I>),
-    // InterfaceStatistics(InterfaceStatisticsBlock<'a>),
+    InterfaceStatistics(InterfaceStatisticsBlock<I>),
     // SystemdJournalExport(SystemdJournalExportBlock<'a>),
     // DecryptionSecrets(DecryptionSecretsBlock<'a>),
     // ProcessInformation(ProcessInformationBlock<'a>),
@@ -36,7 +36,7 @@ impl<I: AsBytes> Block<I> {
             Block::SimplePacket(_) => SPB_MAGIC,
             Block::EnhancedPacket(_) => EPB_MAGIC,
             Block::NameResolution(_) => NRB_MAGIC,
-            // Block::InterfaceStatistics(_) => ISB_MAGIC,
+            Block::InterfaceStatistics(_) => ISB_MAGIC,
             // Block::SystemdJournalExport(_) => SJE_MAGIC,
             // Block::DecryptionSecrets(_) => DSB_MAGIC,
             // Block::ProcessInformation(_) => PIB_MAGIC,
@@ -72,10 +72,9 @@ where
             NRB_MAGIC => parse_nameresolutionblock_le
                 .map(Block::NameResolution)
                 .parse_next(i),
-            // ISB_MAGIC => map(
-            //     parse_interfacestatisticsblock_le,
-            //     Block::InterfaceStatistics,
-            // )(i),
+            ISB_MAGIC => parse_interfacestatisticsblock_le
+                .map(Block::InterfaceStatistics)
+                .parse_next(i),
             // SJE_MAGIC => map(
             //     parse_systemdjournalexportblock_le,
             //     Block::SystemdJournalExport,
@@ -116,10 +115,9 @@ where
             NRB_MAGIC => parse_nameresolutionblock_be
                 .map(Block::NameResolution)
                 .parse_next(i),
-            // ISB_MAGIC => map(
-            //     parse_interfacestatisticsblock_be,
-            //     Block::InterfaceStatistics,
-            // )(i),
+            ISB_MAGIC => parse_interfacestatisticsblock_be
+                .map(Block::InterfaceStatistics)
+                .parse_next(i),
             // SJE_MAGIC => map(
             //     parse_systemdjournalexportblock_be,
             //     Block::SystemdJournalExport,
