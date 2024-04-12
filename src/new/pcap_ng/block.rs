@@ -13,7 +13,7 @@ pub enum Block<I: AsBytes> {
     InterfaceDescription(InterfaceDescriptionBlock<I>),
     SimplePacket(SimplePacketBlock<I>),
     EnhancedPacket(EnhancedPacketBlock<I>),
-    // NameResolution(NameResolutionBlock<'a>),
+    NameResolution(NameResolutionBlock<I>),
     // InterfaceStatistics(InterfaceStatisticsBlock<'a>),
     // SystemdJournalExport(SystemdJournalExportBlock<'a>),
     // DecryptionSecrets(DecryptionSecretsBlock<'a>),
@@ -35,7 +35,7 @@ impl<I: AsBytes> Block<I> {
             Block::InterfaceDescription(_) => IDB_MAGIC,
             Block::SimplePacket(_) => SPB_MAGIC,
             Block::EnhancedPacket(_) => EPB_MAGIC,
-            // Block::NameResolution(_) => NRB_MAGIC,
+            Block::NameResolution(_) => NRB_MAGIC,
             // Block::InterfaceStatistics(_) => ISB_MAGIC,
             // Block::SystemdJournalExport(_) => SJE_MAGIC,
             // Block::DecryptionSecrets(_) => DSB_MAGIC,
@@ -69,7 +69,9 @@ where
             EPB_MAGIC => parse_enhancedpacketblock_le
                 .map(Block::EnhancedPacket)
                 .parse_next(i),
-            // NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(i),
+            NRB_MAGIC => parse_nameresolutionblock_le
+                .map(Block::NameResolution)
+                .parse_next(i),
             // ISB_MAGIC => map(
             //     parse_interfacestatisticsblock_le,
             //     Block::InterfaceStatistics,
@@ -111,7 +113,9 @@ where
             EPB_MAGIC => parse_enhancedpacketblock_be
                 .map(Block::EnhancedPacket)
                 .parse_next(i),
-            // NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(i),
+            NRB_MAGIC => parse_nameresolutionblock_be
+                .map(Block::NameResolution)
+                .parse_next(i),
             // ISB_MAGIC => map(
             //     parse_interfacestatisticsblock_be,
             //     Block::InterfaceStatistics,

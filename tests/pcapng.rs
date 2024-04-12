@@ -205,6 +205,32 @@ fn ng_block_nrb_le() {
 }
 
 #[test]
+fn new_ng_block_nrb_be() {
+    use pcap_parser::new::pcap_ng::parse_nameresolutionblock_be;
+
+    let input = &TEST016_BE[128..=223];
+    let (i, block) = parse_nameresolutionblock_be(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, NRB_MAGIC.swap_bytes());
+    assert_eq!(block.nr.len(), 4);
+    assert_eq!(block.options.len(), 2);
+    assert_eq!(block.block_len1, 96);
+}
+
+#[test]
+fn new_ng_block_nrb_le() {
+    use pcap_parser::new::pcap_ng::parse_nameresolutionblock_le;
+
+    let input = &TEST016_LE[128..=223];
+    let (i, block) = parse_nameresolutionblock_le(input).unwrap();
+    assert!(i.is_empty());
+    assert_eq!(block.block_type, NRB_MAGIC);
+    assert_eq!(block.nr.len(), 4);
+    assert_eq!(block.options.len(), 2);
+    assert_eq!(block.block_len1, 96);
+}
+
+#[test]
 fn ng_block_isb_be() {
     let input = NG_BLOCK_ISB_BE;
     let (i, block) = parse_interfacestatisticsblock_be(input).unwrap();
