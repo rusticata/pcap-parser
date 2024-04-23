@@ -15,11 +15,15 @@
 //! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
 //! This can be used in a streaming parser.
 
+mod capture;
 mod frame;
 mod header;
+mod reader;
 
+pub use capture::*;
 pub use frame::*;
 pub use header::*;
+pub use reader::*;
 
 #[cfg(test)]
 pub mod tests {
