@@ -50,12 +50,14 @@ use std::convert::TryFrom;
 
 mod enhanced_packet;
 mod interface_description;
+mod interface_statistics;
 mod name_resolution;
 mod section_header;
 mod simple_packet;
 
 pub use enhanced_packet::*;
 pub use interface_description::*;
+pub use interface_statistics::*;
 pub use name_resolution::*;
 pub use section_header::*;
 pub use simple_packet::*;
@@ -283,53 +285,6 @@ pub fn build_ts_f64(ts_high: u32, ts_low: u32, ts_offset: u64, resolution: u64) 
     let ts_fractional = (ts % resolution) as u32;
     // XXX should we round to closest unit?
     ts_sec as f64 + ((ts_fractional as f64) / (resolution as f64))
-}
-
-#[derive(Debug)]
-pub struct InterfaceStatisticsBlock<'a> {
-    pub block_type: u32,
-    pub block_len1: u32,
-    pub if_id: u32,
-    pub ts_high: u32,
-    pub ts_low: u32,
-    pub options: Vec<PcapNGOption<'a>>,
-    pub block_len2: u32,
-}
-
-impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceStatisticsBlock<'a>>
-    for InterfaceStatisticsBlock<'a>
-{
-    const HDR_SZ: usize = 24;
-    const MAGIC: u32 = ISB_MAGIC;
-
-    fn inner_parse<E: ParseError<&'a [u8]>>(
-        block_type: u32,
-        block_len1: u32,
-        i: &'a [u8],
-        block_len2: u32,
-    ) -> IResult<&'a [u8], InterfaceStatisticsBlock<'a>, E> {
-        // caller function already tested header type(magic) and length
-        // read end of header
-        let (i, if_id) = En::parse_u32(i)?;
-        let (i, ts_high) = En::parse_u32(i)?;
-        let (i, ts_low) = En::parse_u32(i)?;
-        // caller function already tested header type(magic) and length
-        // read options
-        let (i, options) = opt_parse_options::<En, E>(i, block_len1 as usize, 24)?;
-        if block_len2 != block_len1 {
-            return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
-        }
-        let block = InterfaceStatisticsBlock {
-            block_type,
-            block_len1,
-            if_id,
-            ts_high,
-            ts_low,
-            options,
-            block_len2,
-        };
-        Ok((i, block))
-    }
 }
 
 #[derive(Debug)]
@@ -744,18 +699,6 @@ fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, i64) {
         }
     }
     (if_tsresol, if_tsoffset)
-}
-
-pub fn parse_interfacestatisticsblock_le(
-    i: &[u8],
-) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
-    ng_block_parser::<InterfaceStatisticsBlock, PcapLE, _, _>()(i)
-}
-
-pub fn parse_interfacestatisticsblock_be(
-    i: &[u8],
-) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
-    ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>()(i)
 }
 
 #[inline]
