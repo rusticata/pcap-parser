@@ -38,7 +38,7 @@ pub fn build_ts(ts_high: u32, ts_low: u32, ts_offset: u64, resolution: u64) -> (
 /// Given the timestamp parameters, return the timestamp as a `f64` value.
 ///
 /// The resolution is given in units per second. In pcap-ng files, it is stored in the
-/// Interface Description Block, and can be obtained using [`InterfaceDescriptionBlock::ts_resolution`]
+/// Interface Description Block, and can be obtained using [`crate::InterfaceDescriptionBlock::ts_resolution`]
 pub fn build_ts_f64(ts_high: u32, ts_low: u32, ts_offset: u64, resolution: u64) -> f64 {
     let ts: u64 = ((ts_high as u64) << 32) | (ts_low as u64);
     let ts_sec = (ts_offset + (ts / resolution)) as u32;
