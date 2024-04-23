@@ -1,9 +1,10 @@
 use nom::error::ParseError;
 use nom::IResult;
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
 use crate::PcapError;
 
-use super::{ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser};
+use super::*;
 
 /// Unknown block (magic not recognized, or not yet implemented)
 #[derive(Debug)]

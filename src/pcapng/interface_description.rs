@@ -1,12 +1,10 @@
 use nom::error::{ErrorKind, ParseError};
 use nom::{Err, IResult};
 
-use crate::{build_ts_resolution, opt_parse_options, Linktype, PcapError, PcapNGOption, IDB_MAGIC};
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
+use crate::{opt_parse_options, Linktype, PcapError, PcapNGOption, IDB_MAGIC};
 
-use super::{
-    if_extract_tsoffset_and_tsresol, ng_block_parser, PcapBE, PcapEndianness, PcapLE,
-    PcapNGBlockParser,
-};
+use super::*;
 
 /// An Interface Description Block (IDB) is the container for information
 /// describing an interface on which packet data is captured.

@@ -3,12 +3,12 @@ use nom::error::{ErrorKind, ParseError};
 use nom::{Err, IResult};
 use rusticata_macros::align32;
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
+use crate::traits::PcapNGPacketBlock;
+use crate::utils::array_ref4;
 use crate::{build_ts, build_ts_f64, opt_parse_options, PcapError, PcapNGOption, EPB_MAGIC};
 
-use super::{
-    array_ref4, ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser,
-    PcapNGPacketBlock,
-};
+use super::*;
 
 /// An Enhanced Packet Block (EPB) is the standard container for storing
 /// the packets coming from the network.

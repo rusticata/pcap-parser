@@ -1,9 +1,10 @@
 use nom::error::{ErrorKind, ParseError};
 use nom::{Err, IResult};
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
 use crate::{PcapError, CB_MAGIC, DCB_MAGIC};
 
-use super::{ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser};
+use super::*;
 
 #[derive(Debug)]
 pub struct CustomBlock<'a> {

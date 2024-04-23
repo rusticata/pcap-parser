@@ -2,9 +2,11 @@ use nom::error::ParseError;
 use nom::number::streaming::{be_i64, be_u16, le_i64, le_u16, le_u32};
 use nom::{Err, IResult};
 
-use crate::{opt_parse_options, PcapError, PcapNGOption, BOM_MAGIC, SHB_MAGIC};
+use crate::endianness::{PcapBE, PcapLE};
+use crate::utils::array_ref4;
+use crate::{opt_parse_options, PcapError, PcapNGOption, SHB_MAGIC};
 
-use super::{array_ref4, ng_block_parser, PcapBE, PcapLE, PcapNGBlockParser};
+use super::*;
 
 /// The Section Header Block (SHB) identifies the
 /// beginning of a section of the capture capture file.

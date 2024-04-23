@@ -3,9 +3,10 @@ use nom::error::{ErrorKind, ParseError};
 use nom::{Err, IResult};
 use rusticata_macros::{align32, newtype_enum};
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
 use crate::{opt_parse_options, PcapError, PcapNGOption, DSB_MAGIC};
 
-use super::{ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser};
+use super::*;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 pub struct SecretsType(pub u32);

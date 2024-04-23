@@ -1,9 +1,10 @@
 use nom::error::{ErrorKind, ParseError};
 use nom::{Err, IResult};
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
 use crate::{opt_parse_options, PcapError, PcapNGOption, ISB_MAGIC};
 
-use super::{ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser};
+use super::*;
 
 #[derive(Debug)]
 pub struct InterfaceStatisticsBlock<'a> {

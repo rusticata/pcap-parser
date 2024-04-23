@@ -2,11 +2,11 @@ use nom::bytes::streaming::take;
 use nom::error::ParseError;
 use nom::IResult;
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
+use crate::traits::PcapNGPacketBlock;
 use crate::{PcapError, SPB_MAGIC};
 
-use super::{
-    ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser, PcapNGPacketBlock,
-};
+use super::*;
 
 /// The Simple Packet Block (SPB) is a lightweight container for storing
 /// the packets coming from the network.

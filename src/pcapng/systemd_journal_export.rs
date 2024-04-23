@@ -1,9 +1,10 @@
 use nom::error::ParseError;
 use nom::IResult;
 
+use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
 use crate::{PcapError, SJE_MAGIC};
 
-use super::{ng_block_parser, PcapBE, PcapEndianness, PcapLE, PcapNGBlockParser};
+use super::*;
 
 #[derive(Debug)]
 pub struct SystemdJournalExportBlock<'a> {
