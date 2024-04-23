@@ -23,7 +23,7 @@ use super::*;
 /// use pcap_parser::pcapng::parse_enhancedpacketblock_le;
 /// use pcap_parser::traits::PcapNGPacketBlock;
 ///
-/// # let input_data = include_bytes!("../assets/test001-le.pcapng");
+/// # let input_data = include_bytes!("../../assets/test001-le.pcapng");
 /// # let pcap_data = &input_data[148..=495];
 /// let (i, epb) = parse_enhancedpacketblock_le(pcap_data).unwrap();
 /// let packet_data = epb.packet_data();
