@@ -1,11 +1,10 @@
 use crate::blocks::PcapBlock;
-use crate::capture_pcap::LegacyPcapReader;
-use crate::capture_pcapng::PcapNGReader;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::pcap::parse_pcap_header;
 use crate::pcapng::parse_sectionheaderblock;
 use crate::traits::PcapReaderIterator;
+use crate::{LegacyPcapReader, PcapNGReader};
 use circular::Buffer;
 use nom::Needed;
 use std::io::Read;

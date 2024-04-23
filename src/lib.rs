@@ -129,10 +129,12 @@ mod utils;
 pub use utils::{Data, MutableData};
 
 mod blocks;
+mod capture;
 mod endianness;
 mod error;
 mod linktype;
 pub use blocks::*;
+pub use capture::*;
 pub use error::*;
 pub use linktype::*;
 
@@ -142,13 +144,6 @@ pub use pcap::*;
 pub use pcapng::*;
 
 pub mod traits;
-
-mod capture;
-mod capture_pcap;
-mod capture_pcapng;
-pub use capture::*;
-pub use capture_pcap::*;
-pub use capture_pcapng::*;
 
 #[cfg(feature = "serialize")]
 #[cfg_attr(docsrs, doc(cfg(feature = "serialize")))]

@@ -35,14 +35,18 @@
 
 // helpers and common modules
 mod block;
+mod capture;
 mod header;
 mod option;
+mod reader;
 mod section;
 mod time;
 
 pub use block::*;
+pub use capture::*;
 pub use header::*;
 pub use option::*;
+pub use reader::*;
 pub use section::*;
 pub use time::*;
 
