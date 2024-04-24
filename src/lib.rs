@@ -56,7 +56,7 @@
 //! ## Example: streaming parsers
 //!
 //! The following code shows how to parse a file in the pcap-ng format, using a
-//! [`PcapNGReader`](struct.PcapNGReader.html) streaming parser.
+//! [`PcapNGReader`] streaming parser.
 //! This reader provides a convenient abstraction over the file format, and takes
 //! care of the endianness.
 //!
@@ -85,13 +85,13 @@
 //! }
 //! println!("num_blocks: {}", num_blocks);
 //! ```
-//! See [`PcapNGReader`](struct.PcapNGReader.html) for a complete example,
+//! See [`PcapNGReader`] for a complete example,
 //! including handling of linktype and accessing packet data.
 //!
-//! See also the [`pcapng`](pcapng/index.html) module for more details about the new capture file format.
+//! See also the [`pcapng`] module for more details about the new capture file format.
 //!
 //! For legacy pcap files, use similar code with the
-//! [`LegacyPcapReader`](struct.LegacyPcapReader.html) streaming parser.
+//! [`LegacyPcapReader`] streaming parser.
 //!
 //! See [pcap-analyzer](https://github.com/rusticata/pcap-analyzer), in particular the
 //! [libpcap-tools](https://github.com/rusticata/pcap-analyzer/tree/master/libpcap-tools) and
@@ -101,7 +101,7 @@
 //! ## Example: generic streaming parsing
 //!
 //! To create a pcap reader for input in either PCAP or PCAPNG format, use the
-//! [`create_reader`](fn.create_reader.html) function.
+//! [`create_reader`] function.
 //!
 //! # Serialization
 //!

@@ -28,7 +28,7 @@ impl display Linktype {
     IPV6 = 229,
 
     // Linux netlink NETLINK NFLOG socket log messages.
-    // Use the [`pcap_nflog`]()../pcap_nflog/index.html module to access content.
+    // Use the [`pcap_nflog`] module to access content.
     NFLOG = 239,
 
     //  Upper-layer protocol saves from Wireshark

@@ -30,7 +30,7 @@ use std::io::Read;
 /// larger value (at least 65k) is advised to avoid frequent reads and buffer shifts.
 ///
 /// **There are precautions to take when reading multiple blocks before consuming data. See
-/// [PcapReaderIterator](traits/trait.PcapReaderIterator.html) for details.**
+/// [`PcapReaderIterator`] for details.**
 ///
 /// ## Example
 ///

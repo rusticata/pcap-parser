@@ -3,20 +3,20 @@
 //! See <https://github.com/pcapng/pcapng> for details.
 //!
 //! There are several ways of parsing a PCAPNG file. The first method is to use
-//! [`parse_pcapng`](../fn.parse_pcapng.html). This method requires to load the entire
+//! [`parse_pcapng`]. This method requires to load the entire
 //! file to memory, and thus may not be good for large files.
 //!
-//! The second method is to create a [`PcapNGCapture`](../struct.PcapNGCapture.html) object,
-//! which  implements the [`Capture`](../trait.Capture.html) trait to provide generic methods.
+//! The second method is to create a [`PcapNGCapture`] object,
+//! which  implements the [`Capture`](crate::Capture) trait to provide generic methods.
 //! However, this method also reads the entire file.
 //!
-//! The third (and prefered) method is to use a [`PcapNGReader`](../struct.PcapNGReader.html)
+//! The third (and prefered) method is to use a [`PcapNGReader`]
 //! object.
 //!
 //! The last method is to manually read the blocks using
-//! [`parse_sectionheaderblock`](fn.parse_sectionheaderblock.html),
-//! [`parse_block_le`](fn.parse_block_le.html) and/or
-//! [`parse_block_be`](fn.parse_block_be.html).
+//! [`parse_sectionheaderblock`],
+//! [`parse_block_le`] and/or
+//! [`parse_block_be`].
 //!
 //! ## File format and parsing
 //!

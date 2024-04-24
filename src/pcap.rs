@@ -3,16 +3,16 @@
 //! See <https://wiki.wireshark.org/Development/LibpcapFileFormat> for details.
 //!
 //! There are 2 main ways of parsing a PCAP file. The first method is to use
-//! [`parse_pcap`](../fn.parse_pcap.html). This method requires to load the entire
+//! [`parse_pcap`]. This method requires to load the entire
 //! file to memory, and thus may not be good for large files.
 //!
-//! The [`PcapCapture`](../struct.PcapCapture.html) implements the
-//! [`Capture`](../trait.Capture.html) trait to provide generic methods. However,
+//! The [`PcapCapture`] implements the
+//! [`Capture`](crate::Capture) trait to provide generic methods. However,
 //! this trait also reads the entire file.
 //!
 //! The second method is to first parse the PCAP header
-//! using [`parse_pcap_header`](fn.parse_pcap_header.html), then
-//! loop over [`parse_pcap_frame`](fn.parse_pcap_frame.html) to get the data.
+//! using [`parse_pcap_header`], then
+//! loop over [`parse_pcap_frame`] to get the data.
 //! This can be used in a streaming parser.
 
 mod capture;
