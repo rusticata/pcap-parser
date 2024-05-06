@@ -2,8 +2,8 @@ use crate::blocks::PcapBlockOwned;
 use crate::error::PcapError;
 use crate::pcapng::*;
 use crate::traits::PcapReaderIterator;
-use oval::Buffer;
 use nom::{Needed, Offset};
+use oval::Buffer;
 use std::io::Read;
 
 /// Parsing iterator over pcap-ng data (streaming version)

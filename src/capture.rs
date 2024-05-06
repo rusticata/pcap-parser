@@ -5,8 +5,8 @@ use crate::pcap::parse_pcap_header;
 use crate::pcapng::parse_sectionheaderblock;
 use crate::traits::PcapReaderIterator;
 use crate::{LegacyPcapReader, PcapNGReader};
-use oval::Buffer;
 use nom::Needed;
+use oval::Buffer;
 use std::io::Read;
 
 /// Generic interface for PCAP or PCAPNG file access
