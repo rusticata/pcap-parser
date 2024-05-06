@@ -2,7 +2,7 @@ use crate::blocks::PcapBlockOwned;
 use crate::error::PcapError;
 use crate::pcapng::*;
 use crate::traits::PcapReaderIterator;
-use circular::Buffer;
+use oval::Buffer;
 use nom::{Needed, Offset};
 use std::io::Read;
 

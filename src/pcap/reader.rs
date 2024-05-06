@@ -5,7 +5,7 @@ use crate::pcap::{
     LegacyPcapBlock, PcapHeader,
 };
 use crate::traits::PcapReaderIterator;
-use circular::Buffer;
+use oval::Buffer;
 use nom::{IResult, Needed, Offset};
 use std::io::Read;
 
