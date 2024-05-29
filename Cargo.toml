@@ -41,7 +41,7 @@ all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
 [dependencies]
-circular = "0.3"
+oval = "2.0"
 cookie-factory = { version="0.3.0", optional=true }
 nom = "7.0"
 rusticata-macros = "4.0"
@@ -53,5 +53,5 @@ hex-literal = "0.4"
 allowed_external_types = [
   "nom",
   "nom::*",
-  "circular::Buffer",
+  "oval::Buffer",
 ]

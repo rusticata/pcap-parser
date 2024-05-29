@@ -63,6 +63,19 @@ jobs:
       - run: cargo clippy --all-features -- -D warnings
       - run: cargo clippy --no-default-features -- -D warnings
 
+  miri:
+    name: Miri
+    runs-on: ubuntu-latest
+    env:
+      # Needed since the tests interact with the filesystem
+      MIRIFLAGS: "-Zmiri-disable-isolation"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: miri
+      - run: cargo miri test --all-features
+
   doc:
     name: Build documentation
     runs-on: ubuntu-latest
@@ -91,7 +104,7 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2024-02-07
+          toolchain: nightly-2024-05-01
           # ^ sync with https://github.com/awslabs/cargo-check-external-types/blob/main/rust-toolchain.toml
       - run: cargo install cargo-check-external-types
       - run: cargo check-external-types
