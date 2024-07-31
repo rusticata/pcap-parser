@@ -56,7 +56,7 @@ impl<'a> PcapNGOption<'a> {
     ///
     /// Option data length and declared must be exactly 4 bytes
     pub fn as_i32_le(&self) -> Option<i32> {
-        if self.len == 8 && self.value.len() == 8 {
+        if self.len == 4 && self.value.len() == 4 {
             <[u8; 4]>::try_from(self.value())
                 .ok()
                 .map(i32::from_le_bytes)
@@ -69,7 +69,7 @@ impl<'a> PcapNGOption<'a> {
     ///
     /// Option data length and declared must be exactly 4 bytes
     pub fn as_u32_le(&self) -> Option<u32> {
-        if self.len == 8 && self.value.len() == 8 {
+        if self.len == 4 && self.value.len() == 4 {
             <[u8; 4]>::try_from(self.value())
                 .ok()
                 .map(u32::from_le_bytes)
