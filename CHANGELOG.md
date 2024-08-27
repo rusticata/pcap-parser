@@ -6,6 +6,23 @@
 
 ### Changed/Fixed
 
+## 0.16.0
+
+### Added
+
+- Add SLL2 support (#31)
+- Add support for PCAP "modified" format (#35)
+
+### Changed/Fixed
+
+- code refactor: split source files, reorganize crate (#36)
+  Note: no change in the public API
+- CI refactor (#33)
+
+### Thanks
+
+- Daniel McCarney, @gcsbt, David Ibbitson
+
 ## 0.15.0
 
 ### Upgrade notes and breaking changes
