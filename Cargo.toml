@@ -24,6 +24,8 @@ include = [
   "assets/*.pcapng",
   "src/*.rs",
   "src/data/*.rs",
+  "src/pcap/*.rs",
+  "src/pcapng/*.rs",
   "tests/*.rs"
 ]
 
