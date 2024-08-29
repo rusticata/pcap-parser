@@ -96,6 +96,15 @@ fn print_block_info_ng(block: &Block) {
             if let Some(option) = idb.if_os() {
                 println!("\t\t\tif_os: {}", option.unwrap_or("<invalid>"));
             }
+            if let Some(option) = idb.if_tsresol() {
+                println!("\t\t\tif_tsresol: {}", option.unwrap_or(0));
+            }
+            if let Some(option) = idb.if_filter() {
+                println!("\t\t\tif_filter: {}", option.unwrap_or("<invalid>"));
+            }
+            if let Some(option) = idb.if_tsoffset() {
+                println!("\t\t\tif_tsoffset: {}", option.unwrap_or(0));
+            }
         }
         _ => (),
     }

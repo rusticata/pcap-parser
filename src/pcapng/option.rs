@@ -23,7 +23,11 @@ impl debug OptionCode {
     IfDescription = 3,
     ShbUserAppl = 4,
     IfIpv4Addr = 4,
+    IfMacAddr = 6,
+    IfEuiAddr = 7,
+    IfSpeed = 8,
     IfTsresol = 9,
+    IfFilter = 11,
     IfOs = 12,
     IfTsoffset = 14,
     Custom2988 = 2988,
@@ -177,15 +181,58 @@ pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>
     }
 }
 
-pub(crate) fn options_get_as_string<'a>(
+#[inline]
+pub(crate) fn options_find_map<'a, F, O>(
+    options: &'a [PcapNGOption],
+    code: OptionCode,
+    f: F,
+) -> Option<Result<O, PcapNGOptionError>>
+where
+    F: Fn(&'a PcapNGOption) -> Result<O, PcapNGOptionError>,
+{
+    options
+        .iter()
+        .find_map(|opt| if opt.code == code { Some(f(opt)) } else { None })
+}
+
+pub(crate) fn options_get_as_bytes<'a>(
+    options: &'a [PcapNGOption],
+    code: OptionCode,
+) -> Option<Result<&'a [u8], PcapNGOptionError>> {
+    options_find_map(options, code, |opt| opt.as_bytes())
+}
+
+pub(crate) fn options_get_as_str<'a>(
     options: &'a [PcapNGOption],
     code: OptionCode,
 ) -> Option<Result<&'a str, PcapNGOptionError>> {
-    options.iter().find_map(|opt| {
-        if opt.code == code {
-            Some(opt.as_str())
+    options_find_map(options, code, |opt| opt.as_str())
+}
+
+pub(crate) fn options_get_as_u8(
+    options: &[PcapNGOption],
+    code: OptionCode,
+) -> Option<Result<u8, PcapNGOptionError>> {
+    options_find_map(options, code, |opt| {
+        let value = opt.value();
+        if opt.len == 1 && !value.is_empty() {
+            Ok(value[0])
         } else {
-            None
+            Err(PcapNGOptionError::InvalidLength)
         }
     })
+}
+
+pub(crate) fn options_get_as_i64_le(
+    options: &[PcapNGOption],
+    code: OptionCode,
+) -> Option<Result<i64, PcapNGOptionError>> {
+    options_find_map(options, code, |opt| opt.as_i64_le())
+}
+
+pub(crate) fn options_get_as_u64_le(
+    options: &[PcapNGOption],
+    code: OptionCode,
+) -> Option<Result<u64, PcapNGOptionError>> {
+    options_find_map(options, code, |opt| opt.as_u64_le())
 }
