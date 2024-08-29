@@ -106,6 +106,33 @@ fn print_block_info_ng(block: &Block) {
                 println!("\t\t\tif_tsoffset: {}", option.unwrap_or(0));
             }
         }
+        Block::InterfaceStatistics(isb) => {
+            println!("\t\tStatistics:");
+            if let Some(option) = isb.isb_starttime() {
+                let (ts_high, ts_low) = option.unwrap_or((0, 0));
+                println!("\t\t\tisb_starttime: 0x{:x}:0x{:x}", ts_high, ts_low);
+                // to decode, this require the ts_offset and resolution from the matching IDB block
+                // for ex:
+                // let resolution = build_ts_resolution(6).unwrap();
+                // let ts = build_ts(ts_high, ts_low, 0, resolution);
+                // println!("\t\t\t\t{}.{}", ts.0, ts.1);
+            }
+            if let Some(option) = isb.isb_ifrecv() {
+                println!("\t\t\tisb_ifrecv: {}", option.unwrap_or(0));
+            }
+            if let Some(option) = isb.isb_ifdrop() {
+                println!("\t\t\tisb_ifdrop: {}", option.unwrap_or(0));
+            }
+            if let Some(option) = isb.isb_filteraccept() {
+                println!("\t\t\tisb_filteraccept: {}", option.unwrap_or(0));
+            }
+            if let Some(option) = isb.isb_osdrop() {
+                println!("\t\t\tisb_osdrop: {}", option.unwrap_or(0));
+            }
+            if let Some(option) = isb.isb_usrdeliv() {
+                println!("\t\t\tisb_usrdeliv: {}", option.unwrap_or(0));
+            }
+        }
         _ => (),
     }
 }
