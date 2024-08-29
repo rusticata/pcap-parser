@@ -34,13 +34,45 @@ impl<'a> SectionHeaderBlock<'a> {
 
     /// Return the `shb_hardware` option value, if present
     ///
-    /// Attempt to retrieve the `shb_hardware` value
+    /// If the option is present multiple times, the first value is returned.
     ///
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn shb_hardware(&self) -> Option<Result<&str, PcapNGOptionError>> {
         self.options.iter().find_map(|opt| {
             if opt.code == OptionCode::ShbHardware {
+                Some(opt.as_str())
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Return the `shb_os` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn shb_os(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        self.options.iter().find_map(|opt| {
+            if opt.code == OptionCode::ShbOs {
+                Some(opt.as_str())
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Return the `shb_userappl` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn shb_userappl(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        self.options.iter().find_map(|opt| {
+            if opt.code == OptionCode::ShbUserAppl {
                 Some(opt.as_str())
             } else {
                 None
