@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
+use std::fmt;
 
 use nom::combinator::{complete, map_parser};
 use nom::multi::many0;
@@ -28,6 +29,24 @@ impl debug OptionCode {
 }
 }
 
+/// The error type which is returned when calling functions on [PcapNGOption]
+#[derive(Debug, PartialEq)]
+pub enum PcapNGOptionError {
+    InvalidLength,
+    Utf8Error,
+}
+
+impl fmt::Display for PcapNGOptionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PcapNGOptionError::InvalidLength => write!(f, "Invalid length"),
+            PcapNGOptionError::Utf8Error => write!(f, "Invalid UTF-8 string"),
+        }
+    }
+}
+
+impl std::error::Error for PcapNGOptionError {}
+
 #[derive(Debug)]
 pub struct PcapNGOption<'a> {
     pub code: OptionCode,
@@ -49,6 +68,18 @@ impl<'a> PcapNGOption<'a> {
             Some(&self.value[..len])
         } else {
             None
+        }
+    }
+
+    /// Return the option value interpreted as string
+    ///
+    /// Returns an error if the length of the option is invalid, or if the value is not valid UTF-8.
+    pub fn as_str(&self) -> Result<&str, PcapNGOptionError> {
+        let len = usize::from(self.len);
+        if len <= self.value.len() {
+            std::str::from_utf8(&self.value[..len]).or(Err(PcapNGOptionError::Utf8Error))
+        } else {
+            Err(PcapNGOptionError::InvalidLength)
         }
     }
 

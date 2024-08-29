@@ -4,7 +4,7 @@ use nom::{Err, IResult};
 
 use crate::endianness::{PcapBE, PcapLE};
 use crate::utils::array_ref4;
-use crate::{opt_parse_options, PcapError, PcapNGOption, SHB_MAGIC};
+use crate::{opt_parse_options, PcapError, PcapNGOption, PcapNGOptionError, SHB_MAGIC};
 
 use super::*;
 
@@ -30,6 +30,22 @@ pub struct SectionHeaderBlock<'a> {
 impl<'a> SectionHeaderBlock<'a> {
     pub fn big_endian(&self) -> bool {
         self.bom != BOM_MAGIC
+    }
+
+    /// Return the `shb_hardware` option value, if present
+    ///
+    /// Attempt to retrieve the `shb_hardware` value
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn shb_hardware(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        self.options.iter().find_map(|opt| {
+            if opt.code == OptionCode::ShbHardware {
+                Some(opt.as_str())
+            } else {
+                None
+            }
+        })
     }
 }
 
