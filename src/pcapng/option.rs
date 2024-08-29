@@ -19,13 +19,20 @@ impl debug OptionCode {
     Comment = 1,
     ShbHardware = 2,
     IfName = 2,
+    IsbStartTime = 2,
     ShbOs = 3,
     IfDescription = 3,
+    IsbEndTime = 3,
     ShbUserAppl = 4,
     IfIpv4Addr = 4,
+    IsbIfRecv = 4,
+    IsbIfDrop = 5,
     IfMacAddr = 6,
+    IsbFilterAccept = 6,
     IfEuiAddr = 7,
+    IsbOsDrop = 7,
     IfSpeed = 8,
+    IsbUsrDeliv = 8,
     IfTsresol = 9,
     IfFilter = 11,
     IfOs = 12,
@@ -246,4 +253,24 @@ pub(crate) fn options_get_as_u64_le(
     code: OptionCode,
 ) -> Option<Result<u64, PcapNGOptionError>> {
     options_find_map(options, code, |opt| opt.as_u64_le())
+}
+
+pub(crate) fn options_get_as_ts(
+    options: &[PcapNGOption],
+    code: OptionCode,
+) -> Option<Result<(u32, u32), PcapNGOptionError>> {
+    options_find_map(options, code, |opt| {
+        let value = opt.value();
+        if opt.len == 8 && value.len() == 8 {
+            let bytes_ts_high =
+                <[u8; 4]>::try_from(&value[..4]).or(Err(PcapNGOptionError::InvalidLength))?;
+            let bytes_ts_low =
+                <[u8; 4]>::try_from(&value[4..8]).or(Err(PcapNGOptionError::InvalidLength))?;
+            let ts_high = u32::from_le_bytes(bytes_ts_high);
+            let ts_low = u32::from_le_bytes(bytes_ts_low);
+            Ok((ts_high, ts_low))
+        } else {
+            Err(PcapNGOptionError::InvalidLength)
+        }
+    })
 }
