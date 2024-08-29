@@ -55,10 +55,21 @@ impl fmt::Display for PcapNGOptionError {
 
 impl std::error::Error for PcapNGOptionError {}
 
+/// A PcapNG option
 #[derive(Debug)]
 pub struct PcapNGOption<'a> {
+    /// The numeric code for the option
+    ///
+    /// Note that codes are relative to the block type, and same codes are used for different
+    /// things (for ex 2 is `shb_hardware` if the block is a SHB, but 2 is `if_name` for an IDB)
     pub code: OptionCode,
+    /// The declared length for the option
+    ///
+    /// Note that `value.len()` can be greater than `len`, because data is padded to a 32-bit boundary
     pub len: u16,
+    /// The raw value (including padding) of the option
+    ///
+    /// See [PcapNGOption::as_bytes] to get the value truncated to `len`.
     pub value: Cow<'a, [u8]>,
 }
 
