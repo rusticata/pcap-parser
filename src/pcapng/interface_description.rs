@@ -1,3 +1,5 @@
+use std::net::{Ipv4Addr, Ipv6Addr};
+
 use nom::error::{ErrorKind, ParseError};
 use nom::{Err, IResult};
 
@@ -64,6 +66,79 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     /// or `Some(Err(_))` if value is present but invalid
     pub fn if_os(&self) -> Option<Result<&str, PcapNGOptionError>> {
         options_get_as_string(&self.options, OptionCode::IfOs)
+    }
+
+    /// Return the `if_ipv4addr` option values, if present
+    ///
+    /// This option can be multi-valued.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(Vec))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    ///
+    /// Each item of the `Vec` is a pair `(IPv4Addr, IPv4Mask)`
+    pub fn if_ipv4addr(&self) -> Option<Result<Vec<(Ipv4Addr, Ipv4Addr)>, PcapNGOptionError>> {
+        let res = self.options.iter().try_fold(Vec::new(), |mut acc, opt| {
+            if opt.code == OptionCode::IfIpv4Addr {
+                let b = opt.as_bytes()?;
+                if b.len() != 8 {
+                    return Err(PcapNGOptionError::InvalidLength);
+                }
+                let addr = Ipv4Addr::new(b[0], b[1], b[2], b[3]);
+                let mask = Ipv4Addr::new(b[4], b[5], b[6], b[7]);
+                acc.push((addr, mask));
+                Ok(acc)
+            } else {
+                Ok(acc)
+            }
+        });
+        if res.as_ref().map_or(false, |v| v.is_empty()) {
+            None
+        } else {
+            Some(res)
+        }
+    }
+
+    /// Return the `if_ipv6addr` option values, if present
+    ///
+    /// This option can be multi-valued.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(Vec))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    ///
+    /// Each item of the `Vec` is a pair `(IPv6Addr, PrefixLen)`
+    pub fn if_ipv6addr(&self) -> Option<Result<Vec<(Ipv6Addr, u8)>, PcapNGOptionError>> {
+        let res = self.options.iter().try_fold(Vec::new(), |mut acc, opt| {
+            if opt.code == OptionCode::IfIpv4Addr {
+                let b = opt.as_bytes()?;
+                if b.len() != 17 {
+                    return Err(PcapNGOptionError::InvalidLength);
+                }
+                let mut array_u16 = [0u16; 8];
+                for i in 0..8 {
+                    array_u16[i] = ((b[2 * i] as u16) << 8) + b[2 * i + 1] as u16;
+                }
+                let addr = Ipv6Addr::new(
+                    array_u16[0],
+                    array_u16[1],
+                    array_u16[2],
+                    array_u16[3],
+                    array_u16[4],
+                    array_u16[5],
+                    array_u16[6],
+                    array_u16[7],
+                );
+                let mask = b[16];
+                acc.push((addr, mask));
+                Ok(acc)
+            } else {
+                Ok(acc)
+            }
+        });
+        if res.as_ref().map_or(false, |v| v.is_empty()) {
+            None
+        } else {
+            Some(res)
+        }
     }
 }
 
