@@ -18,9 +18,12 @@ impl debug OptionCode {
     EndOfOpt = 0,
     Comment = 1,
     ShbHardware = 2,
+    IfName = 2,
     ShbOs = 3,
+    IfDescription = 3,
     ShbUserAppl = 4,
     IfTsresol = 9,
+    IfOs = 12,
     IfTsoffset = 14,
     Custom2988 = 2988,
     Custom2989 = 2989,
@@ -171,4 +174,17 @@ pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>
     } else {
         Ok((i, Vec::new()))
     }
+}
+
+pub(crate) fn options_get_as_string<'a>(
+    options: &'a [PcapNGOption],
+    code: OptionCode,
+) -> Option<Result<&'a str, PcapNGOptionError>> {
+    options.iter().find_map(|opt| {
+        if opt.code == code {
+            Some(opt.as_str())
+        } else {
+            None
+        }
+    })
 }

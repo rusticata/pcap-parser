@@ -35,6 +35,36 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     pub fn ts_offset(&self) -> i64 {
         self.if_tsoffset
     }
+
+    /// Return the `if_name` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_name(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        options_get_as_string(&self.options, OptionCode::IfName)
+    }
+
+    /// Return the `if_description` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_description(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        options_get_as_string(&self.options, OptionCode::IfDescription)
+    }
+
+    /// Return the `if_os` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_os(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        options_get_as_string(&self.options, OptionCode::IfOs)
+    }
 }
 
 impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock<'a>>
