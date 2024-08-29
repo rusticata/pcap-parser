@@ -22,6 +22,7 @@ impl debug OptionCode {
     ShbOs = 3,
     IfDescription = 3,
     ShbUserAppl = 4,
+    IfIpv4Addr = 4,
     IfTsresol = 9,
     IfOs = 12,
     IfTsoffset = 14,
