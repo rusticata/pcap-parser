@@ -34,6 +34,11 @@ fn print_pcap_info(arg: &str) -> Result<(), Box<dyn Error>> {
             // first block should be a SectionHeader
             if let Block::SectionHeader(sh) = block {
                 println!("\t\tVersion: {}.{}", sh.major_version, sh.minor_version);
+                let shb_hardware = sh.shb_hardware();
+                println!(
+                    "\t\tshb_hardware: {}",
+                    shb_hardware.transpose()?.unwrap_or("<invalid>")
+                );
             } else {
                 return Err("pcapng: block is not a section header".into());
             }
