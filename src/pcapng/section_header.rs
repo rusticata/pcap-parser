@@ -39,7 +39,7 @@ impl<'a> SectionHeaderBlock<'a> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn shb_hardware(&self) -> Option<Result<&str, PcapNGOptionError>> {
-        options_get_as_string(&self.options, OptionCode::ShbHardware)
+        options_get_as_str(&self.options, OptionCode::ShbHardware)
     }
 
     /// Return the `shb_os` option value, if present
@@ -49,7 +49,7 @@ impl<'a> SectionHeaderBlock<'a> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn shb_os(&self) -> Option<Result<&str, PcapNGOptionError>> {
-        options_get_as_string(&self.options, OptionCode::ShbOs)
+        options_get_as_str(&self.options, OptionCode::ShbOs)
     }
 
     /// Return the `shb_userappl` option value, if present
@@ -59,7 +59,7 @@ impl<'a> SectionHeaderBlock<'a> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn shb_userappl(&self) -> Option<Result<&str, PcapNGOptionError>> {
-        options_get_as_string(&self.options, OptionCode::ShbUserAppl)
+        options_get_as_str(&self.options, OptionCode::ShbUserAppl)
     }
 }
 

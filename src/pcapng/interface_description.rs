@@ -45,7 +45,7 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn if_name(&self) -> Option<Result<&str, PcapNGOptionError>> {
-        options_get_as_string(&self.options, OptionCode::IfName)
+        options_get_as_str(&self.options, OptionCode::IfName)
     }
 
     /// Return the `if_description` option value, if present
@@ -55,7 +55,7 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn if_description(&self) -> Option<Result<&str, PcapNGOptionError>> {
-        options_get_as_string(&self.options, OptionCode::IfDescription)
+        options_get_as_str(&self.options, OptionCode::IfDescription)
     }
 
     /// Return the `if_os` option value, if present
@@ -65,7 +65,7 @@ impl<'a> InterfaceDescriptionBlock<'a> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn if_os(&self) -> Option<Result<&str, PcapNGOptionError>> {
-        options_get_as_string(&self.options, OptionCode::IfOs)
+        options_get_as_str(&self.options, OptionCode::IfOs)
     }
 
     /// Return the `if_ipv4addr` option values, if present
@@ -139,6 +139,66 @@ impl<'a> InterfaceDescriptionBlock<'a> {
         } else {
             Some(res)
         }
+    }
+
+    /// Return the `if_macaddr` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_macaddr(&self) -> Option<Result<&[u8], PcapNGOptionError>> {
+        options_get_as_bytes(&self.options, OptionCode::IfMacAddr)
+    }
+
+    /// Return the `if_euiaddr` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_euiaddr(&self) -> Option<Result<&[u8], PcapNGOptionError>> {
+        options_get_as_bytes(&self.options, OptionCode::IfEuiAddr)
+    }
+
+    /// Return the `if_speed` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_speed(&self) -> Option<Result<u64, PcapNGOptionError>> {
+        options_get_as_u64_le(&self.options, OptionCode::IfSpeed)
+    }
+
+    /// Return the `if_tsresol` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_tsresol(&self) -> Option<Result<u8, PcapNGOptionError>> {
+        options_get_as_u8(&self.options, OptionCode::IfTsresol)
+    }
+
+    /// Return the `if_filter` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_filter(&self) -> Option<Result<&str, PcapNGOptionError>> {
+        options_get_as_str(&self.options, OptionCode::IfFilter)
+    }
+
+    /// Return the `if_tsoffset` option value, if present
+    ///
+    /// If the option is present multiple times, the first value is returned.
+    ///
+    /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
+    /// or `Some(Err(_))` if value is present but invalid
+    pub fn if_tsoffset(&self) -> Option<Result<i64, PcapNGOptionError>> {
+        options_get_as_i64_le(&self.options, OptionCode::IfTsoffset)
     }
 }
 
