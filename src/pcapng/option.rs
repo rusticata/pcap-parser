@@ -62,12 +62,12 @@ impl<'a> PcapNGOption<'a> {
     }
 
     /// Return a reference to the option value, using the `len` field to limit it, or None if length is invalid
-    pub fn as_bytes(&self) -> Option<&[u8]> {
+    pub fn as_bytes(&self) -> Result<&[u8], PcapNGOptionError> {
         let len = usize::from(self.len);
         if len <= self.value.len() {
-            Some(&self.value[..len])
+            Ok(&self.value[..len])
         } else {
-            None
+            Err(PcapNGOptionError::InvalidLength)
         }
     }
 
@@ -75,64 +75,56 @@ impl<'a> PcapNGOption<'a> {
     ///
     /// Returns an error if the length of the option is invalid, or if the value is not valid UTF-8.
     pub fn as_str(&self) -> Result<&str, PcapNGOptionError> {
-        let len = usize::from(self.len);
-        if len <= self.value.len() {
-            std::str::from_utf8(&self.value[..len]).or(Err(PcapNGOptionError::Utf8Error))
-        } else {
-            Err(PcapNGOptionError::InvalidLength)
-        }
+        self.as_bytes()
+            .and_then(|b| std::str::from_utf8(b).or(Err(PcapNGOptionError::Utf8Error)))
     }
 
-    /// Return the option value interpreted as i32, or None
+    /// Return the option value interpreted as i32, or an error
     ///
     /// Option data length and declared must be exactly 4 bytes
-    pub fn as_i32_le(&self) -> Option<i32> {
-        if self.len == 4 && self.value.len() == 4 {
-            <[u8; 4]>::try_from(self.value())
-                .ok()
-                .map(i32::from_le_bytes)
-        } else {
-            None
+    pub fn as_i32_le(&self) -> Result<i32, PcapNGOptionError> {
+        if self.len != 4 {
+            return Err(PcapNGOptionError::InvalidLength);
         }
+        <[u8; 4]>::try_from(self.value())
+            .map(i32::from_le_bytes)
+            .or(Err(PcapNGOptionError::InvalidLength))
     }
 
-    /// Return the option value interpreted as u32, or None
+    /// Return the option value interpreted as u32, or an error
     ///
     /// Option data length and declared must be exactly 4 bytes
-    pub fn as_u32_le(&self) -> Option<u32> {
-        if self.len == 4 && self.value.len() == 4 {
-            <[u8; 4]>::try_from(self.value())
-                .ok()
-                .map(u32::from_le_bytes)
-        } else {
-            None
+    pub fn as_u32_le(&self) -> Result<u32, PcapNGOptionError> {
+        if self.len != 4 {
+            return Err(PcapNGOptionError::InvalidLength);
         }
+        <[u8; 4]>::try_from(self.value())
+            .map(u32::from_le_bytes)
+            .or(Err(PcapNGOptionError::InvalidLength))
     }
 
-    /// Return the option value interpreted as i64, or None
+    /// Return the option value interpreted as i64, or an error
     ///
     /// Option data length and declared must be exactly 8 bytes
-    pub fn as_i64_le(&self) -> Option<i64> {
-        if self.len == 8 && self.value.len() == 8 {
-            <[u8; 8]>::try_from(self.value())
-                .ok()
-                .map(i64::from_le_bytes)
-        } else {
-            None
+    pub fn as_i64_le(&self) -> Result<i64, PcapNGOptionError> {
+        if self.len != 8 {
+            return Err(PcapNGOptionError::InvalidLength);
         }
+        <[u8; 8]>::try_from(self.value())
+            .map(i64::from_le_bytes)
+            .or(Err(PcapNGOptionError::InvalidLength))
     }
 
-    /// Return the option value interpreted as u64, or None
+    /// Return the option value interpreted as u64, or an error
     ///
     /// Option data length and declared must be exactly 8 bytes
-    pub fn as_u64_le(&self) -> Option<u64> {
-        if self.len == 8 && self.value.len() == 8 {
-            <[u8; 8]>::try_from(self.value())
-                .ok()
-                .map(u64::from_le_bytes)
-        } else {
-            None
+    pub fn as_u64_le(&self) -> Result<u64, PcapNGOptionError> {
+        if self.len != 8 {
+            return Err(PcapNGOptionError::InvalidLength);
         }
+        <[u8; 8]>::try_from(self.value())
+            .map(u64::from_le_bytes)
+            .or(Err(PcapNGOptionError::InvalidLength))
     }
 }
 
