@@ -69,3 +69,36 @@ pub(crate) fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, 
     }
     (if_tsresol, if_tsoffset)
 }
+
+#[cfg(test)]
+mod tests {
+    use hex_literal::hex;
+
+    use super::*;
+
+    #[test]
+    fn decode_ts() {
+        // from https://datatracker.ietf.org/doc/html/draft-ietf-opsawg-pcapng section 4.6 (ISB)
+        // '97 c3 04 00 aa 47 ca 64', in Little Endian, decodes to 2012-06-29 07:28:25.298858 UTC.
+
+        const INPUT_HIGH: [u8; 4] = hex!("97 c3 04 00");
+        const INPUT_LOW: [u8; 4] = hex!("aa 47 ca 64");
+        let ts_high = u32::from_le_bytes(INPUT_HIGH);
+        let ts_low = u32::from_le_bytes(INPUT_LOW);
+        let ts_offset = 0;
+        let resolution = build_ts_resolution(6).unwrap();
+        // eprintln!("{ts_high:x?}");
+
+        let (ts_sec, ts_usec) = build_ts(ts_high, ts_low, ts_offset, resolution);
+        eprintln!("{ts_sec}:{ts_usec}");
+
+        const EXPECTED_TS_SEC: u32 = 1340954905;
+        const EXPECTED_TS_USEC: u32 = 298858;
+        // // to obtain the above values value, add "chrono" to dev-dependencies and uncomment:
+        // use chrono::DateTime;
+        // let dt = DateTime::from_timestamp(ts_sec as i64, ts_usec * 1000).unwrap();
+        // assert_eq!(dt.to_string(), "2012-06-29 07:28:25.298858 UTC");
+        assert_eq!(ts_sec, EXPECTED_TS_SEC);
+        assert_eq!(ts_usec, EXPECTED_TS_USEC);
+    }
+}
