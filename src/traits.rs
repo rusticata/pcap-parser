@@ -102,7 +102,7 @@ pub trait PcapReaderIterator {
     /// Get the next pcap block, if possible. Returns the number of bytes read and the block.
     ///
     /// The returned object is valid until `consume` or `refill` is called.
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&[u8]>>;
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned<'_>), PcapError<&[u8]>>;
     /// Consume data, and shift buffer if needed.
     ///
     /// If the position gets past the buffer's half, this will move the remaining data to the
