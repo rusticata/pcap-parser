@@ -78,7 +78,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, NameResolutionBlock<'a>>
 
 fn parse_name_record<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
     i: &'a [u8],
-) -> IResult<&'a [u8], NameRecord, E> {
+) -> IResult<&'a [u8], NameRecord<'a>, E> {
     let (i, record_type) = En::parse_u16(i)?;
     let (i, record_len) = En::parse_u16(i)?;
     let aligned_len = align32!(record_len as u32);
@@ -92,7 +92,7 @@ fn parse_name_record<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
 
 fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
     i: &'a [u8],
-) -> IResult<&'a [u8], Vec<NameRecord>, E> {
+) -> IResult<&'a [u8], Vec<NameRecord<'a>>, E> {
     map(
         many_till(parse_name_record::<En, E>, tag(b"\x00\x00\x00\x00")),
         |(mut v, _)| {

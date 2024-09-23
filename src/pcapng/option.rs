@@ -158,7 +158,7 @@ impl<'a> PcapNGOption<'a> {
 #[inline]
 pub fn parse_option_le<'i, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
-) -> IResult<&'i [u8], PcapNGOption, E> {
+) -> IResult<&'i [u8], PcapNGOption<'i>, E> {
     parse_option::<PcapLE, E>(i)
 }
 
@@ -166,13 +166,13 @@ pub fn parse_option_le<'i, E: ParseError<&'i [u8]>>(
 #[inline]
 pub fn parse_option_be<'i, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
-) -> IResult<&'i [u8], PcapNGOption, E> {
+) -> IResult<&'i [u8], PcapNGOption<'i>, E> {
     parse_option::<PcapBE, E>(i)
 }
 
 pub(crate) fn parse_option<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>(
     i: &'i [u8],
-) -> IResult<&'i [u8], PcapNGOption, E> {
+) -> IResult<&'i [u8], PcapNGOption<'i>, E> {
     let (i, code) = En::parse_u16(i)?;
     let (i, len) = En::parse_u16(i)?;
     let (i, value) = take(align32!(len as u32))(i)?;
@@ -188,7 +188,7 @@ pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>
     i: &'i [u8],
     len: usize,
     opt_offset: usize,
-) -> IResult<&'i [u8], Vec<PcapNGOption>, E> {
+) -> IResult<&'i [u8], Vec<PcapNGOption<'i>>, E> {
     if len > opt_offset {
         map_parser(
             take(len - opt_offset),

@@ -15,7 +15,7 @@ pub trait Capture {
 
     fn get_snaplen(&self) -> u32;
 
-    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = PcapBlock> + 'a>;
+    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = PcapBlock<'a>> + 'a>;
 }
 
 /// Get a generic `PcapReaderIterator`, given a `Read` input. The input is probed for pcap-ng first,
