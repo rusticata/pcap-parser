@@ -25,7 +25,7 @@ pub enum Block<'a> {
     Unknown(UnknownBlock<'a>),
 }
 
-impl<'a> Block<'a> {
+impl Block<'_> {
     /// Returns true if blocks contains a network packet
     pub fn is_data_block(&self) -> bool {
         matches!(self, &Block::EnhancedPacket(_) | &Block::SimplePacket(_))

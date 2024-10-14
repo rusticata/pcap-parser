@@ -13,7 +13,7 @@ pub enum MutableData<'a> {
     Borrowed(&'a mut [u8]),
 }
 
-impl<'a> Data<'a> {
+impl Data<'_> {
     #[inline]
     pub fn as_slice(&self) -> &[u8] {
         match self {
@@ -77,21 +77,21 @@ impl<'a> MutableData<'a> {
 
 /* AsRef */
 
-impl<'a> AsRef<[u8]> for Data<'a> {
+impl AsRef<[u8]> for Data<'_> {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         self.as_slice()
     }
 }
 
-impl<'a> AsRef<[u8]> for MutableData<'a> {
+impl AsRef<[u8]> for MutableData<'_> {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         self.as_slice()
     }
 }
 
-impl<'a> AsMut<[u8]> for MutableData<'a> {
+impl AsMut<[u8]> for MutableData<'_> {
     #[inline]
     fn as_mut(&mut self) -> &mut [u8] {
         self.as_mut_slice()

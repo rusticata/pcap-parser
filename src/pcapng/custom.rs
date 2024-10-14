@@ -64,7 +64,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, CustomBlock<'a>> for DCBP
     }
 }
 
-impl<'a> CustomBlock<'a> {
+impl CustomBlock<'_> {
     pub fn do_not_copy(&self) -> bool {
         self.block_type == DCB_MAGIC || self.block_type == DCB_MAGIC.swap_bytes()
     }

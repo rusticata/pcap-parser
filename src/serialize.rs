@@ -45,7 +45,7 @@ impl ToVec for PcapHeader {
     }
 }
 
-impl<'a> ToVec for LegacyPcapBlock<'a> {
+impl ToVec for LegacyPcapBlock<'_> {
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::with_capacity(self.data.len() + 16);
 
@@ -73,7 +73,7 @@ fn padding_for<'a, W: Write + 'a>(unaligned_length: u32) -> impl SerializeFn<W> 
     })
 }
 
-impl<'a> ToVec for PcapNGOption<'a> {
+impl ToVec for PcapNGOption<'_> {
     fn to_vec_raw(&self) -> Result<Vec<u8>, GenError> {
         let mut v = Vec::new();
         gen(pcapngoption_le(self), &mut v).map(|res| res.0.to_vec())
@@ -106,7 +106,7 @@ fn fix_options(options: &mut Vec<PcapNGOption>) {
     }
 }
 
-impl<'a> ToVec for SectionHeaderBlock<'a> {
+impl ToVec for SectionHeaderBlock<'_> {
     /// Check and correct all fields: use magic, version and fix lengths fields
     fn fix(&mut self) {
         self.block_type = SHB_MAGIC;
@@ -140,7 +140,7 @@ impl<'a> ToVec for SectionHeaderBlock<'a> {
     }
 }
 
-impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
+impl ToVec for InterfaceDescriptionBlock<'_> {
     /// Check and correct all fields: use magic, set time resolution and fix lengths fields
     fn fix(&mut self) {
         self.block_type = IDB_MAGIC;
@@ -192,7 +192,7 @@ impl<'a> ToVec for InterfaceDescriptionBlock<'a> {
     }
 }
 
-impl<'a> ToVec for EnhancedPacketBlock<'a> {
+impl ToVec for EnhancedPacketBlock<'_> {
     /// Check and correct all fields: use magic, version and fix lengths fields
     fn fix(&mut self) {
         self.block_type = EPB_MAGIC;
@@ -225,7 +225,7 @@ impl<'a> ToVec for EnhancedPacketBlock<'a> {
     }
 }
 
-impl<'a> ToVec for SimplePacketBlock<'a> {
+impl ToVec for SimplePacketBlock<'_> {
     fn fix(&mut self) {
         self.block_type = SPB_MAGIC;
         // fix length
@@ -262,7 +262,7 @@ fn namerecords_length(nr: &[NameRecord]) -> usize {
     nr.iter().map(|n| align32!(2 + n.record_value.len())).sum()
 }
 
-impl<'a> ToVec for NameResolutionBlock<'a> {
+impl ToVec for NameResolutionBlock<'_> {
     fn fix(&mut self) {
         self.block_type = NRB_MAGIC;
         fix_options(&mut self.options);
@@ -288,7 +288,7 @@ impl<'a> ToVec for NameResolutionBlock<'a> {
     }
 }
 
-impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
+impl ToVec for InterfaceStatisticsBlock<'_> {
     fn fix(&mut self) {
         self.block_type = ISB_MAGIC;
         fix_options(&mut self.options);
@@ -315,7 +315,7 @@ impl<'a> ToVec for InterfaceStatisticsBlock<'a> {
     }
 }
 
-impl<'a> ToVec for SystemdJournalExportBlock<'a> {
+impl ToVec for SystemdJournalExportBlock<'_> {
     fn fix(&mut self) {
         if self.block_type != SJE_MAGIC {
             self.block_type = SJE_MAGIC;
@@ -341,7 +341,7 @@ impl<'a> ToVec for SystemdJournalExportBlock<'a> {
     }
 }
 
-impl<'a> ToVec for DecryptionSecretsBlock<'a> {
+impl ToVec for DecryptionSecretsBlock<'_> {
     fn fix(&mut self) {
         if self.block_type != DSB_MAGIC {
             self.block_type = DSB_MAGIC;
@@ -372,7 +372,7 @@ impl<'a> ToVec for DecryptionSecretsBlock<'a> {
     }
 }
 
-impl<'a> ToVec for ProcessInformationBlock<'a> {
+impl ToVec for ProcessInformationBlock<'_> {
     /// Check and correct all fields: use magic, version and fix lengths fields
     fn fix(&mut self) {
         self.block_type = PIB_MAGIC;
@@ -399,7 +399,7 @@ impl<'a> ToVec for ProcessInformationBlock<'a> {
     }
 }
 
-impl<'a> ToVec for CustomBlock<'a> {
+impl ToVec for CustomBlock<'_> {
     fn fix(&mut self) {
         if self.block_type != DCB_MAGIC && self.block_type != CB_MAGIC {
             self.block_type = CB_MAGIC;
@@ -426,7 +426,7 @@ impl<'a> ToVec for CustomBlock<'a> {
     }
 }
 
-impl<'a> ToVec for UnknownBlock<'a> {
+impl ToVec for UnknownBlock<'_> {
     fn fix(&mut self) {
         // do not touch type, it is unknown
         // fix length
@@ -450,7 +450,7 @@ impl<'a> ToVec for UnknownBlock<'a> {
     }
 }
 
-impl<'a> ToVec for Block<'a> {
+impl ToVec for Block<'_> {
     fn fix(&mut self) {
         match self {
             Block::SectionHeader(b) => b.fix(),

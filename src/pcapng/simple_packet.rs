@@ -25,7 +25,7 @@ pub struct SimplePacketBlock<'a> {
     pub block_len2: u32,
 }
 
-impl<'a> PcapNGPacketBlock for SimplePacketBlock<'a> {
+impl PcapNGPacketBlock for SimplePacketBlock<'_> {
     fn big_endian(&self) -> bool {
         self.block_type != SPB_MAGIC
     }

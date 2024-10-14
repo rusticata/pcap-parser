@@ -27,7 +27,7 @@ pub struct NameRecord<'a> {
     pub record_value: &'a [u8],
 }
 
-impl<'a> NameRecord<'a> {
+impl NameRecord<'_> {
     pub const END: NameRecord<'static> = NameRecord {
         record_type: NameRecordType::End,
         record_value: &[],

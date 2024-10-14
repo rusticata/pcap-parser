@@ -23,7 +23,7 @@ pub struct InterfaceDescriptionBlock<'a> {
     pub if_tsoffset: i64,
 }
 
-impl<'a> InterfaceDescriptionBlock<'a> {
+impl InterfaceDescriptionBlock<'_> {
     /// Decode the interface time resolution, in units per second
     ///
     /// Return the resolution, or `None` if the resolution is invalid (for ex. greater than `2^64`)

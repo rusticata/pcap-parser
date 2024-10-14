@@ -37,7 +37,7 @@ pub struct LegacyPcapSlice<'a> {
     rem: &'a [u8],
 }
 
-impl<'a> LegacyPcapSlice<'a> {
+impl LegacyPcapSlice<'_> {
     pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, nom::Err<PcapError<&[u8]>>> {
         let (rem, header) = parse_pcap_header(i)?;
         Ok(LegacyPcapSlice { header, rem })
@@ -68,7 +68,7 @@ pub struct PcapCapture<'a> {
     pub blocks: Vec<LegacyPcapBlock<'a>>,
 }
 
-impl<'a> PcapCapture<'a> {
+impl PcapCapture<'_> {
     pub fn from_file(i: &[u8]) -> Result<PcapCapture, PcapError<&[u8]>> {
         match parse_pcap(i) {
             Ok((_, pcap)) => Ok(pcap),
@@ -79,7 +79,7 @@ impl<'a> PcapCapture<'a> {
     }
 }
 
-impl<'a> fmt::Debug for PcapCapture<'a> {
+impl fmt::Debug for PcapCapture<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         writeln!(f, "PcapCapture:")
     }
@@ -102,7 +102,7 @@ impl<'a> Iterator for LegacyPcapIterator<'a> {
     }
 }
 
-impl<'a> Capture for PcapCapture<'a> {
+impl Capture for PcapCapture<'_> {
     fn get_datalink(&self) -> Linktype {
         self.header.network
     }

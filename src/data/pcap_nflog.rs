@@ -100,7 +100,7 @@ pub fn parse_nflog_header(i: &[u8]) -> IResult<&[u8], NflogHdr> {
     Ok((i, NflogHdr { af, vers, res_id }))
 }
 
-impl<'a> NflogPacket<'a> {
+impl NflogPacket<'_> {
     pub fn get(&self, attr: NfAttrType) -> Option<&NflogTlv> {
         self.data.iter().find(|v| v.t == attr as u16)
     }

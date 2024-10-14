@@ -17,7 +17,7 @@ pub struct InterfaceStatisticsBlock<'a> {
     pub block_len2: u32,
 }
 
-impl<'a> InterfaceStatisticsBlock<'a> {
+impl InterfaceStatisticsBlock<'_> {
     /// Return the `isb_starttime` option value, if present
     ///
     /// The returned value is `(ts_high,ts_low)`. To convert to a full timestamp,

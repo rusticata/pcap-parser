@@ -33,7 +33,7 @@ pub struct PcapNGSlice<'a> {
     rem: &'a [u8],
 }
 
-impl<'a> PcapNGSlice<'a> {
+impl PcapNGSlice<'_> {
     pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, nom::Err<PcapError<&[u8]>>> {
         // just check that first block is a valid one
         let (_rem, _shb) = parse_sectionheaderblock(i)?;
@@ -73,7 +73,7 @@ pub struct PcapNGCapture<'a> {
     pub sections: Vec<Section<'a>>,
 }
 
-impl<'a> fmt::Debug for PcapNGCapture<'a> {
+impl fmt::Debug for PcapNGCapture<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         writeln!(f, "PcapNGCapture:")
     }

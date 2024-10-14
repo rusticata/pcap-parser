@@ -27,7 +27,7 @@ pub struct SectionHeaderBlock<'a> {
     pub block_len2: u32,
 }
 
-impl<'a> SectionHeaderBlock<'a> {
+impl SectionHeaderBlock<'_> {
     pub fn big_endian(&self) -> bool {
         self.bom != BOM_MAGIC
     }

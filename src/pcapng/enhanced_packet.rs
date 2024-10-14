@@ -52,7 +52,7 @@ pub struct EnhancedPacketBlock<'a> {
     pub block_len2: u32,
 }
 
-impl<'a> EnhancedPacketBlock<'a> {
+impl EnhancedPacketBlock<'_> {
     /// Decode the packet timestamp
     ///
     /// To decode the timestamp, the raw values if_tsresol and if_tsoffset are required.
@@ -76,7 +76,7 @@ impl<'a> EnhancedPacketBlock<'a> {
     }
 }
 
-impl<'a> PcapNGPacketBlock for EnhancedPacketBlock<'a> {
+impl PcapNGPacketBlock for EnhancedPacketBlock<'_> {
     fn big_endian(&self) -> bool {
         self.block_type != EPB_MAGIC
     }

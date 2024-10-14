@@ -80,7 +80,7 @@ pub struct PcapNGOption<'a> {
     pub value: Cow<'a, [u8]>,
 }
 
-impl<'a> PcapNGOption<'a> {
+impl PcapNGOption<'_> {
     /// Return a reference to the option value, as raw bytes (not related to the `len` field)
     #[inline]
     pub fn value(&self) -> &[u8] {
