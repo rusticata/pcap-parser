@@ -84,7 +84,7 @@ use std::io::Read;
 ///         Err(PcapError::Incomplete(_)) => {
 ///             if last_incomplete_index == num_blocks {
 ///                 eprintln!("Could not read complete data block.");
-///                 eprintln!("Hint: the reader buffer size may be too small, or the input file nay be truncated.");
+///                 eprintln!("Hint: the reader buffer size may be too small, or the input file may be truncated.");
 ///                 break;
 ///             }
 ///             last_incomplete_index = num_blocks;
