@@ -5,8 +5,8 @@ use crate::pcap::{
     LegacyPcapBlock, PcapHeader,
 };
 use crate::traits::PcapReaderIterator;
-use circular::Buffer;
 use nom::{IResult, Needed, Offset};
+use oval::Buffer;
 use std::io::Read;
 
 /// Parsing iterator over legacy pcap data (streaming version)
