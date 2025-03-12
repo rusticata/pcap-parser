@@ -41,8 +41,8 @@ fn profile_reader_pcapng(c: &mut Criterion) {
 }
 
 fn profiled() -> Criterion {
-    //Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
-    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Protobuf))
+    Criterion::default().with_profiler(PProfProfiler::new(100, Output::Flamegraph(None)))
+    //Criterion::default().with_profiler(PProfProfiler::new(100, Output::Protobuf))
 }
 
 criterion_group! {
