@@ -72,7 +72,6 @@ where
     reader: R,
     buffer: Buffer,
     consumed: usize,
-    header_sent: bool,
     reader_exhausted: bool,
     parse: LegacyParseFn,
 }
@@ -119,7 +118,6 @@ where
             reader,
             buffer,
             consumed: 0,
-            header_sent: false,
             reader_exhausted: false,
             parse,
         })
@@ -131,8 +129,7 @@ where
     R: Read,
 {
     fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&'_ [u8]>> {
-        if !self.header_sent {
-            self.header_sent = true;
+        if self.consumed == 0 {
             return Ok((
                 self.header.size(),
                 PcapBlockOwned::from(self.header.clone()),
