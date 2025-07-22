@@ -10,11 +10,11 @@ fn main() {
 }
 
 fn print_pcap_info(arg: &str) -> Result<(), Box<dyn Error>> {
-    println!("Name: {}", arg);
+    println!("Name: {arg}");
 
     let file = File::open(arg)?;
     let file_size = file.metadata()?.len();
-    println!("\tfile size: {}", file_size);
+    println!("\tfile size: {file_size}");
 
     let mut reader = create_reader(10 * 1024, file)?;
 
@@ -59,7 +59,7 @@ fn print_pcap_info(arg: &str) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    println!("\tnum_blocks: {}", num_blocks);
+    println!("\tnum_blocks: {num_blocks}");
 
     Ok(())
 }
@@ -110,7 +110,7 @@ fn print_block_info_ng(block: &Block) {
             println!("\t\tStatistics:");
             if let Some(option) = isb.isb_starttime() {
                 let (ts_high, ts_low) = option.unwrap_or((0, 0));
-                println!("\t\t\tisb_starttime: 0x{:x}:0x{:x}", ts_high, ts_low);
+                println!("\t\t\tisb_starttime: 0x{ts_high:x}:0x{ts_low:x}");
                 // to decode, this require the ts_offset and resolution from the matching IDB block
                 // for ex:
                 // let resolution = build_ts_resolution(6).unwrap();
