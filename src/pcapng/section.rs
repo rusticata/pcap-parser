@@ -2,7 +2,7 @@ use nom::{
     combinator::complete,
     error::{make_error, ErrorKind},
     multi::{many0, many1},
-    Err, IResult,
+    Err, IResult, Parser as _,
 };
 
 use crate::{PcapBlock, PcapError};
@@ -106,9 +106,9 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section<'_>, PcapError<&[u8]>> 
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.big_endian();
     let (rem, mut b) = if big_endian {
-        many0(complete(parse_section_content_block_be))(rem)?
+        many0(complete(parse_section_content_block_be)).parse(rem)?
     } else {
-        many0(complete(parse_section_content_block_le))(rem)?
+        many0(complete(parse_section_content_block_le)).parse(rem)?
     };
     let mut blocks = Vec::with_capacity(b.len() + 1);
     blocks.push(Block::SectionHeader(shb));
@@ -120,5 +120,5 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section<'_>, PcapError<&[u8]>> 
 /// Parse multiple sections (little or big endian)
 #[inline]
 pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section<'_>>, PcapError<&[u8]>> {
-    many1(complete(parse_section))(i)
+    many1(complete(parse_section)).parse(i)
 }

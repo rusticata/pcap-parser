@@ -4,8 +4,8 @@ use std::fmt;
 
 use nom::combinator::{complete, map_parser};
 use nom::multi::many0;
-use nom::IResult;
 use nom::{bytes::streaming::take, error::ParseError};
+use nom::{IResult, Parser as _};
 use rusticata_macros::{align32, newtype_enum};
 
 use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
@@ -193,7 +193,8 @@ pub(crate) fn opt_parse_options<'i, En: PcapEndianness, E: ParseError<&'i [u8]>>
         map_parser(
             take(len - opt_offset),
             many0(complete(parse_option::<En, E>)),
-        )(i)
+        )
+        .parse(i)
     } else {
         Ok((i, Vec::new()))
     }
