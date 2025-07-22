@@ -37,11 +37,11 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, UnknownBlock<'a>> for Unk
 }
 
 /// Parse an unknown block (little-endian)
-pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
+pub fn parse_unknownblock_le(i: &[u8]) -> IResult<&[u8], UnknownBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<UnknownBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an unknown block (big-endian)
-pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock, PcapError<&[u8]>> {
+pub fn parse_unknownblock_be(i: &[u8]) -> IResult<&[u8], UnknownBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<UnknownBlock, PcapBE, _, _>()(i)
 }

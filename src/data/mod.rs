@@ -57,7 +57,7 @@ pub enum PacketData<'a> {
 /// captured; if a live capture is being done, ``host byte order'' is the byte order of the machine
 /// capturing the packets, but if a ``savefile'' is being read, the byte order is not necessarily
 /// that of the machine reading the capture file.
-pub fn get_packetdata_null(i: &[u8], caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_null(i: &[u8], caplen: usize) -> Option<PacketData<'_>> {
     // debug!("data.len: {}, caplen: {}", packet.data.len(), packet.header.caplen);
     if i.len() < caplen || caplen < 4 {
         None
@@ -75,7 +75,7 @@ pub fn get_packetdata_null(i: &[u8], caplen: usize) -> Option<PacketData> {
 /// Get packet data for LINKTYPE_ETHERNET (1)
 ///
 /// IEEE 802.3 Ethernet (10Mb, 100Mb, 1000Mb, and up); the 10MB in the DLT_ name is historical.
-pub fn get_packetdata_ethernet(i: &[u8], caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_ethernet(i: &[u8], caplen: usize) -> Option<PacketData<'_>> {
     if i.len() < caplen || caplen == 0 {
         None
     } else {
@@ -87,7 +87,7 @@ pub fn get_packetdata_ethernet(i: &[u8], caplen: usize) -> Option<PacketData> {
 ///
 /// Raw IP; the packet begins with an IPv4 or IPv6 header, with the "version" field of the header
 /// indicating whether it's an IPv4 or IPv6 header.
-pub fn get_packetdata_raw(i: &[u8], caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_raw(i: &[u8], caplen: usize) -> Option<PacketData<'_>> {
     if i.len() < caplen || caplen == 0 {
         None
     } else {
@@ -104,7 +104,7 @@ pub fn get_packetdata_raw(i: &[u8], caplen: usize) -> Option<PacketData> {
 /// Get packet data for LINKTYPE_LINUX_SLL (113)
 ///
 /// See <http://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL.html>
-pub fn get_packetdata_linux_sll(i: &[u8], caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_linux_sll(i: &[u8], caplen: usize) -> Option<PacketData<'_>> {
     if i.len() < caplen || caplen == 0 {
         None
     } else {
@@ -149,7 +149,7 @@ fn parse_sll_header(i: &[u8]) -> IResult<&[u8], SLLHeader> {
 /// Get packet data for LINKTYPE_LINUX_SLL2 (276)
 ///
 /// See <https://www.tcpdump.org/linktypes/LINKTYPE_LINUX_SLL2.html>
-pub fn get_packetdata_linux_sll2(i: &[u8], caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_linux_sll2(i: &[u8], caplen: usize) -> Option<PacketData<'_>> {
     if i.len() < caplen || caplen == 0 {
         None
     } else {
@@ -200,14 +200,14 @@ fn parse_sll2_header(i: &[u8]) -> IResult<&[u8], SLL2Header> {
 /// Get packet data for LINKTYPE_IPV4 (228)
 ///
 /// Raw IPv4; the packet begins with an IPv4 header.
-pub fn get_packetdata_ipv4(i: &[u8], _caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_ipv4(i: &[u8], _caplen: usize) -> Option<PacketData<'_>> {
     Some(PacketData::L3(ETHERTYPE_IPV4, i))
 }
 
 /// Get packet data for LINKTYPE_IPV6 (229)
 ///
 /// Raw IPv4; the packet begins with an IPv6 header.
-pub fn get_packetdata_ipv6(i: &[u8], _caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_ipv6(i: &[u8], _caplen: usize) -> Option<PacketData<'_>> {
     Some(PacketData::L3(ETHERTYPE_IPV6, i))
 }
 
@@ -215,7 +215,7 @@ pub fn get_packetdata_ipv6(i: &[u8], _caplen: usize) -> Option<PacketData> {
 ///
 /// Returns packet data, or None if data could not be extracted (for ex, inner parsing error).
 /// If linktype is not supported, `PacketData::Unsupported` is used.
-pub fn get_packetdata(i: &[u8], linktype: Linktype, caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata(i: &[u8], linktype: Linktype, caplen: usize) -> Option<PacketData<'_>> {
     match linktype {
         Linktype::NULL => get_packetdata_null(i, caplen),
         Linktype::ETHERNET => get_packetdata_ethernet(i, caplen),

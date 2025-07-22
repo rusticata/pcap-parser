@@ -19,7 +19,7 @@ pub struct Section<'a> {
 
 impl<'a> Section<'a> {
     /// Returns the section header
-    pub fn header(&self) -> Option<&SectionHeaderBlock> {
+    pub fn header(&self) -> Option<&SectionHeaderBlock<'_>> {
         if let Some(Block::SectionHeader(ref b)) = self.blocks.first() {
             Some(b)
         } else {
@@ -84,7 +84,7 @@ impl<'a> Iterator for InterfaceBlockIterator<'a> {
 }
 
 /// Parse any block from a section (little-endian)
-pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
+pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
     let (rem, block) = parse_block_le(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
@@ -93,7 +93,7 @@ pub fn parse_section_content_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 }
 
 /// Parse any block from a section (big-endian)
-pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
+pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
     let (rem, block) = parse_block_be(i)?;
     match block {
         Block::SectionHeader(_) => Err(Err::Error(make_error(i, ErrorKind::Tag))),
@@ -102,7 +102,7 @@ pub fn parse_section_content_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapErr
 }
 
 /// Parse one section (little or big endian)
-pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError<&[u8]>> {
+pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section<'_>, PcapError<&[u8]>> {
     let (rem, shb) = parse_sectionheaderblock(i)?;
     let big_endian = shb.big_endian();
     let (rem, mut b) = if big_endian {
@@ -119,6 +119,6 @@ pub fn parse_section(i: &[u8]) -> IResult<&[u8], Section, PcapError<&[u8]>> {
 
 /// Parse multiple sections (little or big endian)
 #[inline]
-pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section>, PcapError<&[u8]>> {
+pub fn parse_sections(i: &[u8]) -> IResult<&[u8], Vec<Section<'_>>, PcapError<&[u8]>> {
     many1(complete(parse_section))(i)
 }

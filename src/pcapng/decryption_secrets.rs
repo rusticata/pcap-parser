@@ -75,7 +75,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, DecryptionSecretsBlock<'a
 #[inline]
 pub fn parse_decryptionsecretsblock_le(
     i: &[u8],
-) -> IResult<&[u8], DecryptionSecretsBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], DecryptionSecretsBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<DecryptionSecretsBlock, PcapLE, _, _>()(i)
 }
 
@@ -83,6 +83,6 @@ pub fn parse_decryptionsecretsblock_le(
 #[inline]
 pub fn parse_decryptionsecretsblock_be(
     i: &[u8],
-) -> IResult<&[u8], DecryptionSecretsBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], DecryptionSecretsBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<DecryptionSecretsBlock, PcapBE, _, _>()(i)
 }

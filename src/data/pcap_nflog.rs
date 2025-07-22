@@ -67,7 +67,7 @@ pub struct NflogTlv<'a> {
     pub v: &'a [u8],
 }
 
-pub fn parse_nflog_tlv(i: &[u8]) -> IResult<&[u8], NflogTlv> {
+pub fn parse_nflog_tlv(i: &[u8]) -> IResult<&[u8], NflogTlv<'_>> {
     let (i, l) = verify(le_u16, |&n| n >= 4)(i)?;
     let (i, t) = le_u16(i)?;
     let (i, v) = take(l - 4)(i)?;
@@ -101,7 +101,7 @@ pub fn parse_nflog_header(i: &[u8]) -> IResult<&[u8], NflogHdr> {
 }
 
 impl NflogPacket<'_> {
-    pub fn get(&self, attr: NfAttrType) -> Option<&NflogTlv> {
+    pub fn get(&self, attr: NfAttrType) -> Option<&NflogTlv<'_>> {
         self.data.iter().find(|v| v.t == attr as u16)
     }
 
@@ -110,7 +110,7 @@ impl NflogPacket<'_> {
     }
 }
 
-pub fn parse_nflog(i: &[u8]) -> IResult<&[u8], NflogPacket> {
+pub fn parse_nflog(i: &[u8]) -> IResult<&[u8], NflogPacket<'_>> {
     let (i, header) = parse_nflog_header(i)?;
     let (i, data) = many0(complete(parse_nflog_tlv))(i)?;
     Ok((i, NflogPacket { header, data }))
@@ -121,7 +121,7 @@ pub fn parse_nflog(i: &[u8]) -> IResult<&[u8], NflogPacket> {
 /// Parse nflog data, and extract only packet payload
 ///
 /// See <http://www.tcpdump.org/linktypes/LINKTYPE_NFLOG.html>
-pub fn get_packetdata_nflog(i: &[u8], _caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_nflog(i: &[u8], _caplen: usize) -> Option<PacketData<'_>> {
     match parse_nflog(i) {
         Ok((_, res)) => {
             let ethertype = match res.header.af {

@@ -137,7 +137,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceStatisticsBlock<
 #[inline]
 pub fn parse_interfacestatisticsblock_le(
     i: &[u8],
-) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], InterfaceStatisticsBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceStatisticsBlock, PcapLE, _, _>()(i)
 }
 
@@ -145,6 +145,6 @@ pub fn parse_interfacestatisticsblock_le(
 #[inline]
 pub fn parse_interfacestatisticsblock_be(
     i: &[u8],
-) -> IResult<&[u8], InterfaceStatisticsBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], InterfaceStatisticsBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceStatisticsBlock, PcapBE, _, _>()(i)
 }

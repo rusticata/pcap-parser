@@ -49,7 +49,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, ProcessInformationBlock<'
 #[inline]
 pub fn parse_processinformationblock_le(
     i: &[u8],
-) -> IResult<&[u8], ProcessInformationBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], ProcessInformationBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<ProcessInformationBlock, PcapLE, _, _>()(i)
 }
 
@@ -57,6 +57,6 @@ pub fn parse_processinformationblock_le(
 #[inline]
 pub fn parse_processinformationblock_be(
     i: &[u8],
-) -> IResult<&[u8], ProcessInformationBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], ProcessInformationBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<ProcessInformationBlock, PcapBE, _, _>()(i)
 }
