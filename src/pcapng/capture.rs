@@ -3,7 +3,7 @@ use crate::error::PcapError;
 use crate::pcapng::*;
 use nom::combinator::{complete, map};
 use nom::multi::many1;
-use nom::{IResult, Needed};
+use nom::{IResult, Needed, Parser as _};
 use std::fmt;
 
 #[derive(Default)]
@@ -122,5 +122,6 @@ impl<'a> PcapNGCapture<'a> {
 pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture<'_>, PcapError<&[u8]>> {
     map(many1(complete(parse_section)), |sections| PcapNGCapture {
         sections,
-    })(i)
+    })
+    .parse(i)
 }
