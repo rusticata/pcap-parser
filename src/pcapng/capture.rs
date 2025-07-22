@@ -34,7 +34,7 @@ pub struct PcapNGSlice<'a> {
 }
 
 impl PcapNGSlice<'_> {
-    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice, nom::Err<PcapError<&[u8]>>> {
+    pub fn from_slice(i: &[u8]) -> Result<PcapNGSlice<'_>, nom::Err<PcapError<&[u8]>>> {
         // just check that first block is a valid one
         let (_rem, _shb) = parse_sectionheaderblock(i)?;
         let info = CurrentSectionInfo::default();
@@ -101,7 +101,7 @@ impl<'a> Iterator for PcapNGCaptureIterator<'a> {
 }
 
 impl<'a> PcapNGCapture<'a> {
-    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture, PcapError<&[u8]>> {
+    pub fn from_file(i: &[u8]) -> Result<PcapNGCapture<'_>, PcapError<&[u8]>> {
         // XXX change return type to just an IResult
         match parse_pcapng(i) {
             Ok((_, pcap)) => Ok(pcap),
@@ -119,7 +119,7 @@ impl<'a> PcapNGCapture<'a> {
 /// Parse the entire file
 ///
 /// Note: this requires the file to be fully loaded to memory.
-pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture, PcapError<&[u8]>> {
+pub fn parse_pcapng(i: &[u8]) -> IResult<&[u8], PcapNGCapture<'_>, PcapError<&[u8]>> {
     map(many1(complete(parse_section)), |sections| PcapNGCapture {
         sections,
     })(i)

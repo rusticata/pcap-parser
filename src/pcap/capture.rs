@@ -38,7 +38,7 @@ pub struct LegacyPcapSlice<'a> {
 }
 
 impl LegacyPcapSlice<'_> {
-    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice, nom::Err<PcapError<&[u8]>>> {
+    pub fn from_slice(i: &[u8]) -> Result<LegacyPcapSlice<'_>, nom::Err<PcapError<&[u8]>>> {
         let (rem, header) = parse_pcap_header(i)?;
         Ok(LegacyPcapSlice { header, rem })
     }
@@ -69,7 +69,7 @@ pub struct PcapCapture<'a> {
 }
 
 impl PcapCapture<'_> {
-    pub fn from_file(i: &[u8]) -> Result<PcapCapture, PcapError<&[u8]>> {
+    pub fn from_file(i: &[u8]) -> Result<PcapCapture<'_>, PcapError<&[u8]>> {
         match parse_pcap(i) {
             Ok((_, pcap)) => Ok(pcap),
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e),
@@ -119,7 +119,7 @@ impl Capture for PcapCapture<'_> {
 /// Parse the entire file
 ///
 /// Note: this requires the file to be fully loaded to memory.
-pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture, PcapError<&[u8]>> {
+pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture<'_>, PcapError<&[u8]>> {
     let (i, header) = parse_pcap_header(i)?;
     let (i, blocks) = many0(complete(parse_pcap_frame))(i)?;
     Ok((i, PcapCapture { header, blocks }))

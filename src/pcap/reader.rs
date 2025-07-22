@@ -128,7 +128,7 @@ impl<R> PcapReaderIterator for LegacyPcapReader<R>
 where
     R: Read,
 {
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&'_ [u8]>> {
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned<'_>), PcapError<&'_ [u8]>> {
         if self.consumed == 0 {
             return Ok((
                 self.header.size(),

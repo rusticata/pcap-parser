@@ -72,24 +72,24 @@ impl CustomBlock<'_> {
 
 /// Parse a Custom Block (little-endian)
 #[inline]
-pub fn parse_customblock_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
+pub fn parse_customblock_le(i: &[u8]) -> IResult<&[u8], CustomBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<CustomBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse a Custom Block (big-endian)
 #[inline]
-pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
+pub fn parse_customblock_be(i: &[u8]) -> IResult<&[u8], CustomBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<CustomBlock, PcapBE, _, _>()(i)
 }
 
 /// Parse a Do-not-copy Custom Block (little-endian)
 #[inline]
-pub fn parse_dcb_le(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
+pub fn parse_dcb_le(i: &[u8]) -> IResult<&[u8], CustomBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<DCBParser, PcapLE, _, _>()(i)
 }
 
 /// Parse a Do-not-copy Custom Block (big-endian)
 #[inline]
-pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock, PcapError<&[u8]>> {
+pub fn parse_dcb_be(i: &[u8]) -> IResult<&[u8], CustomBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<DCBParser, PcapBE, _, _>()(i)
 }

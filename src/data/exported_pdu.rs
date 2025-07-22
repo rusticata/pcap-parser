@@ -19,21 +19,21 @@ pub struct ExportedTlv<'a> {
     pub v: &'a [u8],
 }
 
-pub fn parse_exported_tlv(i: &[u8]) -> IResult<&[u8], ExportedTlv> {
+pub fn parse_exported_tlv(i: &[u8]) -> IResult<&[u8], ExportedTlv<'_>> {
     let (i, t) = be_u16(i)?;
     let (i, l) = be_u16(i)?;
     let (i, v) = take(l)(i)?;
     Ok((i, ExportedTlv { t, l, v }))
 }
 
-pub fn parse_many_exported_tlv(i: &[u8]) -> IResult<&[u8], Vec<ExportedTlv>> {
+pub fn parse_many_exported_tlv(i: &[u8]) -> IResult<&[u8], Vec<ExportedTlv<'_>>> {
     many_till(parse_exported_tlv, tag(b"\x00\x00\x00\x00"))(i).map(|(rem, (v, _))| (rem, v))
 }
 
 /// Get packet data for WIRESHARK_UPPER_PDU (252)
 ///
 /// Upper-layer protocol saves from Wireshark
-pub fn get_packetdata_wireshark_upper_pdu(i: &[u8], caplen: usize) -> Option<PacketData> {
+pub fn get_packetdata_wireshark_upper_pdu(i: &[u8], caplen: usize) -> Option<PacketData<'_>> {
     if i.len() < caplen || caplen == 0 {
         None
     } else {
