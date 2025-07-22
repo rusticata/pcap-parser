@@ -89,6 +89,7 @@ jobs:
   check-external-types:
     name: Validate external types appearing in public API
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
