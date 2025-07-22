@@ -146,7 +146,7 @@ impl<R> PcapReaderIterator for PcapNGReader<R>
 where
     R: Read,
 {
-    fn next(&mut self) -> Result<(usize, PcapBlockOwned), PcapError<&[u8]>> {
+    fn next(&mut self) -> Result<(usize, PcapBlockOwned<'_>), PcapError<&[u8]>> {
         // Return EOF if
         // 1) all bytes have been read
         // 2) no more data is available

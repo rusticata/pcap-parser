@@ -53,7 +53,7 @@ impl Block<'_> {
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
+pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
     match le_u32(i) {
         Ok((_, id)) => match id {
             SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
@@ -86,7 +86,7 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
 ///
 /// To find which endianess to use, read the section header
 /// using `parse_sectionheaderblock`
-pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block, PcapError<&[u8]>> {
+pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
     match be_u32(i) {
         Ok((_, id)) => match id {
             SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),

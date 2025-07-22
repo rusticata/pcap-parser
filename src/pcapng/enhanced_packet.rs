@@ -151,13 +151,13 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, EnhancedPacketBlock<'a>>
 /// Parse an Enhanced Packet Block (little-endian)
 pub fn parse_enhancedpacketblock_le(
     i: &[u8],
-) -> IResult<&[u8], EnhancedPacketBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], EnhancedPacketBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<EnhancedPacketBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an Enhanced Packet Block (big-endian)
 pub fn parse_enhancedpacketblock_be(
     i: &[u8],
-) -> IResult<&[u8], EnhancedPacketBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], EnhancedPacketBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<EnhancedPacketBlock, PcapBE, _, _>()(i)
 }

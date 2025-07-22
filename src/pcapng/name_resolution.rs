@@ -106,7 +106,7 @@ fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
 #[inline]
 pub fn parse_nameresolutionblock_le(
     i: &[u8],
-) -> IResult<&[u8], NameResolutionBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], NameResolutionBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<NameResolutionBlock, PcapLE, _, _>()(i)
 }
 
@@ -114,6 +114,6 @@ pub fn parse_nameresolutionblock_le(
 #[inline]
 pub fn parse_nameresolutionblock_be(
     i: &[u8],
-) -> IResult<&[u8], NameResolutionBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], NameResolutionBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<NameResolutionBlock, PcapBE, _, _>()(i)
 }

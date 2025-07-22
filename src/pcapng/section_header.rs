@@ -128,19 +128,21 @@ impl<'a> PcapNGBlockParser<'a, PcapLE, SectionHeaderBlock<'a>> for SectionHeader
 /// Parse a Section Header Block (little endian)
 pub fn parse_sectionheaderblock_le(
     i: &[u8],
-) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], SectionHeaderBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<SectionHeaderBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse a Section Header Block (big endian)
 pub fn parse_sectionheaderblock_be(
     i: &[u8],
-) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], SectionHeaderBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<SectionHeaderBlock, PcapBE, _, _>()(i)
 }
 
 /// Parse a SectionHeaderBlock (little or big endian)
-pub fn parse_sectionheaderblock(i: &[u8]) -> IResult<&[u8], SectionHeaderBlock, PcapError<&[u8]>> {
+pub fn parse_sectionheaderblock(
+    i: &[u8],
+) -> IResult<&[u8], SectionHeaderBlock<'_>, PcapError<&[u8]>> {
     if i.len() < 12 {
         return Err(Err::Incomplete(nom::Needed::new(12 - i.len())));
     }

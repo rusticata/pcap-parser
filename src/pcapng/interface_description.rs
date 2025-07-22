@@ -243,13 +243,13 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock
 /// Parse an Interface Packet Block (little-endian)
 pub fn parse_interfacedescriptionblock_le(
     i: &[u8],
-) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], InterfaceDescriptionBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceDescriptionBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse an Interface Packet Block (big-endian)
 pub fn parse_interfacedescriptionblock_be(
     i: &[u8],
-) -> IResult<&[u8], InterfaceDescriptionBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], InterfaceDescriptionBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<InterfaceDescriptionBlock, PcapBE, _, _>()(i)
 }

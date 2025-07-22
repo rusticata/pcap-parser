@@ -18,7 +18,7 @@ pub struct LegacyPcapBlock<'a> {
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
+pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock<'_>, PcapError<&[u8]>> {
     if i.len() < 16 {
         return Err(nom::Err::Incomplete(nom::Needed::new(16 - i.len())));
     }
@@ -41,7 +41,7 @@ pub fn parse_pcap_frame(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
+pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock<'_>, PcapError<&[u8]>> {
     if i.len() < 16 {
         return Err(nom::Err::Incomplete(nom::Needed::new(16 - i.len())));
     }
@@ -64,7 +64,9 @@ pub fn parse_pcap_frame_be(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapErro
 ///
 /// Each PCAP record starts with a small header, and is followed by packet data.
 /// The packet data format depends on the LinkType.
-pub fn parse_pcap_frame_modified(i: &[u8]) -> IResult<&[u8], LegacyPcapBlock, PcapError<&[u8]>> {
+pub fn parse_pcap_frame_modified(
+    i: &[u8],
+) -> IResult<&[u8], LegacyPcapBlock<'_>, PcapError<&[u8]>> {
     if i.len() < 24 {
         return Err(nom::Err::Incomplete(nom::Needed::new(24 - i.len())));
     }

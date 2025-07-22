@@ -79,13 +79,17 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, SimplePacketBlock<'a>>
 ///
 /// *Note: this function does not remove padding in the `data` field.
 /// Use `packet_data` to get field without padding.*
-pub fn parse_simplepacketblock_le(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError<&[u8]>> {
+pub fn parse_simplepacketblock_le(
+    i: &[u8],
+) -> IResult<&[u8], SimplePacketBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<SimplePacketBlock, PcapLE, _, _>()(i)
 }
 
 /// Parse a Simple Packet Block (big-endian)
 ///
 /// *Note: this function does not remove padding*
-pub fn parse_simplepacketblock_be(i: &[u8]) -> IResult<&[u8], SimplePacketBlock, PcapError<&[u8]>> {
+pub fn parse_simplepacketblock_be(
+    i: &[u8],
+) -> IResult<&[u8], SimplePacketBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<SimplePacketBlock, PcapBE, _, _>()(i)
 }

@@ -40,7 +40,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, SystemdJournalExportBlock
 #[inline]
 pub fn parse_systemdjournalexportblock_le(
     i: &[u8],
-) -> IResult<&[u8], SystemdJournalExportBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], SystemdJournalExportBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<SystemdJournalExportBlock, PcapLE, _, _>()(i)
 }
 
@@ -48,6 +48,6 @@ pub fn parse_systemdjournalexportblock_le(
 #[inline]
 pub fn parse_systemdjournalexportblock_be(
     i: &[u8],
-) -> IResult<&[u8], SystemdJournalExportBlock, PcapError<&[u8]>> {
+) -> IResult<&[u8], SystemdJournalExportBlock<'_>, PcapError<&[u8]>> {
     ng_block_parser::<SystemdJournalExportBlock, PcapBE, _, _>()(i)
 }
