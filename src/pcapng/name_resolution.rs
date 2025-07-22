@@ -2,7 +2,7 @@ use nom::bytes::streaming::{tag, take};
 use nom::combinator::map;
 use nom::error::{ErrorKind, ParseError};
 use nom::multi::many_till;
-use nom::{Err, IResult};
+use nom::{Err, IResult, Parser as _};
 use rusticata_macros::{align32, newtype_enum};
 
 use crate::endianness::{PcapBE, PcapEndianness, PcapLE};
@@ -94,12 +94,16 @@ fn parse_name_record_list<'a, En: PcapEndianness, E: ParseError<&'a [u8]>>(
     i: &'a [u8],
 ) -> IResult<&'a [u8], Vec<NameRecord<'a>>, E> {
     map(
-        many_till(parse_name_record::<En, E>, tag(b"\x00\x00\x00\x00")),
+        many_till(
+            parse_name_record::<En, E>,
+            tag(b"\x00\x00\x00\x00" as &[u8]),
+        ),
         |(mut v, _)| {
             v.push(NameRecord::END);
             v
         },
-    )(i)
+    )
+    .parse(i)
 }
 
 /// Parse a Name Resolution Block (little-endian)

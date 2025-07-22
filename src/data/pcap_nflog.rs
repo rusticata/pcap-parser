@@ -10,7 +10,7 @@ use nom::bytes::streaming::take;
 use nom::combinator::{complete, cond, verify};
 use nom::multi::many0;
 use nom::number::streaming::{be_u16, le_u16, le_u8};
-use nom::IResult;
+use nom::{IResult, Parser as _};
 
 // Defined in linux/netfilter/nfnetlink_log.h
 #[derive(Copy, Clone)]
@@ -68,10 +68,10 @@ pub struct NflogTlv<'a> {
 }
 
 pub fn parse_nflog_tlv(i: &[u8]) -> IResult<&[u8], NflogTlv<'_>> {
-    let (i, l) = verify(le_u16, |&n| n >= 4)(i)?;
+    let (i, l) = verify(le_u16, |&n| n >= 4).parse(i)?;
     let (i, t) = le_u16(i)?;
     let (i, v) = take(l - 4)(i)?;
-    let (i, _padding) = cond(l % 4 != 0, take(4 - (l % 4)))(i)?;
+    let (i, _padding) = cond(l % 4 != 0, take(4 - (l % 4))).parse(i)?;
     Ok((i, NflogTlv { l, t, v }))
 }
 
@@ -112,7 +112,7 @@ impl NflogPacket<'_> {
 
 pub fn parse_nflog(i: &[u8]) -> IResult<&[u8], NflogPacket<'_>> {
     let (i, header) = parse_nflog_header(i)?;
-    let (i, data) = many0(complete(parse_nflog_tlv))(i)?;
+    let (i, data) = many0(complete(parse_nflog_tlv)).parse(i)?;
     Ok((i, NflogPacket { header, data }))
 }
 

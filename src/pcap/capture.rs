@@ -5,7 +5,7 @@ use crate::linktype::Linktype;
 use crate::pcap::{parse_pcap_frame, parse_pcap_header, LegacyPcapBlock, PcapHeader};
 use nom::combinator::complete;
 use nom::multi::many0;
-use nom::{IResult, Needed};
+use nom::{IResult, Needed, Parser as _};
 use std::fmt;
 
 /// Parsing iterator over legacy pcap data (requires data to be loaded into memory)
@@ -121,6 +121,6 @@ impl Capture for PcapCapture<'_> {
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture<'_>, PcapError<&[u8]>> {
     let (i, header) = parse_pcap_header(i)?;
-    let (i, blocks) = many0(complete(parse_pcap_frame))(i)?;
+    let (i, blocks) = many0(complete(parse_pcap_frame)).parse(i)?;
     Ok((i, PcapCapture { header, blocks }))
 }

@@ -1,7 +1,7 @@
 use nom::bytes::streaming::take;
 use nom::combinator::map;
-use nom::error::*;
 use nom::number::streaming::{be_u32, le_u32};
+use nom::{error::*, Parser as _};
 use nom::{Err, IResult};
 
 use crate::endianness::PcapEndianness;
@@ -56,27 +56,30 @@ impl Block<'_> {
 pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
     match le_u32(i) {
         Ok((_, id)) => match id {
-            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
+            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader).parse(i),
             IDB_MAGIC => map(
                 parse_interfacedescriptionblock_le,
                 Block::InterfaceDescription,
-            )(i),
-            SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket)(i),
-            EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket)(i),
-            NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution)(i),
+            )
+            .parse(i),
+            SPB_MAGIC => map(parse_simplepacketblock_le, Block::SimplePacket).parse(i),
+            EPB_MAGIC => map(parse_enhancedpacketblock_le, Block::EnhancedPacket).parse(i),
+            NRB_MAGIC => map(parse_nameresolutionblock_le, Block::NameResolution).parse(i),
             ISB_MAGIC => map(
                 parse_interfacestatisticsblock_le,
                 Block::InterfaceStatistics,
-            )(i),
+            )
+            .parse(i),
             SJE_MAGIC => map(
                 parse_systemdjournalexportblock_le,
                 Block::SystemdJournalExport,
-            )(i),
-            DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets)(i),
-            CB_MAGIC => map(parse_customblock_le, Block::Custom)(i),
-            DCB_MAGIC => map(parse_dcb_le, Block::Custom)(i),
-            PIB_MAGIC => map(parse_processinformationblock_le, Block::ProcessInformation)(i),
-            _ => map(parse_unknownblock_le, Block::Unknown)(i),
+            )
+            .parse(i),
+            DSB_MAGIC => map(parse_decryptionsecretsblock_le, Block::DecryptionSecrets).parse(i),
+            CB_MAGIC => map(parse_customblock_le, Block::Custom).parse(i),
+            DCB_MAGIC => map(parse_dcb_le, Block::Custom).parse(i),
+            PIB_MAGIC => map(parse_processinformationblock_le, Block::ProcessInformation).parse(i),
+            _ => map(parse_unknownblock_le, Block::Unknown).parse(i),
         },
         Err(e) => Err(e),
     }
@@ -89,27 +92,30 @@ pub fn parse_block_le(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
 pub fn parse_block_be(i: &[u8]) -> IResult<&[u8], Block<'_>, PcapError<&[u8]>> {
     match be_u32(i) {
         Ok((_, id)) => match id {
-            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader)(i),
+            SHB_MAGIC => map(parse_sectionheaderblock, Block::SectionHeader).parse(i),
             IDB_MAGIC => map(
                 parse_interfacedescriptionblock_be,
                 Block::InterfaceDescription,
-            )(i),
-            SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket)(i),
-            EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket)(i),
-            NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution)(i),
+            )
+            .parse(i),
+            SPB_MAGIC => map(parse_simplepacketblock_be, Block::SimplePacket).parse(i),
+            EPB_MAGIC => map(parse_enhancedpacketblock_be, Block::EnhancedPacket).parse(i),
+            NRB_MAGIC => map(parse_nameresolutionblock_be, Block::NameResolution).parse(i),
             ISB_MAGIC => map(
                 parse_interfacestatisticsblock_be,
                 Block::InterfaceStatistics,
-            )(i),
+            )
+            .parse(i),
             SJE_MAGIC => map(
                 parse_systemdjournalexportblock_be,
                 Block::SystemdJournalExport,
-            )(i),
-            DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets)(i),
-            CB_MAGIC => map(parse_customblock_be, Block::Custom)(i),
-            DCB_MAGIC => map(parse_dcb_be, Block::Custom)(i),
-            PIB_MAGIC => map(parse_processinformationblock_be, Block::ProcessInformation)(i),
-            _ => map(parse_unknownblock_be, Block::Unknown)(i),
+            )
+            .parse(i),
+            DSB_MAGIC => map(parse_decryptionsecretsblock_be, Block::DecryptionSecrets).parse(i),
+            CB_MAGIC => map(parse_customblock_be, Block::Custom).parse(i),
+            DCB_MAGIC => map(parse_dcb_be, Block::Custom).parse(i),
+            PIB_MAGIC => map(parse_processinformationblock_be, Block::ProcessInformation).parse(i),
+            _ => map(parse_unknownblock_be, Block::Unknown).parse(i),
         },
         Err(e) => Err(e),
     }
