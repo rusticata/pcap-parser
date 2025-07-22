@@ -11,7 +11,7 @@ authors = ["Pierre Chifflier <chifflier@wzdftpd.net>"]
 readme = "README.md"
 categories = ["network-programming", "parser-implementations"]
 edition = "2018"
-rust-version = "1.63"
+rust-version = "1.65"
 
 include = [
   "CHANGELOG.md",
