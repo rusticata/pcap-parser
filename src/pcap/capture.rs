@@ -3,6 +3,7 @@ use crate::capture::Capture;
 use crate::error::PcapError;
 use crate::linktype::Linktype;
 use crate::pcap::{parse_pcap_frame, parse_pcap_header, LegacyPcapBlock, PcapHeader};
+use crate::{parse_pcap_frame_be, parse_pcap_frame_modified};
 use nom::combinator::complete;
 use nom::multi::many0;
 use nom::{IResult, Needed, Parser as _};
@@ -121,6 +122,15 @@ impl Capture for PcapCapture<'_> {
 /// Note: this requires the file to be fully loaded to memory.
 pub fn parse_pcap(i: &[u8]) -> IResult<&[u8], PcapCapture<'_>, PcapError<&[u8]>> {
     let (i, header) = parse_pcap_header(i)?;
-    let (i, blocks) = many0(complete(parse_pcap_frame)).parse(i)?;
+    let parse = if !header.is_modified_format() {
+        if header.is_bigendian() {
+            parse_pcap_frame_be
+        } else {
+            parse_pcap_frame
+        }
+    } else {
+        parse_pcap_frame_modified
+    };
+    let (i, blocks) = many0(complete(parse)).parse(i)?;
     Ok((i, PcapCapture { header, blocks }))
 }
