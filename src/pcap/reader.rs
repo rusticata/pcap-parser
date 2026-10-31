@@ -95,8 +95,12 @@ where
         mut buffer: Buffer,
         mut reader: R,
     ) -> Result<LegacyPcapReader<R>, PcapError<&'static [u8]>> {
-        let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
-        buffer.fill(sz);
+        // create_reader may already have buffered a complete header. In that
+        // case another read can block, or fail if the output buffer is full.
+        if parse_pcap_header(buffer.data()).is_err() {
+            let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
+            buffer.fill(sz);
+        }
         let (_rem, header) = match parse_pcap_header(buffer.data()) {
             Ok((r, h)) => Ok((r, h)),
             Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
