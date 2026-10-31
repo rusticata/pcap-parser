@@ -198,7 +198,12 @@ impl InterfaceDescriptionBlock<'_> {
     /// Returns `None` if option is not present, `Some(Ok(value))` if the value is present and valid,
     /// or `Some(Err(_))` if value is present but invalid
     pub fn if_tsoffset(&self) -> Option<Result<i64, PcapNGOptionError>> {
-        options_get_as_i64_le(&self.options, OptionCode::IfTsoffset)
+        let offset = options_get_as_i64_le(&self.options, OptionCode::IfTsoffset);
+        if self.block_type == IDB_MAGIC.swap_bytes() {
+            offset.map(|result| result.map(i64::swap_bytes))
+        } else {
+            offset
+        }
     }
 }
 
@@ -224,7 +229,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, InterfaceDescriptionBlock
         if block_len2 != block_len1 {
             return Err(Err::Error(E::from_error_kind(i, ErrorKind::Verify)));
         }
-        let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol(&options);
+        let (if_tsresol, if_tsoffset) = if_extract_tsoffset_and_tsresol::<En>(&options);
         let block = InterfaceDescriptionBlock {
             block_type,
             block_len1,
