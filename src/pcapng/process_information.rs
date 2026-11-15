@@ -19,7 +19,7 @@ impl<'a, En: PcapEndianness> PcapNGBlockParser<'a, En, ProcessInformationBlock<'
     for ProcessInformationBlock<'a>
 {
     const MAGIC: u32 = PIB_MAGIC;
-    const HDR_SZ: usize = 4;
+    const HDR_SZ: usize = 16;
 
     fn inner_parse<E: ParseError<&'a [u8]>>(
         block_type: u32,
