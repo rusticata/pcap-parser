@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 
 use super::{OptionCode, PcapNGOption};
+use crate::endianness::PcapEndianness;
 
 /// Compute the timestamp resolution, in units per second
 ///
@@ -47,7 +48,9 @@ pub fn build_ts_f64(ts_high: u32, ts_low: u32, ts_offset: u64, resolution: u64) 
     ts_sec as f64 + ((ts_fractional as f64) / (resolution as f64))
 }
 
-pub(crate) fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, i64) {
+pub(crate) fn if_extract_tsoffset_and_tsresol<En: PcapEndianness>(
+    options: &[PcapNGOption],
+) -> (u8, i64) {
     let mut if_tsresol: u8 = 6;
     let mut if_tsoffset: i64 = 0;
     for opt in options {
@@ -61,7 +64,7 @@ pub(crate) fn if_extract_tsoffset_and_tsresol(options: &[PcapNGOption]) -> (u8, 
                 if opt.value.len() >= 8 {
                     let int_bytes =
                         <[u8; 8]>::try_from(&opt.value[..8]).expect("Convert bytes to i64");
-                    if_tsoffset = i64::from_le_bytes(int_bytes);
+                    if_tsoffset = En::i64_from_bytes(int_bytes);
                 }
             }
             _ => (),

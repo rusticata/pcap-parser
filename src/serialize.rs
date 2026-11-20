@@ -143,6 +143,16 @@ impl ToVec for SectionHeaderBlock<'_> {
 impl ToVec for InterfaceDescriptionBlock<'_> {
     /// Check and correct all fields: use magic, set time resolution and fix lengths fields
     fn fix(&mut self) {
+        // The serializer writes little-endian blocks, including option values.
+        if self.block_type == IDB_MAGIC.swap_bytes() {
+            for opt in &mut self.options {
+                if opt.code == OptionCode::IfTsoffset {
+                    if let Ok(value) = opt.as_i64_le() {
+                        opt.value = Cow::Owned(value.swap_bytes().to_le_bytes().to_vec());
+                    }
+                }
+            }
+        }
         self.block_type = IDB_MAGIC;
         self.reserved = 0;
         // check time resolutopn

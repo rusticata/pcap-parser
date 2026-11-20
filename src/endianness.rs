@@ -12,6 +12,7 @@ pub(crate) trait PcapEndianness {
     fn parse_u32<'a, E: ParseError<&'a [u8]>>(i: &'a [u8]) -> IResult<&'a [u8], u32, E>;
 
     fn u32_from_bytes(i: [u8; 4]) -> u32;
+    fn i64_from_bytes(i: [u8; 8]) -> i64;
 }
 
 impl PcapEndianness for PcapBE {
@@ -34,6 +35,11 @@ impl PcapEndianness for PcapBE {
     fn u32_from_bytes(i: [u8; 4]) -> u32 {
         u32::from_be_bytes(i)
     }
+
+    #[inline]
+    fn i64_from_bytes(i: [u8; 8]) -> i64 {
+        i64::from_be_bytes(i)
+    }
 }
 
 impl PcapEndianness for PcapLE {
@@ -55,5 +61,10 @@ impl PcapEndianness for PcapLE {
     #[inline]
     fn u32_from_bytes(i: [u8; 4]) -> u32 {
         u32::from_le_bytes(i)
+    }
+
+    #[inline]
+    fn i64_from_bytes(i: [u8; 8]) -> i64 {
+        i64::from_le_bytes(i)
     }
 }

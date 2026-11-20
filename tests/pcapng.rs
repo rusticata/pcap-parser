@@ -478,3 +478,55 @@ fn test_pcapng_reader_eof() {
         Ok(_) => unreachable!(),
     }
 }
+
+fn idb_with_tsoffset(big_endian: bool, offset: i64) -> Vec<u8> {
+    let mut bytes = if big_endian {
+        hex!("00000001 00000024 00010000 0000ffff 000e0008").to_vec()
+    } else {
+        hex!("01000000 24000000 01000000 ffff0000 0e000800").to_vec()
+    };
+    bytes.extend_from_slice(&if big_endian {
+        offset.to_be_bytes()
+    } else {
+        offset.to_le_bytes()
+    });
+    bytes.extend_from_slice(&[0; 4]);
+    bytes.extend_from_slice(&if big_endian {
+        36u32.to_be_bytes()
+    } else {
+        36u32.to_le_bytes()
+    });
+    bytes
+}
+
+#[test]
+fn ng_idb_tsoffset_endianness() {
+    for big_endian in [false, true] {
+        for offset in [1, -42, 0x0102030405060708, i64::MIN, i64::MAX] {
+            let input = idb_with_tsoffset(big_endian, offset);
+            let (_, block) = if big_endian {
+                parse_interfacedescriptionblock_be(&input)
+            } else {
+                parse_interfacedescriptionblock_le(&input)
+            }
+            .unwrap();
+            assert_eq!(block.ts_offset(), offset);
+            assert_eq!(block.if_tsoffset(), Some(Ok(offset)));
+        }
+    }
+}
+
+#[test]
+#[cfg(feature = "serialize")]
+fn ng_idb_tsoffset_big_endian_to_little_endian() {
+    for offset in [1, -42, i64::MIN, i64::MAX] {
+        let input = idb_with_tsoffset(true, offset);
+        let (_, mut block) = parse_interfacedescriptionblock_be(&input).unwrap();
+        let output = block.to_vec().unwrap();
+        let (_, decoded) = parse_interfacedescriptionblock_le(&output).unwrap();
+        assert_eq!(decoded.ts_offset(), offset);
+        assert_eq!(decoded.if_tsoffset(), Some(Ok(offset)));
+        assert_eq!(block.if_tsoffset(), Some(Ok(offset)));
+        assert_eq!(block.to_vec().unwrap(), output);
+    }
+}
