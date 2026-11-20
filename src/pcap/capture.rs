@@ -27,6 +27,7 @@ use std::fmt;
 ///         for _block in iter {
 ///             num_blocks += 1;
 ///         }
+///         let _ = num_blocks;
 ///         return;
 ///     },
 ///     _ => ()

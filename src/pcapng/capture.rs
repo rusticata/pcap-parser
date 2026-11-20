@@ -27,6 +27,7 @@ pub(crate) struct CurrentSectionInfo {
 /// for _block in capture {
 ///     num_blocks += 1;
 /// }
+/// let _ = num_blocks;
 pub struct PcapNGSlice<'a> {
     info: CurrentSectionInfo,
     // remaining (unparsed) data
