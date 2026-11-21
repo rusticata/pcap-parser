@@ -85,3 +85,72 @@ fn ng_from_buffer_uses_complete_header_without_reading() {
         assert!(pcap_parser::PcapNGReader::from_buffer(buffer, NoReads).is_ok());
     }
 }
+
+struct CountReads<'a> {
+    input: &'a [u8],
+    calls: &'a std::cell::Cell<usize>,
+}
+
+impl std::io::Read for CountReads<'_> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.calls.set(self.calls.get() + 1);
+        std::io::Read::read(&mut self.input, buf)
+    }
+}
+
+#[test]
+fn ng_from_buffer_preserves_variable_headers_and_refills() {
+    use pcap_parser::traits::PcapReaderIterator;
+    use pcap_parser::{Block, PcapBlockOwned};
+
+    let le = hex_literal::hex!(
+        "0a0d0d0a 28000000 4d3c2b1a 01000000 ffffffffffffffff
+         02000400 74657374 00000000 28000000"
+    );
+    let be = hex_literal::hex!(
+        "0a0d0d0a 00000028 1a2b3c4d 00010000 ffffffffffffffff
+         00020004 74657374 00000000 00000028"
+    );
+    for header in [&le[..], &be[..]] {
+        for split in [0, 3, header.len() - 1, header.len()] {
+            let mut buffer = circular::Buffer::with_capacity(header.len());
+            buffer.space()[..split].copy_from_slice(&header[..split]);
+            buffer.fill(split);
+            let calls = std::cell::Cell::new(0);
+            let input = CountReads {
+                input: &header[split..],
+                calls: &calls,
+            };
+            let mut reader = pcap_parser::PcapNGReader::from_buffer(buffer, input).unwrap();
+            assert_eq!(calls.get(), usize::from(split != header.len()));
+            let (offset, block) = reader.next().unwrap();
+            assert_eq!(offset, header.len());
+            match block {
+                PcapBlockOwned::NG(Block::SectionHeader(shb)) => {
+                    assert_eq!(shb.shb_hardware(), Some(Ok("test")));
+                }
+                _ => panic!("expected section header"),
+            }
+        }
+    }
+}
+
+#[test]
+fn legacy_from_buffer_preserves_partial_header_refill() {
+    use pcap_parser::traits::PcapReaderIterator;
+
+    let header = &include_bytes!("../assets/ntp.pcap")[..24];
+    for split in [0, 3, 23, 24] {
+        let mut buffer = circular::Buffer::with_capacity(24);
+        buffer.space()[..split].copy_from_slice(&header[..split]);
+        buffer.fill(split);
+        let calls = std::cell::Cell::new(0);
+        let input = CountReads {
+            input: &header[split..],
+            calls: &calls,
+        };
+        let mut reader = pcap_parser::LegacyPcapReader::from_buffer(buffer, input).unwrap();
+        assert_eq!(calls.get(), usize::from(split != header.len()));
+        assert_eq!(reader.next().unwrap().0, header.len());
+    }
+}

@@ -126,14 +126,14 @@ where
         if parse_sectionheaderblock(buffer.data()).is_err() {
             let sz = reader.read(buffer.space()).or(Err(PcapError::ReadError))?;
             buffer.fill(sz);
+            // Validate again only after the buffered data has changed.
+            match parse_sectionheaderblock(buffer.data()) {
+                Ok(_) => Ok(()),
+                Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
+                Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
+                Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
+            }?;
         }
-        // just check that first block is a valid one
-        let (_rem, _shb) = match parse_sectionheaderblock(buffer.data()) {
-            Ok((r, h)) => Ok((r, h)),
-            Err(nom::Err::Error(e)) | Err(nom::Err::Failure(e)) => Err(e.to_owned_vec()),
-            Err(nom::Err::Incomplete(Needed::Size(n))) => Err(PcapError::Incomplete(n.into())),
-            Err(nom::Err::Incomplete(Needed::Unknown)) => Err(PcapError::Incomplete(0)),
-        }?;
         let info = CurrentSectionInfo::default();
         // do not consume
         Ok(PcapNGReader {
